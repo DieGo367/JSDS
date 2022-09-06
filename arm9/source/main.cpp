@@ -10,7 +10,8 @@ int main(int argc, char **argv) {
 	// startup
 	consoleDemoInit();
 	fatInitDefault();
-	keyboardDemoInit();
+	Keyboard* kbd = keyboardDemoInit();
+	kbd->OnKeyPressed = onKeyboardKeyPress;
 	jerry_init(JERRY_INIT_EMPTY);
 	exposeAPI();
 
