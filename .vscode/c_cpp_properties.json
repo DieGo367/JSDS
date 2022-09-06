@@ -1,0 +1,34 @@
+{
+	"configurations": [
+		{
+			"name": "NDS",
+			"includePath": [
+				"c:/devkitPro/devkitARM/arm-none-eabi",
+				"c:/devkitPro/devkitARM/arm-none-eabi/include",
+				"c:/devkitPro/devkitARM/arm-none-eabi/include/**/",
+				"c:/devkitPro/libnds/include",
+				"c:/devkitPro/libnds/include/**/",
+				"${workspaceFolder}/arm7/source",
+				"${workspaceFolder}/arm7/build",
+				"${workspaceFolder}/arm9/source",
+				"${workspaceFolder}/arm9/build"
+			],
+			"defines": [
+				"_DEBUG",
+				"_UNICODE",
+				"WIN32",
+				"ARM7",
+				"ARM9"
+			],
+			"browse": {
+				"limitSymbolsToIncludedHeaders": true,
+				"databaseFilename": ""
+			},
+			"intelliSenseMode": "gcc-arm",
+			"compilerPath": "c:/devkitPro/devkitARM/bin/arm-none-eabi-gcc.exe",
+			"cStandard": "c11",
+			"cppStandard": "c++17"
+		}
+	],
+	"version": 4
+}
