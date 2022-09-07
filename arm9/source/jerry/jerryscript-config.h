@@ -166,7 +166,7 @@
  * Default value: 0
  */
 #ifndef JERRY_ERROR_MESSAGES
-# define JERRY_ERROR_MESSAGES 0
+# define JERRY_ERROR_MESSAGES 1
 #endif /* !defined (JERRY_ERROR_MESSAGES) */
 
 /**
@@ -258,7 +258,7 @@
  * Default value: 0
  */
 #ifndef JERRY_LOGGING
-# define JERRY_LOGGING 0
+# define JERRY_LOGGING 1
 #endif /* !defined (JERRY_LOGGING) */
 
 /**

@@ -91,6 +91,7 @@ void repl() {
 int main(int argc, char **argv) {
 	// startup
 	consoleDemoInit();
+	consoleDebugInit(DebugDevice_CONSOLE);
 	fatInitDefault();
 	Keyboard* kbd = keyboardDemoInit();
 	kbd->OnKeyPressed = onKeyboardKeyPress;

@@ -14,6 +14,7 @@
  */
 #include "jerryscript.h"
 #include "jerryscript-port-default.h"
+#include <nds.h>
 
 
 /**
@@ -286,6 +287,7 @@ jerry_port_log (jerry_log_level_t level, /**< message log level */
     fprintf (stderr, "%s", buffer);
     jerry_debugger_send_log (level, (jerry_char_t *) buffer, (jerry_size_t) length);
 #else /* If jerry-debugger isn't defined, libc is turned on */
+    putchar('\n');
     vfprintf (stderr, format, args);
 #endif /* defined (JERRY_DEBUGGER) && (JERRY_DEBUGGER == 1) */
     va_end (args);
@@ -321,7 +323,6 @@ jerry_port_print_char (char c) /**< the character to print */
 } /* jerry_port_print_char */
 
 #include <stdlib.h>
-#include <nds.h>
 
 /**
  * Implementation of jerry_port_fatal for JSDS. Prints error message
@@ -334,14 +335,6 @@ void jerry_port_fatal (jerry_fatal_code_t code) /**< cause of error */
       /*&& code != ERR_OUT_OF_MEMORY*/)
   {
     BG_PALETTE_SUB[0] = 0x001F;
-    consoleClear();
-    printf("\n\n\tFatal Error!\n\n\tExit code: %i\n\t(%s)\n\n\n\n\tPress START to exit.", code,
-      code == ERR_OUT_OF_MEMORY ? "Out of Memory" :
-      code == ERR_REF_COUNT_LIMIT ? "Reference Count Limit" :
-      code == ERR_DISABLED_BYTE_CODE ? "Disabled Bytecode" :
-      code == ERR_UNTERMINATED_GC_LOOPS ? "Unterminated GC Loops" :
-      code == ERR_FAILED_INTERNAL_ASSERTION ? "Failed Internal Assertion" :
-    "unknown");
     while(true) {
       swiWaitForVBlank();
       scanKeys();
