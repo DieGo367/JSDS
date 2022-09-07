@@ -1,6 +1,7 @@
 #ifndef JSDS_UTIL_H
 #define JSDS_UTIL_H
 
+#include <nds.h>
 #include "jerry/jerryscript.h"
 
 inline jerry_value_t getProperty(jerry_value_t object, const char *property) {
@@ -20,6 +21,15 @@ inline void setMethod(jerry_value_t object, const char *property, jerry_external
 	jerry_value_t func = jerry_create_external_function(function);
 	setProperty(object, property, func);
 	jerry_release_value(func);
+}
+
+inline char *getString(jerry_value_t stringValue, bool free) {
+	jerry_length_t size = jerry_get_string_size(stringValue);
+	char *buffer = (char *) malloc(size + 1);
+	jerry_string_to_utf8_char_buffer(stringValue, (jerry_char_t *) buffer, size);
+	buffer[size] = '\0';
+	if (free) jerry_release_value(stringValue);
+	return buffer;
 }
 
 void printValue(jerry_value_t value);

@@ -19,7 +19,6 @@ int main(int argc, char **argv) {
 	FILE *file = fopen("/main.js", "r");
 	if (file == NULL) {
 		BG_PALETTE_SUB[0] = 0x001F;
-		consoleClear();
 		printf("\n\n\tFile read error!\n\nCouldn't open \"/main.js\".\n\n\n\n\tPress START to exit.");
 		while(true) {
 			swiWaitForVBlank();
@@ -41,24 +40,10 @@ int main(int argc, char **argv) {
 				printf("\n\n\n\tPress START to exit.");
 			}
 			else {
-				jerry_value_t message = getProperty(errorThrown, "message");
-				u32 size = jerry_get_string_size(message);
-				char *msg = (char *) malloc(size + 1);
-				jerry_string_to_utf8_char_buffer(message, (jerry_char_t *) msg, size);
-				jerry_release_value(message);
-				msg[size] = '\0';
-				printf("\n\n\t%s\n\n\t%s\n\n\n\n\tPress START to exit.",
-					errorCode == JERRY_ERROR_COMMON ? "Error" :
-					errorCode == JERRY_ERROR_EVAL ? "EvalError" :
-					errorCode == JERRY_ERROR_RANGE ? "RangeError" :
-					errorCode == JERRY_ERROR_REFERENCE ? "ReferenceError" :
-					errorCode == JERRY_ERROR_SYNTAX ? "SyntaxError" :
-					errorCode == JERRY_ERROR_TYPE ? "TypeError" :
-					errorCode == JERRY_ERROR_URI ? "URIError" :
-					"unknown",
-					msg
-				);
-				free(msg);
+				char *message = getString(getProperty(errorThrown, "message"), true);
+				char *name = getString(getProperty(errorThrown, "name"), true);
+				printf("\n\n\t%s\n\n\t%s\n\n\n\n\tPress START to exit.", name, message);
+				free(message);
 			}
 			jerry_release_value(errorThrown);
 

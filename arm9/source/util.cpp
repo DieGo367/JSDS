@@ -23,12 +23,9 @@ jerry_value_t execFile(FILE *file, bool closeFile) {
 }
 
 void printValue(jerry_value_t value) {
-	jerry_value_t stringValue = jerry_value_to_string(value);
-	jerry_length_t size = jerry_get_string_size(stringValue);
-	char buf[size + 1] = {0};
-	jerry_string_to_utf8_char_buffer(stringValue, (jerry_char_t *) buf, size);
-	jerry_release_value(stringValue);
-	printf("%s\n", buf);
+	char *string = getString(jerry_value_to_string(value), true);
+	printf("%s\n", string);
+	free(string);
 }
 
 const int keyboardBufferSize = 256;
