@@ -39,6 +39,8 @@ const char *keyboardBuffer() {
 void keyboardClearBuffer() {
 	memset(buf, 0, keyboardBufferSize);
 	idx = 0;
+	keyboardEnterPressed = false;
+	keyboardEscapePressed = false;
 }
 void onKeyboardKeyPress(int key) {
 	Keyboard *kbd = keyboardGetDefault();
