@@ -57,7 +57,11 @@ void repl() {
 		printf("\n-> ");
 
 		jerry_value_t result;
-		jerry_value_t parsedLine = jerry_parse((jerry_char_t *) "line", 4, (jerry_char_t *) keyboardBuffer(), strlen(keyboardBuffer()), 0);
+		jerry_value_t parsedLine = jerry_parse(
+			(jerry_char_t *) "line", 4,
+			(jerry_char_t *) keyboardBuffer(), strlen(keyboardBuffer()),
+			JERRY_PARSE_STRICT_MODE
+		);
 		if (jerry_value_is_error(parsedLine)) result = parsedLine;
 		else {
 			result = jerry_run(parsedLine);

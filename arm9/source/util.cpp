@@ -12,7 +12,11 @@ jerry_value_t execFile(FILE *file, bool closeFile) {
 	fread(script, 1, size, file);
 	if (closeFile) fclose(file);
 
-	jerry_value_t parsedCode = jerry_parse((const jerry_char_t *) "main", 4, (const jerry_char_t *) script, size, 0);
+	jerry_value_t parsedCode = jerry_parse(
+		(const jerry_char_t *) "main", 4,
+		(const jerry_char_t *) script, size,
+		JERRY_PARSE_STRICT_MODE & JERRY_PARSE_MODULE
+	);
 	free(script);
 	if (jerry_value_is_error(parsedCode)) return parsedCode;
 	else {
