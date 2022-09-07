@@ -4,24 +4,22 @@
 #include "jerry/jerryscript.h"
 
 
-void execFile(FILE *file, bool closeFile) {
+jerry_value_t execFile(FILE *file, bool closeFile) {
 	fseek(file, 0, SEEK_END);
 	long size = ftell(file);
 	rewind(file);
-	char script[size] = {0};
+	u8 *script = (u8 *) malloc(size);
 	fread(script, 1, size, file);
 	if (closeFile) fclose(file);
 
 	jerry_value_t parsedCode = jerry_parse((const jerry_char_t *) "main", 4, (const jerry_char_t *) script, size, 0);
-	if (!jerry_value_is_error(parsedCode)) {
+	free(script);
+	if (jerry_value_is_error(parsedCode)) return parsedCode;
+	else {
 		jerry_value_t result = jerry_run(parsedCode);
-		if (jerry_value_is_error(result)) {
-			printf("Script Runtime Error!\n");
-		}
-		jerry_release_value(result);
+		jerry_release_value(parsedCode);
+		return result;
 	}
-	else printf("Script Parse Error!\n");
-	jerry_release_value(parsedCode);
 }
 
 void printValue(jerry_value_t value) {
@@ -54,6 +52,6 @@ void onKeyboardKeyPress(int key) {
 	// tab, return, and other printable chars
 	else if (idx < keyboardBufferSize - 1 && (key == 9 || key == 10 || (key >= 32 && key <= 126))) {
 		buf[idx++] = key;
-		printf("%c", key);
+		putchar(key);
 	}
 }
