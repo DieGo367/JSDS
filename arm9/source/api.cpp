@@ -52,8 +52,8 @@ static jerry_value_t promptHandler(const jerry_value_t function, const jerry_val
 		swiWaitForVBlank();
 		scanKeys();
 		u32 keys = keysDown();
-		if (keys & KEY_A) break;
-		else if (keys & KEY_B) {
+		if (keys & KEY_A || keyboardEnterPressed) break;
+		else if (keys & KEY_B || keyboardEscapePressed) {
 			canceled = true;
 			break;
 		}

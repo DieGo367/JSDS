@@ -31,6 +31,8 @@ void printValue(jerry_value_t value) {
 const int keyboardBufferSize = 256;
 char buf[keyboardBufferSize] = {0};
 int idx = 0;
+bool keyboardEnterPressed = false;
+bool keyboardEscapePressed = false;
 const char *keyboardBuffer() {
 	return buf;
 }
@@ -39,15 +41,17 @@ void keyboardClearBuffer() {
 	idx = 0;
 }
 void onKeyboardKeyPress(int key) {
-	// backspace
-	if (key == 8 && idx > 0) {
+	Keyboard *kbd = keyboardGetDefault();
+	keyboardEnterPressed = false;
+	keyboardEscapePressed = false;
+	if (key == DVK_FOLD) keyboardEscapePressed = true;
+	else if (key == DVK_BACKSPACE && idx > 0) {
 		buf[--idx] = '\0';
 		consoleClear();
 		printf("%s", buf);
-
 	}
-	// tab, return, and other printable chars
-	else if (idx < keyboardBufferSize - 1 && (key == 9 || key == 10 || (key >= 32 && key <= 126))) {
+	else if (key == DVK_ENTER && !kbd->shifted) keyboardEnterPressed = true;
+	else if (idx < keyboardBufferSize - 1 && (key == DVK_TAB || key == DVK_ENTER || (key >= 32 && key <= 126))) {
 		buf[idx++] = key;
 		putchar(key);
 	}

@@ -35,6 +35,8 @@ inline char *getString(jerry_value_t stringValue, bool free) {
 void printValue(jerry_value_t value);
 jerry_value_t execFile(FILE *file, bool closeFile);
 
+extern bool keyboardEnterPressed;
+extern bool keyboardEscapePressed;
 const char *keyboardBuffer();
 void keyboardClearBuffer();
 void onKeyboardKeyPress(int key);
