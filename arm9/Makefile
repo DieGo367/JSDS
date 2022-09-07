@@ -27,7 +27,6 @@ ARCH	:=	-mthumb -mthumb-interwork
 
 CFLAGS	:=	-g -Wall -O2\
  			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
-			-ffast-math \
 			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -DARM9
