@@ -32,9 +32,9 @@ void tempLoadMain() {
 				printf("\n\n\n\tPress START to exit.");
 			}
 			else {
-				char *message = getString(getProperty(errorThrown, "message"), true);
-				char *name = getString(getProperty(errorThrown, "name"), true);
-				printf("\n\n\t%s\n\n\t%s\n\n\n\n\tPress START to exit.", name, message);
+				char *message = getString(getProperty(errorThrown, "message"), NULL, true);
+				char *name = getString(getProperty(errorThrown, "name"), NULL, true);
+				printf("\n\n\tUncaught %s\n\n\t%s\n\n\n\n\tPress START to exit.", name, message);
 				free(message);
 				free(name);
 			}
@@ -59,7 +59,7 @@ void repl() {
 		jerry_value_t result;
 		jerry_value_t parsedLine = jerry_parse(
 			(jerry_char_t *) "line", 4,
-			(jerry_char_t *) keyboardBuffer(), strlen(keyboardBuffer()),
+			(jerry_char_t *) keyboardBuffer(), keyboardBufferLen(),
 			JERRY_PARSE_STRICT_MODE
 		);
 		if (jerry_value_is_error(parsedLine)) result = parsedLine;
@@ -75,8 +75,8 @@ void repl() {
 				printValue(errorThrown);
 			}
 			else {
-				char *message = getString(getProperty(errorThrown, "message"), true);
-				char *name = getString(getProperty(errorThrown, "name"), true);
+				char *message = getString(getProperty(errorThrown, "message"), NULL, true);
+				char *name = getString(getProperty(errorThrown, "name"), NULL, true);
 				printf("%s: %s\n", name, message);
 				free(message);
 				free(name);
@@ -99,7 +99,8 @@ int main(int argc, char **argv) {
 	exposeAPI();
 
 	// start repl loop
-	repl();
+	// repl();
+	tempLoadMain();
 
 	// wait, then cleanup and exit
 	while(true) {

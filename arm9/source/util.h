@@ -23,8 +23,9 @@ inline void setMethod(jerry_value_t object, const char *property, jerry_external
 	jerry_release_value(func);
 }
 
-inline char *getString(jerry_value_t stringValue, bool free) {
+inline char *getString(jerry_value_t stringValue, jerry_length_t *stringSize, bool free) {
 	jerry_length_t size = jerry_get_string_size(stringValue);
+	if (stringSize != NULL) *stringSize = size;
 	char *buffer = (char *) malloc(size + 1);
 	jerry_string_to_utf8_char_buffer(stringValue, (jerry_char_t *) buffer, size);
 	buffer[size] = '\0';
@@ -32,12 +33,27 @@ inline char *getString(jerry_value_t stringValue, bool free) {
 	return buffer;
 }
 
-void printValue(jerry_value_t value);
+inline void printValue(jerry_value_t value) {
+	char *string = getString(jerry_value_to_string(value), NULL, true);
+	printf("%s\n", string);
+	free(string);
+}
+
+inline char *writeBinByteToUTF8(u8 byte, char *out) {
+	if (byte & BIT(7)) {
+		*(out++) = 0b11000000 | (byte & 0b11000000) >> 6;
+		*(out++) = 0b10000000 | (byte & 0b00111111);
+	}
+	else *(out++) = byte;
+	return out;
+}
+
 jerry_value_t execFile(FILE *file, bool closeFile);
 
 extern bool keyboardEnterPressed;
 extern bool keyboardEscapePressed;
 const char *keyboardBuffer();
+u8 keyboardBufferLen();
 void keyboardClearBuffer();
 void onKeyboardKeyPress(int key);
 

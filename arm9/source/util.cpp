@@ -26,12 +26,6 @@ jerry_value_t execFile(FILE *file, bool closeFile) {
 	}
 }
 
-void printValue(jerry_value_t value) {
-	char *string = getString(jerry_value_to_string(value), true);
-	printf("%s\n", string);
-	free(string);
-}
-
 const int keyboardBufferSize = 256;
 char buf[keyboardBufferSize] = {0};
 int idx = 0;
@@ -39,6 +33,9 @@ bool keyboardEnterPressed = false;
 bool keyboardEscapePressed = false;
 const char *keyboardBuffer() {
 	return buf;
+}
+u8 keyboardBufferLen() {
+	return idx;
 }
 void keyboardClearBuffer() {
 	memset(buf, 0, keyboardBufferSize);

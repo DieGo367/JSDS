@@ -6,12 +6,18 @@
 #include "util.h"
 
 
-static jerry_value_t alertHandler(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
+#define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
+
+static jerry_value_t closeHandler(CALL_INFO) {
+	exit(0);
+}
+
+static jerry_value_t alertHandler(CALL_INFO) {
 	consoleClear();
 	printf("============= Alert ============");
 	if (argCount > 0) printValue(args[0]);
 	printf("===================== (A) OK ===");
-	while(true) {
+	while (true) {
 		swiWaitForVBlank();
 		scanKeys();
 		if (keysDown() & KEY_A) break;
@@ -20,16 +26,12 @@ static jerry_value_t alertHandler(const jerry_value_t function, const jerry_valu
 	return jerry_create_undefined();
 }
 
-static jerry_value_t closeHandler(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
-	exit(0);
-}
-
-static jerry_value_t confirmHandler(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
+static jerry_value_t confirmHandler(CALL_INFO) {
 	consoleClear();
 	printf("============ Confirm ===========");
 	if (argCount > 0) printValue(args[0]);
 	printf("========= (A) OK  (B) Cancel ===");
-	while(true) {
+	while (true) {
 		swiWaitForVBlank();
 		scanKeys();
 		u32 keys = keysDown();
@@ -38,7 +40,7 @@ static jerry_value_t confirmHandler(const jerry_value_t function, const jerry_va
 	}
 }
 
-static jerry_value_t promptHandler(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
+static jerry_value_t promptHandler(CALL_INFO) {
 	consoleClear();
 	printf("============ Prompt ============");
 	if (argCount > 0) printValue(args[0]);
@@ -48,7 +50,7 @@ static jerry_value_t promptHandler(const jerry_value_t function, const jerry_val
 	keyboardClearBuffer();
 	keyboardShow();
 	bool canceled = false;
-	while(true) {
+	while (true) {
 		swiWaitForVBlank();
 		scanKeys();
 		u32 keys = keysDown();
@@ -67,8 +69,141 @@ static jerry_value_t promptHandler(const jerry_value_t function, const jerry_val
 	else return jerry_create_string_from_utf8((jerry_char_t *) keyboardBuffer());
 }
 
+// https://html.spec.whatwg.org/multipage/webappapis.html#dom-atob-dev
+static jerry_value_t atobHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'atob': 1 argument required, but only 0 present.");
+	jerry_char_t *errorMsg = (jerry_char_t *) "Failed to decode base64.";
 
-static jerry_value_t consoleLogHandler(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], const u32 argCount) {
+	jerry_length_t dataSize;
+	char *data = getString(jerry_value_to_string(args[0]), &dataSize, true);
+	char *dataEnd = data + dataSize;
+
+	// (1) strip ASCII whitespace
+	jerry_length_t strippedSize = 0;
+	for (char *ch = data; ch != dataEnd; ch++) {
+		u8 n; // (8.1) find codepoint associated to character
+		if (*ch == ' ' || *ch == '\t' || *ch == '\n' || *ch == '\r' || *ch == '\f') continue;
+		else if (*ch >= 'A' && *ch <= 'Z') n = *ch - 'A';
+		else if (*ch >= 'a' && *ch <= 'z') n = *ch - 'a' + 26;
+		else if (*ch >= '0' && *ch <= '9') n = *ch - '0' + 52;
+		else if (*ch == '+') n = 62;
+		else if (*ch == '/') n = 63;
+		else if (*ch == '=') n = 64; // equal sign will be handled later
+		else { // (4) error on invalid character
+			free(data);
+			return jerry_create_error(JERRY_ERROR_COMMON, errorMsg);
+		}
+		*ch = n;
+		strippedSize++;
+	}
+	dataEnd = data + strippedSize;
+	*dataEnd = '\0';
+
+	// (2) handle ending equal signs
+	if (strippedSize > 0 && strippedSize % 4 == 0) {
+		if (data[strippedSize - 1] == 64) data[--strippedSize] = '\0';
+		if (data[strippedSize - 1] == 64) data[--strippedSize] = '\0';
+		dataEnd = data + strippedSize;
+	}
+	// (3) fail on %4==1
+	else if (strippedSize % 4 == 1) {
+		free(data);
+		return jerry_create_error(JERRY_ERROR_COMMON, errorMsg);
+	}
+
+	// (5-8) output, buffer, position and loop
+	char *output = (char *) malloc((strippedSize + 1) * 2);
+	char *out = output;
+	int buffer = 0, bits = 0;
+	for (char *ch = data; ch != dataEnd; ch++) {
+		if (*ch == 64) { // (4 again) fail on equal sign not at end of string
+			free(data);
+			return jerry_create_error(JERRY_ERROR_COMMON, errorMsg);
+		}
+		buffer = buffer << 6 | *ch; // (8.2) append 6 bits to buffer
+		bits += 6;
+		if (bits == 24) { // (8.3) output 3 8-bit numbers when buffer reaches 24 bits
+			out = writeBinByteToUTF8(buffer >> 16, out);
+			out = writeBinByteToUTF8(buffer >> 8 & 0xFF, out);
+			out = writeBinByteToUTF8(buffer & 0xFF, out);
+			buffer = bits = 0;
+		}
+	}
+	// (9) handle remaining bits in buffer
+	if (bits == 12) out = writeBinByteToUTF8(buffer >> 4, out);
+	else if (bits == 18) {
+		out = writeBinByteToUTF8(buffer >> 10, out);
+		out = writeBinByteToUTF8(buffer >> 2 & 0xFF, out);
+	}
+	*out = '\0';
+	free(data);
+	
+	jerry_value_t result = jerry_create_string_from_utf8((jerry_char_t *) output);
+	free(output);
+	return result;
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#dom-btoa-dev
+const char b64Chars[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static jerry_value_t btoaHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'btoa': 1 argument required, but only 0 present.");
+
+	jerry_length_t dataSize;
+	char *data = getString(jerry_value_to_string(args[0]), &dataSize, true);
+	char *dataEnd = data + dataSize;
+
+	// convert UTF8 representation to binary, and count size
+	jerry_length_t binSize = 0;
+	for (char *ch = data; ch != dataEnd; ch++) {
+		if (*ch & BIT(7)) { // greater than U+007F
+			if (*ch & 0b00111100) { // greater than U+00FF, is out of range and therefore invalid
+				free(data);
+				return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Failed to execute 'btoa': The string to be encoded contains characters outside of the Latin1 range.");
+			}
+			*ch = (*ch << 6 & 0b11000000) | (*ch & 0b00111111);
+			ch++;
+			binSize += 2;
+		}
+		else binSize++;
+	}
+	dataEnd = data + binSize;
+
+	// allocate just enough memory, then finish the conversion to ASCII
+	char *output = (char *) malloc(((binSize + 2) / 3) * 4);
+	char *out = output;
+	int buffer = 0, bits = 0;
+	for (char *ch = data; ch != dataEnd; ch++) {
+		buffer = buffer << 8 | *ch;
+		bits += 8;
+		if (bits == 24) {
+			*(out++) = b64Chars[buffer >> 18];
+			*(out++) = b64Chars[buffer >> 12 & 0b00111111];
+			*(out++) = b64Chars[buffer >> 6 & 0b00111111];
+			*(out++) = b64Chars[buffer & 0b00111111];
+			buffer = bits = 0;
+		}
+	}
+	if (bits == 8) {
+		*(out++) = b64Chars[buffer >> 2];
+		*(out++) = b64Chars[buffer << 4 & 0b00110000];
+		*(out++) = '=';
+		*(out++) = '=';
+	}
+	else if (bits == 16) {
+		*(out++) = b64Chars[buffer >> 10];
+		*(out++) = b64Chars[buffer >> 4 & 0b00111111];
+		*(out++) = b64Chars[buffer << 2 & 0b00111100];
+		*(out++) = '=';
+	}
+	*out = '\0';
+	free(data);
+
+	jerry_value_t result = jerry_create_string((jerry_char_t *) output);
+	free(output);
+	return result;
+}
+
+static jerry_value_t consoleLogHandler(CALL_INFO) {
 	for (u32 i = 0; i < argCount; i++) printValue(args[i]);
 	return jerry_create_undefined();
 }
@@ -77,6 +212,8 @@ void exposeAPI() {
 	jerry_value_t global = jerry_get_global_object();
 
 	setMethod(global, "alert", alertHandler);
+	setMethod(global, "atob", atobHandler);
+	setMethod(global, "btoa", btoaHandler);
 	setMethod(global, "close", closeHandler);
 	setMethod(global, "confirm", confirmHandler);
 	setMethod(global, "prompt", promptHandler);
