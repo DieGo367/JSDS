@@ -204,12 +204,102 @@ static jerry_value_t btoaHandler(CALL_INFO) {
 }
 
 static jerry_value_t consoleLogHandler(CALL_INFO) {
-	for (u32 i = 0; i < argCount; i++) printValue(args[i]);
+	u32 i = 0;
+	if (argCount > 0 && jerry_value_is_string(args[0])) {
+		i++;
+		printf("\x1b[39m");
+		char *msg = getString(args[0], NULL, false);
+		char *pos = msg;
+		if (pos) while (i < argCount) {
+			char *find = strchr(pos, '%');
+			if (find == NULL) break;
+			*find = '\0';
+			printf("%s", pos);
+			char specifier = *(find + 1);
+			if (specifier == 's') { // output next param as string
+				char *string = getString(jerry_value_to_string(args[i]), NULL, true);
+				printf("%s", string);
+				free(string);
+				pos = find + 2;
+				i++;
+			}
+			else if (specifier == 'i') { // output next param as integer
+				if (jerry_value_is_number(args[i]) || jerry_value_is_bigint(args[i])) {
+					u64 num = jerry_value_as_integer(args[i]);
+					printf("%lli", num);
+				}
+				else printf("NaN");
+				pos = find + 2;
+				i++;
+			}
+			else if (specifier == 'f') { // output next param as float
+				if (jerry_value_is_number(args[i]) || jerry_value_is_bigint(args[i])) {
+					double num = jerry_get_number_value(args[i]);
+					printf("%f", num);
+				}
+				else printf("NaN");
+				pos = find + 2;
+				i++;
+			}
+			else if (specifier == 'O') { // output next param as object
+				// currently just uses toString like %s
+				// TODO: print things as literals with color
+				char *string = getString(jerry_value_to_string(args[i]), NULL, true);
+				printf("%s", string);
+				free(string);
+				pos = find + 2;
+				i++;
+			}
+			else if (specifier == 'c') { // use next param as CSS rule
+				char *cssString = getString(jerry_value_to_string(args[i]), NULL, true);
+				char attribute[31] = {0};
+				char value[31] = {0};
+				int numSet = sscanf(cssString, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
+				while (numSet == 2) { // found an attribute
+					// so far only "color" is supported, not sure what else is feasable
+					if (strcmp(attribute, "color") == 0) {
+						if (strcmp(value, "none") == 0) printf("\x1b[39m"); // reset (fast)
+						else if (strcmp(value, "black") == 0) printf("\x1b[30m");
+						else if (strcmp(value, "maroon") == 0) printf("\x1b[31m");
+						else if (strcmp(value, "green") == 0) printf("\x1b[32m");
+						else if (strcmp(value, "olive") == 0) printf("\x1b[33m");
+						else if (strcmp(value, "navy") == 0) printf("\x1b[34m");
+						else if (strcmp(value, "purple") == 0) printf("\x1b[35m");
+						else if (strcmp(value, "teal") == 0) printf("\x1b[36m");
+						else if (strcmp(value, "silver") == 0) printf("\x1b[37m");
+						else if (strcmp(value, "gray") == 0 || strcmp(value, "grey") == 0) printf("\x1b[40m");
+						else if (strcmp(value, "red") == 0) printf("\x1b[41m");
+						else if (strcmp(value, "lime") == 0) printf("\x1b[42m");
+						else if (strcmp(value, "yellow") == 0) printf("\x1b[43m");
+						else if (strcmp(value, "blue") == 0) printf("\x1b[44m");
+						else if (strcmp(value, "fuchsia") == 0 || strcmp(value, "magenta") == 0) printf("\x1b[45m");
+						else if (strcmp(value, "aqua") == 0 || strcmp(value, "cyan") == 0) printf("\x1b[46m");
+						else if (strcmp(value, "white") == 0) printf("\x1b[47m");
+						else printf("\x1b[39m"); // reset
+					}
+					numSet = sscanf(cssString, "; %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
+				}
+				free(cssString);
+				pos = find + 2;
+				i++;
+			}
+			else {
+				putchar('%');
+				pos = find + 1;
+			}
+		}
+		printf("%s\x1b[39m\n", pos);
+		free(msg);
+	}
+	for (; i < argCount; i++) {
+		printValue(args[i]);
+	}
 	return jerry_create_undefined();
 }
 
 void exposeAPI() {
 	jerry_value_t global = jerry_get_global_object();
+	setProperty(global, "self", global);
 
 	setMethod(global, "alert", alertHandler);
 	setMethod(global, "atob", atobHandler);
