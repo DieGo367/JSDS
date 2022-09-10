@@ -296,6 +296,50 @@ static jerry_value_t consoleLogHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
+static jerry_value_t consoleInfoHandler(CALL_INFO) {
+	u16 pal = mainConsole->fontCurPal;
+	mainConsole->fontCurPal = ConsolePalette::AQUA;
+	jerry_value_t result = consoleLogHandler(function, thisValue, args, argCount);
+	mainConsole->fontCurPal = pal;
+	return result;
+}
+
+static jerry_value_t consoleWarnHandler(CALL_INFO) {
+	u16 pal = mainConsole->fontCurPal;
+	mainConsole->fontCurPal = ConsolePalette::YELLOW;
+	jerry_value_t result = consoleLogHandler(function, thisValue, args, argCount);
+	mainConsole->fontCurPal = pal;
+	return result;
+}
+
+static jerry_value_t consoleErrorHandler(CALL_INFO) {
+	u16 pal = mainConsole->fontCurPal;
+	mainConsole->fontCurPal = ConsolePalette::RED;
+	jerry_value_t result = consoleLogHandler(function, thisValue, args, argCount);
+	mainConsole->fontCurPal = pal;
+	return result;
+}
+
+static jerry_value_t consoleAssertHandler(CALL_INFO) {
+	if (argCount == 0 || !jerry_value_to_boolean(args[0])) {
+		u16 pal = mainConsole->fontCurPal;
+		mainConsole->fontCurPal = ConsolePalette::RED;
+		printf("Assertion failed: ");
+		jerry_value_t result = consoleLogHandler(function, thisValue, args + 1, argCount - 1);
+		mainConsole->fontCurPal = pal;
+		return result;
+	}
+	return jerry_create_undefined();
+}
+
+static jerry_value_t consoleDebugHandler(CALL_INFO) {
+	u16 pal = mainConsole->fontCurPal;
+	mainConsole->fontCurPal = ConsolePalette::NAVY;
+	jerry_value_t result = consoleLogHandler(function, thisValue, args, argCount);
+	mainConsole->fontCurPal = pal;
+	return result;
+}
+
 void exposeAPI() {
 	jerry_value_t global = jerry_get_global_object();
 	setProperty(global, "self", global);
@@ -309,7 +353,12 @@ void exposeAPI() {
 	
 	jerry_value_t console = jerry_create_object();
 	setProperty(global, "console", console);
+	setMethod(console, "assert", consoleAssertHandler);
+	setMethod(console, "debug", consoleDebugHandler);
+	setMethod(console, "error", consoleErrorHandler);
+	setMethod(console, "info", consoleInfoHandler);
 	setMethod(console, "log", consoleLogHandler);
+	setMethod(console, "warn", consoleWarnHandler);
 	jerry_release_value(console);
 
 	jerry_release_value(global);
