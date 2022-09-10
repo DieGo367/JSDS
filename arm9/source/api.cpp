@@ -207,19 +207,17 @@ static jerry_value_t consoleLogHandler(CALL_INFO) {
 	u32 i = 0;
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
 		i++;
-		printf("\x1b[39m");
+		u16 pal = mainConsole->fontCurPal;
 		char *msg = getString(args[0], NULL, false);
 		char *pos = msg;
 		if (pos) while (i < argCount) {
 			char *find = strchr(pos, '%');
 			if (find == NULL) break;
 			*find = '\0';
-			printf("%s", pos);
+			printf(pos);
 			char specifier = *(find + 1);
 			if (specifier == 's') { // output next param as string
-				char *string = getString(jerry_value_to_string(args[i]), NULL, true);
-				printf("%s", string);
-				free(string);
+				printValue(args[i]);
 				pos = find + 2;
 				i++;
 			}
@@ -242,11 +240,7 @@ static jerry_value_t consoleLogHandler(CALL_INFO) {
 				i++;
 			}
 			else if (specifier == 'O') { // output next param as object
-				// currently just uses toString like %s
-				// TODO: print things as literals with color
-				char *string = getString(jerry_value_to_string(args[i]), NULL, true);
-				printf("%s", string);
-				free(string);
+				printLiteral(args[i]);
 				pos = find + 2;
 				i++;
 			}
@@ -258,24 +252,24 @@ static jerry_value_t consoleLogHandler(CALL_INFO) {
 				while (numSet == 2) { // found an attribute
 					// so far only "color" is supported, not sure what else is feasable
 					if (strcmp(attribute, "color") == 0) {
-						if (strcmp(value, "none") == 0) printf("\x1b[39m"); // reset (fast)
-						else if (strcmp(value, "black") == 0) printf("\x1b[30m");
-						else if (strcmp(value, "maroon") == 0) printf("\x1b[31m");
-						else if (strcmp(value, "green") == 0) printf("\x1b[32m");
-						else if (strcmp(value, "olive") == 0) printf("\x1b[33m");
-						else if (strcmp(value, "navy") == 0) printf("\x1b[34m");
-						else if (strcmp(value, "purple") == 0) printf("\x1b[35m");
-						else if (strcmp(value, "teal") == 0) printf("\x1b[36m");
-						else if (strcmp(value, "silver") == 0) printf("\x1b[37m");
-						else if (strcmp(value, "gray") == 0 || strcmp(value, "grey") == 0) printf("\x1b[40m");
-						else if (strcmp(value, "red") == 0) printf("\x1b[41m");
-						else if (strcmp(value, "lime") == 0) printf("\x1b[42m");
-						else if (strcmp(value, "yellow") == 0) printf("\x1b[43m");
-						else if (strcmp(value, "blue") == 0) printf("\x1b[44m");
-						else if (strcmp(value, "fuchsia") == 0 || strcmp(value, "magenta") == 0) printf("\x1b[45m");
-						else if (strcmp(value, "aqua") == 0 || strcmp(value, "cyan") == 0) printf("\x1b[46m");
-						else if (strcmp(value, "white") == 0) printf("\x1b[47m");
-						else printf("\x1b[39m"); // reset
+						if (strcmp(value, "none") == 0) mainConsole->fontCurPal = pal; // reset (fast)
+						else if (strcmp(value, "black") == 0) mainConsole->fontCurPal = ConsolePalette::BLACK;
+						else if (strcmp(value, "maroon") == 0) mainConsole->fontCurPal = ConsolePalette::MAROON;
+						else if (strcmp(value, "green") == 0) mainConsole->fontCurPal = ConsolePalette::GREEN;
+						else if (strcmp(value, "olive") == 0) mainConsole->fontCurPal = ConsolePalette::OLIVE;
+						else if (strcmp(value, "navy") == 0) mainConsole->fontCurPal = ConsolePalette::NAVY;
+						else if (strcmp(value, "purple") == 0) mainConsole->fontCurPal = ConsolePalette::PURPLE;
+						else if (strcmp(value, "teal") == 0) mainConsole->fontCurPal = ConsolePalette::TEAL;
+						else if (strcmp(value, "silver") == 0) mainConsole->fontCurPal = ConsolePalette::SILVER;
+						else if (strcmp(value, "gray") == 0 || strcmp(value, "grey") == 0) mainConsole->fontCurPal = ConsolePalette::GRAY;
+						else if (strcmp(value, "red") == 0) mainConsole->fontCurPal = ConsolePalette::RED;
+						else if (strcmp(value, "lime") == 0) mainConsole->fontCurPal = ConsolePalette::LIME;
+						else if (strcmp(value, "yellow") == 0) mainConsole->fontCurPal = ConsolePalette::YELLOW;
+						else if (strcmp(value, "blue") == 0) mainConsole->fontCurPal = ConsolePalette::BLUE;
+						else if (strcmp(value, "fuchsia") == 0 || strcmp(value, "magenta") == 0) mainConsole->fontCurPal = ConsolePalette::FUCHSIA;
+						else if (strcmp(value, "aqua") == 0 || strcmp(value, "cyan") == 0) mainConsole->fontCurPal = ConsolePalette::AQUA;
+						else if (strcmp(value, "white") == 0) mainConsole->fontCurPal = ConsolePalette::WHITE;
+						else mainConsole->fontCurPal = pal; // reset
 					}
 					numSet = sscanf(cssString, "; %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
 				}
@@ -288,12 +282,17 @@ static jerry_value_t consoleLogHandler(CALL_INFO) {
 				pos = find + 1;
 			}
 		}
-		printf("%s\x1b[39m\n", pos);
+		printf(pos);
 		free(msg);
+		mainConsole->fontCurPal = pal;
+		if (i < argCount - 1) putchar(' ');
 	}
 	for (; i < argCount; i++) {
-		printValue(args[i]);
+		if (jerry_value_is_string(args[i])) printValue(args[i]);
+		else printLiteral(args[i]);
+		if (i < argCount - 1) putchar(' ');
 	}
+	putchar('\n');
 	return jerry_create_undefined();
 }
 

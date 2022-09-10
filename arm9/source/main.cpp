@@ -29,7 +29,7 @@ void tempLoadMain() {
 			if (errorCode == JERRY_ERROR_NONE) {
 				printf("\n\n\tUncaught value\n\n\t");
 				printValue(errorThrown);
-				printf("\n\n\n\tPress START to exit.");
+				printf("\n\n\n\n\tPress START to exit.");
 			}
 			else {
 				char *message = getString(getProperty(errorThrown, "message"), NULL, true);
@@ -54,7 +54,7 @@ void repl() {
 			if (keyboardEnterPressed) break;
 			keyboardUpdate();
 		}
-		printf("\n-> ");
+		putchar('\n');
 
 		jerry_value_t result;
 		jerry_value_t parsedLine = jerry_parse(
@@ -67,6 +67,8 @@ void repl() {
 			result = jerry_run(parsedLine);
 			jerry_release_value(parsedLine);
 		}
+
+		printf("-> ");
 		if (jerry_value_is_error(result)) {
 			jerry_error_t errorCode = jerry_get_error_type(result);
 			jerry_value_t errorThrown = jerry_get_value_from_error(result, false);
@@ -83,14 +85,15 @@ void repl() {
 			}
 			jerry_release_value(errorThrown);
 		}
-		else printValue(result);
+		else printLiteral(result);
+		putchar('\n');
 		jerry_release_value(result);
 	}
 }
 
 int main(int argc, char **argv) {
 	// startup
-	consoleDemoInit();
+	mainConsole = consoleDemoInit();
 	consoleDebugInit(DebugDevice_CONSOLE);
 	fatInitDefault();
 	Keyboard* kbd = keyboardDemoInit();
