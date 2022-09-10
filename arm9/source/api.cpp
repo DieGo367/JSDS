@@ -340,6 +340,20 @@ static jerry_value_t consoleDebugHandler(CALL_INFO) {
 	return result;
 }
 
+static jerry_value_t consoleDirHandler(CALL_INFO) {
+	if (argCount > 0) {
+		if (jerry_value_is_object(args[0])) printObject(args[0]);
+		else printLiteral(args[0]);
+		putchar('\n');
+	}
+	return jerry_create_undefined();
+}
+
+static jerry_value_t consoleClearHandler(CALL_INFO) {
+	consoleClear();
+	return jerry_create_undefined();
+}
+
 void exposeAPI() {
 	jerry_value_t global = jerry_get_global_object();
 	setProperty(global, "self", global);
@@ -355,6 +369,9 @@ void exposeAPI() {
 	setProperty(global, "console", console);
 	setMethod(console, "assert", consoleAssertHandler);
 	setMethod(console, "debug", consoleDebugHandler);
+	setMethod(console, "clear", consoleClearHandler);
+	setMethod(console, "dir", consoleDirHandler);
+	setMethod(console, "dirxml", consoleDirHandler); // no HTMLElement here, so it should behave the same as dir
 	setMethod(console, "error", consoleErrorHandler);
 	setMethod(console, "info", consoleInfoHandler);
 	setMethod(console, "log", consoleLogHandler);

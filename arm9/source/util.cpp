@@ -125,51 +125,55 @@ void printLiteral(jerry_value_t value, u8 level) {
 		}
 	}
 	else if (jerry_value_is_object(value)) {
-		jerry_value_t keysArray = jerry_get_object_keys(value);
-		u32 length = jerry_get_array_length(keysArray);
-		if (length == 0) printf("{}");
-		else if (level > MAX_PRINT_RECURSION) printf("{...}");
-		else {
-			printf("{ ");
-			for (u32 i = 0; i < length; i++) {
-				jerry_length_t keySize;
-				char* key = getString(jerry_get_property_by_index(keysArray, i), &keySize, true);
-				char capture[keySize + 1];
-				if (sscanf(key, "%[A-Za-z0-9]", capture) > 0 && strcmp(key, capture) == 0) {
-					printf(key);
-				}
-				else {
-					u16 pal = mainConsole->fontCurPal;
-					mainConsole->fontCurPal = ConsolePalette::LIME;
-					if (strchr(key, '"') == NULL) printf("\"%s\"", key);
-					else if (strchr(key, '\'') == NULL) printf("'%s'", key);
-					else {
-						putchar('"');
-						char *pos = key;
-						for (char* ch = key; (ch = strchr(ch, '"')); ch++) {
-							*ch = '\0';
-							printf("%s\\\"", pos);
-							*ch = '"';
-							pos = ch + 1;
-						}
-						printf(pos);
-						putchar('"');
-					}
-					mainConsole->fontCurPal = pal;
-				}
-				printf(": ");
-				jerry_value_t item = getProperty(value, key);
-				free(key);
-				printLiteral(item, level + 1);
-				jerry_release_value(item);
-				if (i < length - 1) printf(", ");
-			}
-			printf(" }");
-		}
-		jerry_release_value(keysArray);
+		printObject(value, level);
 	}
 	else printValue(value); // catch-all, shouldn't be reachable but should work anyway if it is
 	mainConsole->fontCurPal = pal;
+}
+
+void printObject(jerry_value_t obj, u8 level) {
+	jerry_value_t keysArray = jerry_get_object_keys(obj);
+	u32 length = jerry_get_array_length(keysArray);
+	if (length == 0) printf("{}");
+	else if (level > MAX_PRINT_RECURSION) printf("{...}");
+	else {
+		printf("{ ");
+		for (u32 i = 0; i < length; i++) {
+			jerry_length_t keySize;
+			char* key = getString(jerry_get_property_by_index(keysArray, i), &keySize, true);
+			char capture[keySize + 1];
+			if (sscanf(key, "%[A-Za-z0-9]", capture) > 0 && strcmp(key, capture) == 0) {
+				printf(key);
+			}
+			else {
+				u16 pal = mainConsole->fontCurPal;
+				mainConsole->fontCurPal = ConsolePalette::LIME;
+				if (strchr(key, '"') == NULL) printf("\"%s\"", key);
+				else if (strchr(key, '\'') == NULL) printf("'%s'", key);
+				else {
+					putchar('"');
+					char *pos = key;
+					for (char* ch = key; (ch = strchr(ch, '"')); ch++) {
+						*ch = '\0';
+						printf("%s\\\"", pos);
+						*ch = '"';
+						pos = ch + 1;
+					}
+					printf(pos);
+					putchar('"');
+				}
+				mainConsole->fontCurPal = pal;
+			}
+			printf(": ");
+			jerry_value_t item = getProperty(obj, key);
+			free(key);
+			printLiteral(item, level + 1);
+			jerry_release_value(item);
+			if (i < length - 1) printf(", ");
+		}
+		printf(" }");
+	}
+	jerry_release_value(keysArray);
 }
 
 PrintConsole *mainConsole;

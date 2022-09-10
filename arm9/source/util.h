@@ -84,6 +84,7 @@ enum ConsolePalette {
 jerry_value_t execFile(FILE *file, bool closeFile);
 
 void printLiteral(jerry_value_t value, u8 level = 0);
+void printObject(jerry_value_t value, u8 level = 0);
 
 extern PrintConsole *mainConsole;
 
