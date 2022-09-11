@@ -1,10 +1,36 @@
 #include <nds.h>
 #include <fat.h>
 #include <stdio.h>
+
 #include "jerry/jerryscript.h"
 #include "api.h"
-#include "util.h"
+#include "console.h"
+#include "keyboard.h"
+#include "inline.h"
 
+
+
+jerry_value_t execFile(FILE *file, bool closeFile) {
+	fseek(file, 0, SEEK_END);
+	long size = ftell(file);
+	rewind(file);
+	u8 *script = (u8 *) malloc(size);
+	fread(script, 1, size, file);
+	if (closeFile) fclose(file);
+
+	jerry_value_t parsedCode = jerry_parse(
+		(const jerry_char_t *) "main", 4,
+		(const jerry_char_t *) script, size,
+		JERRY_PARSE_STRICT_MODE & JERRY_PARSE_MODULE
+	);
+	free(script);
+	if (jerry_value_is_error(parsedCode)) return parsedCode;
+	else {
+		jerry_value_t result = jerry_run(parsedCode);
+		jerry_release_value(parsedCode);
+		return result;
+	}
+}
 
 void tempLoadMain() {
 	// try to read main.js file from root
@@ -85,7 +111,7 @@ void repl() {
 			}
 			jerry_release_value(errorThrown);
 		}
-		else printLiteral(result);
+		else consolePrintLiteral(result);
 		putchar('\n');
 		jerry_release_value(result);
 	}
@@ -94,10 +120,9 @@ void repl() {
 int main(int argc, char **argv) {
 	// startup
 	mainConsole = consoleDemoInit();
-	consoleDebugInit(DebugDevice_CONSOLE);
 	fatInitDefault();
-	Keyboard* kbd = keyboardDemoInit();
-	kbd->OnKeyPressed = onKeyboardKeyPress;
+	keyboard = keyboardDemoInit();
+	keyboard->OnKeyPressed = onKeyboardKeyPress;
 	jerry_init(JERRY_INIT_EMPTY);
 	exposeAPI();
 

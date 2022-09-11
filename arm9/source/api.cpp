@@ -3,7 +3,9 @@
 #include <nds.h>
 #include <stdio.h>
 #include "jerry/jerryscript.h"
-#include "util.h"
+#include "console.h"
+#include "keyboard.h"
+#include "inline.h"
 
 
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
@@ -204,120 +206,32 @@ static jerry_value_t btoaHandler(CALL_INFO) {
 }
 
 static jerry_value_t consoleLogHandler(CALL_INFO) {
-	u32 i = 0;
-	if (argCount > 0 && jerry_value_is_string(args[0])) {
-		i++;
-		u16 pal = mainConsole->fontCurPal;
-		char *msg = getString(args[0], NULL, false);
-		char *pos = msg;
-		if (pos) while (i < argCount) {
-			char *find = strchr(pos, '%');
-			if (find == NULL) break;
-			*find = '\0';
-			printf(pos);
-			char specifier = *(find + 1);
-			if (specifier == 's') { // output next param as string
-				printValue(args[i]);
-				pos = find + 2;
-				i++;
-			}
-			else if (specifier == 'i') { // output next param as integer
-				if (jerry_value_is_number(args[i]) || jerry_value_is_bigint(args[i])) {
-					u64 num = jerry_value_as_integer(args[i]);
-					printf("%lli", num);
-				}
-				else printf("NaN");
-				pos = find + 2;
-				i++;
-			}
-			else if (specifier == 'f') { // output next param as float
-				if (jerry_value_is_number(args[i]) || jerry_value_is_bigint(args[i])) {
-					double num = jerry_get_number_value(args[i]);
-					printf("%f", num);
-				}
-				else printf("NaN");
-				pos = find + 2;
-				i++;
-			}
-			else if (specifier == 'O') { // output next param as object
-				printLiteral(args[i]);
-				pos = find + 2;
-				i++;
-			}
-			else if (specifier == 'c') { // use next param as CSS rule
-				char *cssString = getString(jerry_value_to_string(args[i]), NULL, true);
-				char attribute[31] = {0};
-				char value[31] = {0};
-				int numSet = sscanf(cssString, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
-				while (numSet == 2) { // found an attribute
-					// so far only "color" is supported, not sure what else is feasable
-					if (strcmp(attribute, "color") == 0) {
-						if (strcmp(value, "none") == 0) mainConsole->fontCurPal = pal; // reset (fast)
-						else if (strcmp(value, "black") == 0) mainConsole->fontCurPal = ConsolePalette::BLACK;
-						else if (strcmp(value, "maroon") == 0) mainConsole->fontCurPal = ConsolePalette::MAROON;
-						else if (strcmp(value, "green") == 0) mainConsole->fontCurPal = ConsolePalette::GREEN;
-						else if (strcmp(value, "olive") == 0) mainConsole->fontCurPal = ConsolePalette::OLIVE;
-						else if (strcmp(value, "navy") == 0) mainConsole->fontCurPal = ConsolePalette::NAVY;
-						else if (strcmp(value, "purple") == 0) mainConsole->fontCurPal = ConsolePalette::PURPLE;
-						else if (strcmp(value, "teal") == 0) mainConsole->fontCurPal = ConsolePalette::TEAL;
-						else if (strcmp(value, "silver") == 0) mainConsole->fontCurPal = ConsolePalette::SILVER;
-						else if (strcmp(value, "gray") == 0 || strcmp(value, "grey") == 0) mainConsole->fontCurPal = ConsolePalette::GRAY;
-						else if (strcmp(value, "red") == 0) mainConsole->fontCurPal = ConsolePalette::RED;
-						else if (strcmp(value, "lime") == 0) mainConsole->fontCurPal = ConsolePalette::LIME;
-						else if (strcmp(value, "yellow") == 0) mainConsole->fontCurPal = ConsolePalette::YELLOW;
-						else if (strcmp(value, "blue") == 0) mainConsole->fontCurPal = ConsolePalette::BLUE;
-						else if (strcmp(value, "fuchsia") == 0 || strcmp(value, "magenta") == 0) mainConsole->fontCurPal = ConsolePalette::FUCHSIA;
-						else if (strcmp(value, "aqua") == 0 || strcmp(value, "cyan") == 0) mainConsole->fontCurPal = ConsolePalette::AQUA;
-						else if (strcmp(value, "white") == 0) mainConsole->fontCurPal = ConsolePalette::WHITE;
-						else mainConsole->fontCurPal = pal; // reset
-					}
-					numSet = sscanf(cssString, "; %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
-				}
-				free(cssString);
-				pos = find + 2;
-				i++;
-			}
-			else {
-				putchar('%');
-				pos = find + 1;
-			}
-		}
-		printf(pos);
-		free(msg);
-		mainConsole->fontCurPal = pal;
-		if (i < argCount - 1) putchar(' ');
-	}
-	for (; i < argCount; i++) {
-		if (jerry_value_is_string(args[i])) printValue(args[i]);
-		else printLiteral(args[i]);
-		if (i < argCount - 1) putchar(' ');
-	}
-	putchar('\n');
+	consolePrint(args, argCount);
 	return jerry_create_undefined();
 }
 
 static jerry_value_t consoleInfoHandler(CALL_INFO) {
 	u16 pal = mainConsole->fontCurPal;
 	mainConsole->fontCurPal = ConsolePalette::AQUA;
-	jerry_value_t result = consoleLogHandler(function, thisValue, args, argCount);
+	consolePrint(args, argCount);
 	mainConsole->fontCurPal = pal;
-	return result;
+	return jerry_create_undefined();
 }
 
 static jerry_value_t consoleWarnHandler(CALL_INFO) {
 	u16 pal = mainConsole->fontCurPal;
 	mainConsole->fontCurPal = ConsolePalette::YELLOW;
-	jerry_value_t result = consoleLogHandler(function, thisValue, args, argCount);
+	consolePrint(args, argCount);
 	mainConsole->fontCurPal = pal;
-	return result;
+	return jerry_create_undefined();
 }
 
 static jerry_value_t consoleErrorHandler(CALL_INFO) {
 	u16 pal = mainConsole->fontCurPal;
 	mainConsole->fontCurPal = ConsolePalette::RED;
-	jerry_value_t result = consoleLogHandler(function, thisValue, args, argCount);
+	consolePrint(args, argCount);
 	mainConsole->fontCurPal = pal;
-	return result;
+	return jerry_create_undefined();
 }
 
 static jerry_value_t consoleAssertHandler(CALL_INFO) {
@@ -325,9 +239,8 @@ static jerry_value_t consoleAssertHandler(CALL_INFO) {
 		u16 pal = mainConsole->fontCurPal;
 		mainConsole->fontCurPal = ConsolePalette::RED;
 		printf("Assertion failed: ");
-		jerry_value_t result = consoleLogHandler(function, thisValue, args + 1, argCount - 1);
+		consolePrint(args + 1, argCount - 1);
 		mainConsole->fontCurPal = pal;
-		return result;
 	}
 	return jerry_create_undefined();
 }
@@ -335,15 +248,15 @@ static jerry_value_t consoleAssertHandler(CALL_INFO) {
 static jerry_value_t consoleDebugHandler(CALL_INFO) {
 	u16 pal = mainConsole->fontCurPal;
 	mainConsole->fontCurPal = ConsolePalette::NAVY;
-	jerry_value_t result = consoleLogHandler(function, thisValue, args, argCount);
+	consolePrint(args, argCount);
 	mainConsole->fontCurPal = pal;
-	return result;
+	return jerry_create_undefined();
 }
 
 static jerry_value_t consoleDirHandler(CALL_INFO) {
 	if (argCount > 0) {
-		if (jerry_value_is_object(args[0])) printObject(args[0]);
-		else printLiteral(args[0]);
+		if (jerry_value_is_object(args[0])) consolePrintObject(args[0]);
+		else consolePrintLiteral(args[0]);
 		putchar('\n');
 	}
 	return jerry_create_undefined();

@@ -1,33 +1,107 @@
-#include "util.h"
+#include "console.h"
 
 #include <nds.h>
 #include "jerry/jerryscript.h"
+#include "inline.h"
 
 
-jerry_value_t execFile(FILE *file, bool closeFile) {
-	fseek(file, 0, SEEK_END);
-	long size = ftell(file);
-	rewind(file);
-	u8 *script = (u8 *) malloc(size);
-	fread(script, 1, size, file);
-	if (closeFile) fclose(file);
 
-	jerry_value_t parsedCode = jerry_parse(
-		(const jerry_char_t *) "main", 4,
-		(const jerry_char_t *) script, size,
-		JERRY_PARSE_STRICT_MODE & JERRY_PARSE_MODULE
-	);
-	free(script);
-	if (jerry_value_is_error(parsedCode)) return parsedCode;
-	else {
-		jerry_value_t result = jerry_run(parsedCode);
-		jerry_release_value(parsedCode);
-		return result;
+PrintConsole *mainConsole;
+
+void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
+	u32 i = 0;
+	if (argCount > 0 && jerry_value_is_string(args[0])) {
+		i++;
+		u16 pal = mainConsole->fontCurPal;
+		char *msg = getString(args[0], NULL, false);
+		char *pos = msg;
+		if (pos) while (i < argCount) {
+			char *find = strchr(pos, '%');
+			if (find == NULL) break;
+			*find = '\0';
+			printf(pos);
+			char specifier = *(find + 1);
+			if (specifier == 's') { // output next param as string
+				printValue(args[i]);
+				pos = find + 2;
+				i++;
+			}
+			else if (specifier == 'i') { // output next param as integer
+				if (jerry_value_is_number(args[i]) || jerry_value_is_bigint(args[i])) {
+					u64 num = jerry_value_as_integer(args[i]);
+					printf("%lli", num);
+				}
+				else printf("NaN");
+				pos = find + 2;
+				i++;
+			}
+			else if (specifier == 'f') { // output next param as float
+				if (jerry_value_is_number(args[i]) || jerry_value_is_bigint(args[i])) {
+					double num = jerry_get_number_value(args[i]);
+					printf("%f", num);
+				}
+				else printf("NaN");
+				pos = find + 2;
+				i++;
+			}
+			else if (specifier == 'O') { // output next param as object
+				consolePrintLiteral(args[i]);
+				pos = find + 2;
+				i++;
+			}
+			else if (specifier == 'c') { // use next param as CSS rule
+				char *cssString = getString(jerry_value_to_string(args[i]), NULL, true);
+				char attribute[31] = {0};
+				char value[31] = {0};
+				int numSet = sscanf(cssString, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
+				while (numSet == 2) { // found an attribute
+					// so far only "color" is supported, not sure what else is feasable
+					if (strcmp(attribute, "color") == 0) {
+						if (strcmp(value, "none") == 0) mainConsole->fontCurPal = pal; // reset (fast)
+						else if (strcmp(value, "black") == 0) mainConsole->fontCurPal = ConsolePalette::BLACK;
+						else if (strcmp(value, "maroon") == 0) mainConsole->fontCurPal = ConsolePalette::MAROON;
+						else if (strcmp(value, "green") == 0) mainConsole->fontCurPal = ConsolePalette::GREEN;
+						else if (strcmp(value, "olive") == 0) mainConsole->fontCurPal = ConsolePalette::OLIVE;
+						else if (strcmp(value, "navy") == 0) mainConsole->fontCurPal = ConsolePalette::NAVY;
+						else if (strcmp(value, "purple") == 0) mainConsole->fontCurPal = ConsolePalette::PURPLE;
+						else if (strcmp(value, "teal") == 0) mainConsole->fontCurPal = ConsolePalette::TEAL;
+						else if (strcmp(value, "silver") == 0) mainConsole->fontCurPal = ConsolePalette::SILVER;
+						else if (strcmp(value, "gray") == 0 || strcmp(value, "grey") == 0) mainConsole->fontCurPal = ConsolePalette::GRAY;
+						else if (strcmp(value, "red") == 0) mainConsole->fontCurPal = ConsolePalette::RED;
+						else if (strcmp(value, "lime") == 0) mainConsole->fontCurPal = ConsolePalette::LIME;
+						else if (strcmp(value, "yellow") == 0) mainConsole->fontCurPal = ConsolePalette::YELLOW;
+						else if (strcmp(value, "blue") == 0) mainConsole->fontCurPal = ConsolePalette::BLUE;
+						else if (strcmp(value, "fuchsia") == 0 || strcmp(value, "magenta") == 0) mainConsole->fontCurPal = ConsolePalette::FUCHSIA;
+						else if (strcmp(value, "aqua") == 0 || strcmp(value, "cyan") == 0) mainConsole->fontCurPal = ConsolePalette::AQUA;
+						else if (strcmp(value, "white") == 0) mainConsole->fontCurPal = ConsolePalette::WHITE;
+						else mainConsole->fontCurPal = pal; // reset
+					}
+					numSet = sscanf(cssString, "; %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
+				}
+				free(cssString);
+				pos = find + 2;
+				i++;
+			}
+			else {
+				putchar('%');
+				pos = find + 1;
+			}
+		}
+		printf(pos);
+		free(msg);
+		mainConsole->fontCurPal = pal;
+		if (i < argCount - 1) putchar(' ');
 	}
+	for (; i < argCount; i++) {
+		if (jerry_value_is_string(args[i])) printValue(args[i]);
+		else consolePrintLiteral(args[i]);
+		if (i < argCount - 1) putchar(' ');
+	}
+	putchar('\n');
 }
 
-u8 MAX_PRINT_RECURSION = 10;
-void printLiteral(jerry_value_t value, u8 level) {
+const u8 MAX_PRINT_RECURSION = 10;
+void consolePrintLiteral(jerry_value_t value, u8 level) {
 	u16 pal = mainConsole->fontCurPal;
 	bool test = false;
 	if (jerry_value_is_boolean(value) || jerry_value_is_number(value) || (test = jerry_value_is_bigint(value))) {
@@ -102,7 +176,7 @@ void printLiteral(jerry_value_t value, u8 level) {
 			printf("[ ");
 			for (u32 i = 0; i < length; i++) {
 				jerry_value_t item = jerry_get_property_by_index(value, i);
-				printLiteral(item);
+				consolePrintLiteral(item);
 				jerry_release_value(item);
 				if (i < length - 1) printf(", ");
 			}
@@ -117,7 +191,7 @@ void printLiteral(jerry_value_t value, u8 level) {
 			printf("[ ");
 			for (u32 i = 0; i < length; i++) {
 				jerry_value_t item = jerry_get_property_by_index(value, i);
-				printLiteral(item, level + 1);
+				consolePrintLiteral(item, level + 1);
 				jerry_release_value(item);
 				if (i < length - 1) printf(", ");
 			}
@@ -125,13 +199,13 @@ void printLiteral(jerry_value_t value, u8 level) {
 		}
 	}
 	else if (jerry_value_is_object(value)) {
-		printObject(value, level);
+		consolePrintObject(value, level);
 	}
 	else printValue(value); // catch-all, shouldn't be reachable but should work anyway if it is
 	mainConsole->fontCurPal = pal;
 }
 
-void printObject(jerry_value_t obj, u8 level) {
+void consolePrintObject(jerry_value_t obj, u8 level) {
 	jerry_value_t keysArray = jerry_get_object_keys(obj);
 	u32 length = jerry_get_array_length(keysArray);
 	if (length == 0) printf("{}");
@@ -167,47 +241,11 @@ void printObject(jerry_value_t obj, u8 level) {
 			printf(": ");
 			jerry_value_t item = getProperty(obj, key);
 			free(key);
-			printLiteral(item, level + 1);
+			consolePrintLiteral(item, level + 1);
 			jerry_release_value(item);
 			if (i < length - 1) printf(", ");
 		}
 		printf(" }");
 	}
 	jerry_release_value(keysArray);
-}
-
-PrintConsole *mainConsole;
-
-const int keyboardBufferSize = 256;
-char buf[keyboardBufferSize] = {0};
-int idx = 0;
-bool keyboardEnterPressed = false;
-bool keyboardEscapePressed = false;
-const char *keyboardBuffer() {
-	return buf;
-}
-u8 keyboardBufferLen() {
-	return idx;
-}
-void keyboardClearBuffer() {
-	memset(buf, 0, keyboardBufferSize);
-	idx = 0;
-	keyboardEnterPressed = false;
-	keyboardEscapePressed = false;
-}
-void onKeyboardKeyPress(int key) {
-	Keyboard *kbd = keyboardGetDefault();
-	keyboardEnterPressed = false;
-	keyboardEscapePressed = false;
-	if (key == DVK_FOLD) keyboardEscapePressed = true;
-	else if (key == DVK_BACKSPACE && idx > 0) {
-		buf[--idx] = '\0';
-		consoleClear();
-		printf(buf);
-	}
-	else if (key == DVK_ENTER && !kbd->shifted) keyboardEnterPressed = true;
-	else if (idx < keyboardBufferSize - 1 && (key == DVK_TAB || key == DVK_ENTER || (key >= 32 && key <= 126))) {
-		buf[idx++] = key;
-		putchar(key);
-	}
 }
