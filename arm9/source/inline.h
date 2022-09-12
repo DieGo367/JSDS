@@ -1,7 +1,7 @@
 #ifndef JSDS_INLINE_H
 #define JSDS_INLINE_H
 
-#include <nds.h>
+#include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
 
 inline jerry_value_t getProperty(jerry_value_t object, const char *property) {

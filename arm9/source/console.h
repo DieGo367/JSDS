@@ -1,7 +1,8 @@
 #ifndef JSDS_CONSOLE_H
 #define JSDS_CONSOLE_H
 
-#include <nds.h>
+#include <nds/ndstypes.h>
+#include <nds/arm9/console.h>
 #include "jerry/jerryscript.h"
 
 

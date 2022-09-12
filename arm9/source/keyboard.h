@@ -1,7 +1,8 @@
 #ifndef JSDS_KEYBOARD_H
 #define JSDS_KEYBOARD_H
 
-#include <nds.h>
+#include <nds/ndstypes.h>
+#include <nds/arm9/keyboard.h>
 #include "jerry/jerryscript.h"
 
 
