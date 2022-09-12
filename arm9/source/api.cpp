@@ -2,6 +2,7 @@
 
 #include <nds.h>
 #include <stdio.h>
+#include <time.h>
 #include <map>
 #include <string>
 #include "jerry/jerryscript.h"
@@ -328,6 +329,64 @@ static jerry_value_t consoleGroupEndHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
+std::map<std::string, time_t> consoleTimer;
+static jerry_value_t consoleTimeHandler(CALL_INFO) {
+	std::string label;
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		label = std::string(lbl);
+		free(lbl);
+	}
+	else label = "default";
+	if (consoleTimer.count(label) == 0) {
+		consoleTimer[label] = time(NULL);
+	}
+	else {
+		for (int i = 0; i < consoleGroups; i++) putchar(' ');
+		printf("Timer '%s' already exists\n", label.c_str());
+	}
+	return jerry_create_undefined();
+}
+
+static jerry_value_t consoleTimeLogHandler(CALL_INFO) {
+	for (int i = 0; i < consoleGroups; i++) putchar(' ');
+	std::string label;
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		label = std::string(lbl);
+		free(lbl);
+	}
+	else label = "default";
+	if (consoleTimer.count(label) == 0) {
+		printf("Timer '%s' does not exist\n", label.c_str());
+	}
+	else {
+		double elapsed = difftime(time(NULL), consoleTimer[label]);
+		printf("%s: %lg s\n", label.c_str(), elapsed);
+	}
+	return jerry_create_undefined();
+}
+
+static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
+	for (int i = 0; i < consoleGroups; i++) putchar(' ');
+	std::string label;
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		label = std::string(lbl);
+		free(lbl);
+	}
+	else label = "default";
+	if (consoleTimer.count(label) == 0) {
+		printf("Timer '%s' does not exist\n", label.c_str());
+	}
+	else {
+		double elapsed = difftime(time(NULL), consoleTimer[label]);
+		consoleTimer.erase(label);
+		printf("%s: %lg s\n", label.c_str(), elapsed);
+	}
+	return jerry_create_undefined();
+}
+
 void exposeAPI() {
 	jerry_value_t global = jerry_get_global_object();
 	setProperty(global, "self", global);
@@ -342,10 +401,10 @@ void exposeAPI() {
 	jerry_value_t console = jerry_create_object();
 	setProperty(global, "console", console);
 	setMethod(console, "assert", consoleAssertHandler);
-	setMethod(console, "debug", consoleDebugHandler);
 	setMethod(console, "clear", consoleClearHandler);
 	setMethod(console, "count", consoleCountHandler);
 	setMethod(console, "countReset", consoleCountResetHandler);
+	setMethod(console, "debug", consoleDebugHandler);
 	setMethod(console, "dir", consoleDirHandler);
 	setMethod(console, "dirxml", consoleDirxmlHandler);
 	setMethod(console, "error", consoleErrorHandler);
@@ -354,6 +413,9 @@ void exposeAPI() {
 	setMethod(console, "groupEnd", consoleGroupEndHandler);
 	setMethod(console, "info", consoleInfoHandler);
 	setMethod(console, "log", consoleLogHandler);
+	setMethod(console, "time", consoleTimeHandler);
+	setMethod(console, "timeLog", consoleTimeLogHandler);
+	setMethod(console, "timeEnd", consoleTimeEndHandler);
 	setMethod(console, "warn", consoleWarnHandler);
 	jerry_release_value(console);
 
