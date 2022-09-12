@@ -2,6 +2,8 @@
 
 #include <nds.h>
 #include <stdio.h>
+#include <map>
+#include <string>
 #include "jerry/jerryscript.h"
 #include "console.h"
 #include "keyboard.h"
@@ -276,6 +278,42 @@ static jerry_value_t consoleClearHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
+std::map<std::string, int> consoleCounter;
+static jerry_value_t consoleCountHandler(CALL_INFO) {
+	std::string label;
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		label = std::string(lbl);
+		free(lbl);
+	}
+	else label = "default";
+	if (consoleCounter.count(label) == 0) {
+		printf("%s: %i\n", label.c_str(), 1);
+		consoleCounter[label] = 1;
+	}
+	else {
+		printf("%s: %i\n", label.c_str(), ++consoleCounter[label]);
+	}
+	return jerry_create_undefined();
+}
+
+static jerry_value_t consoleCountResetHandler(CALL_INFO) {
+	std::string label;
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		label = std::string(lbl);
+		free(lbl);
+	}
+	else label = "default";
+	if (consoleCounter.count(label) == 0) {
+		printf("Count for '%s' does not exist\n", label.c_str());
+	}
+	else {
+		consoleCounter[label] = 0;
+	}
+	return jerry_create_undefined();
+}
+
 void exposeAPI() {
 	jerry_value_t global = jerry_get_global_object();
 	setProperty(global, "self", global);
@@ -292,6 +330,8 @@ void exposeAPI() {
 	setMethod(console, "assert", consoleAssertHandler);
 	setMethod(console, "debug", consoleDebugHandler);
 	setMethod(console, "clear", consoleClearHandler);
+	setMethod(console, "count", consoleCountHandler);
+	setMethod(console, "countReset", consoleCountResetHandler);
 	setMethod(console, "dir", consoleDirHandler);
 	setMethod(console, "dirxml", consoleDirxmlHandler);
 	setMethod(console, "error", consoleErrorHandler);
