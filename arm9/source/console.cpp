@@ -26,26 +26,40 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 				pos = find + 2;
 				i++;
 			}
-			else if (specifier == 'i') { // output next param as integer
-				if (jerry_value_is_number(args[i]) || jerry_value_is_bigint(args[i])) {
-					u64 num = jerry_value_as_integer(args[i]);
-					printf("%lli", num);
+			else if (specifier == 'd' || specifier == 'i') { // output next param as integer (parseInt)
+				if (jerry_value_is_symbol(args[i])) printf("NaN");
+				else {
+					char *string = getString(jerry_value_to_string(args[i]), NULL, true);
+					char *endptr = NULL;
+					int64_t integer = strtoll(string, &endptr, 10);
+					if (endptr == string) printf("NaN");
+					else printf("%lli", integer);
+					free(string);
 				}
-				else printf("NaN");
 				pos = find + 2;
 				i++;
 			}
-			else if (specifier == 'f') { // output next param as float
-				if (jerry_value_is_number(args[i]) || jerry_value_is_bigint(args[i])) {
-					double num = jerry_get_number_value(args[i]);
-					printf("%f", num);
+			else if (specifier == 'f') { // output next param as float (parseFloat)
+				if (jerry_value_is_symbol(args[i])) printf("NaN");
+				else {
+					char *string = getString(jerry_value_to_string(args[i]), NULL, true);
+					char *endptr = NULL;
+					double floatVal = strtod(string, &endptr);
+					if (endptr == string) printf("NaN");
+					else printf("%lg", floatVal);
+					free(string);
 				}
-				else printf("NaN");
+				pos = find + 2;
+				i++;
+			}
+			else if (specifier == 'o') { // output next param with "optimally useful formatting"
+				consolePrintLiteral(args[i]);
 				pos = find + 2;
 				i++;
 			}
 			else if (specifier == 'O') { // output next param as object
-				consolePrintLiteral(args[i]);
+				if (jerry_value_is_object(args[i])) consolePrintObject(args[i]);
+				else consolePrintLiteral(args[i]);
 				pos = find + 2;
 				i++;
 			}
@@ -90,7 +104,7 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 		printf(pos);
 		free(msg);
 		mainConsole->fontCurPal = pal;
-		if (i < argCount - 1) putchar(' ');
+		if (i < argCount) putchar(' ');
 	}
 	for (; i < argCount; i++) {
 		if (jerry_value_is_string(args[i])) printValue(args[i]);

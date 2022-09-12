@@ -262,6 +262,15 @@ static jerry_value_t consoleDirHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
+static jerry_value_t consoleDirxmlHandler(CALL_INFO) {
+	for (u32 i = 0; i < argCount; i++) {
+		consolePrintLiteral(args[i]);
+		if (i < argCount - 1) putchar(' ');
+	}
+	putchar('\n');
+	return jerry_create_undefined();
+}
+
 static jerry_value_t consoleClearHandler(CALL_INFO) {
 	consoleClear();
 	return jerry_create_undefined();
@@ -284,7 +293,7 @@ void exposeAPI() {
 	setMethod(console, "debug", consoleDebugHandler);
 	setMethod(console, "clear", consoleClearHandler);
 	setMethod(console, "dir", consoleDirHandler);
-	setMethod(console, "dirxml", consoleDirHandler); // no HTMLElement here, so it should behave the same as dir
+	setMethod(console, "dirxml", consoleDirxmlHandler);
 	setMethod(console, "error", consoleErrorHandler);
 	setMethod(console, "info", consoleInfoHandler);
 	setMethod(console, "log", consoleLogHandler);
