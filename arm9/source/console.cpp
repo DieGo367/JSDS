@@ -8,7 +8,11 @@
 
 PrintConsole *mainConsole;
 
+const u8 MAX_PRINT_RECURSION = 10;
+int consoleGroups = 0;
+
 void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
+	for (int i = 0; i < consoleGroups; i++) putchar(' ');
 	u32 i = 0;
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
 		i++;
@@ -114,7 +118,6 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 	putchar('\n');
 }
 
-const u8 MAX_PRINT_RECURSION = 10;
 void consolePrintLiteral(jerry_value_t value, u8 level) {
 	u16 pal = mainConsole->fontCurPal;
 	bool test = false;

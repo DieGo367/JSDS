@@ -256,6 +256,7 @@ static jerry_value_t consoleDebugHandler(CALL_INFO) {
 }
 
 static jerry_value_t consoleDirHandler(CALL_INFO) {
+	for (int i = 0; i < consoleGroups; i++) putchar(' ');
 	if (argCount > 0) {
 		if (jerry_value_is_object(args[0])) consolePrintObject(args[0]);
 		else consolePrintLiteral(args[0]);
@@ -265,6 +266,7 @@ static jerry_value_t consoleDirHandler(CALL_INFO) {
 }
 
 static jerry_value_t consoleDirxmlHandler(CALL_INFO) {
+	for (int i = 0; i < consoleGroups; i++) putchar(' ');
 	for (u32 i = 0; i < argCount; i++) {
 		consolePrintLiteral(args[i]);
 		if (i < argCount - 1) putchar(' ');
@@ -280,6 +282,7 @@ static jerry_value_t consoleClearHandler(CALL_INFO) {
 
 std::map<std::string, int> consoleCounter;
 static jerry_value_t consoleCountHandler(CALL_INFO) {
+	for (int i = 0; i < consoleGroups; i++) putchar(' ');
 	std::string label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
@@ -306,11 +309,22 @@ static jerry_value_t consoleCountResetHandler(CALL_INFO) {
 	}
 	else label = "default";
 	if (consoleCounter.count(label) == 0) {
+		for (int i = 0; i < consoleGroups; i++) putchar(' ');
 		printf("Count for '%s' does not exist\n", label.c_str());
 	}
 	else {
 		consoleCounter[label] = 0;
 	}
+	return jerry_create_undefined();
+}
+
+static jerry_value_t consoleGroupHandler(CALL_INFO) {
+	consoleGroups++;
+	return jerry_create_undefined();
+}
+
+static jerry_value_t consoleGroupEndHandler(CALL_INFO) {
+	if (--consoleGroups < 0) consoleGroups = 0;
 	return jerry_create_undefined();
 }
 
@@ -335,6 +349,9 @@ void exposeAPI() {
 	setMethod(console, "dir", consoleDirHandler);
 	setMethod(console, "dirxml", consoleDirxmlHandler);
 	setMethod(console, "error", consoleErrorHandler);
+	setMethod(console, "group", consoleGroupHandler);
+	setMethod(console, "groupCollapsed", consoleGroupHandler);
+	setMethod(console, "groupEnd", consoleGroupEndHandler);
 	setMethod(console, "info", consoleInfoHandler);
 	setMethod(console, "log", consoleLogHandler);
 	setMethod(console, "warn", consoleWarnHandler);

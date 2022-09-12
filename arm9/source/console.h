@@ -27,6 +27,8 @@ enum ConsolePalette {
 	WHITE = 15 << 12,
 };
 
+extern int consoleGroups;
+
 void consolePrint(const jerry_value_t args[], jerry_value_t argCount);
 void consolePrintLiteral(jerry_value_t value, u8 level = 0);
 void consolePrintObject(jerry_value_t value, u8 level = 0);
