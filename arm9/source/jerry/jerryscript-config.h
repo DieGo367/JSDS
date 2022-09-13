@@ -245,7 +245,7 @@
  * Default value: 0
  */
 #ifndef JERRY_LINE_INFO
-# define JERRY_LINE_INFO 0
+# define JERRY_LINE_INFO 1
 #endif /* !defined (JERRY_LINE_INFO) */
 
 /**

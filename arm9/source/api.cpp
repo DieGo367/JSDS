@@ -208,32 +208,46 @@ static jerry_value_t btoaHandler(CALL_INFO) {
 	return result;
 }
 
+int consoleGroups = 0;
+
 static jerry_value_t consoleLogHandler(CALL_INFO) {
-	consolePrint(args, argCount);
+	if (argCount > 0) {
+		for (int i = 0; i < consoleGroups; i++) putchar(' ');
+		consolePrint(args, argCount);
+	}
 	return jerry_create_undefined();
 }
 
 static jerry_value_t consoleInfoHandler(CALL_INFO) {
-	u16 pal = mainConsole->fontCurPal;
-	mainConsole->fontCurPal = ConsolePalette::AQUA;
-	consolePrint(args, argCount);
-	mainConsole->fontCurPal = pal;
+	if (argCount > 0) {
+		u16 pal = mainConsole->fontCurPal;
+		mainConsole->fontCurPal = ConsolePalette::AQUA;
+		for (int i = 0; i < consoleGroups; i++) putchar(' ');
+		consolePrint(args, argCount);
+		mainConsole->fontCurPal = pal;
+	}
 	return jerry_create_undefined();
 }
 
 static jerry_value_t consoleWarnHandler(CALL_INFO) {
-	u16 pal = mainConsole->fontCurPal;
-	mainConsole->fontCurPal = ConsolePalette::YELLOW;
-	consolePrint(args, argCount);
-	mainConsole->fontCurPal = pal;
+	if (argCount > 0) {
+		u16 pal = mainConsole->fontCurPal;
+		mainConsole->fontCurPal = ConsolePalette::YELLOW;
+		for (int i = 0; i < consoleGroups; i++) putchar(' ');
+		consolePrint(args, argCount);
+		mainConsole->fontCurPal = pal;
+	}
 	return jerry_create_undefined();
 }
 
 static jerry_value_t consoleErrorHandler(CALL_INFO) {
-	u16 pal = mainConsole->fontCurPal;
-	mainConsole->fontCurPal = ConsolePalette::RED;
-	consolePrint(args, argCount);
-	mainConsole->fontCurPal = pal;
+	if (argCount > 0) {
+		u16 pal = mainConsole->fontCurPal;
+		mainConsole->fontCurPal = ConsolePalette::RED;
+		for (int i = 0; i < consoleGroups; i++) putchar(' ');
+		consolePrint(args, argCount);
+		mainConsole->fontCurPal = pal;
+	}
 	return jerry_create_undefined();
 }
 
@@ -241,6 +255,7 @@ static jerry_value_t consoleAssertHandler(CALL_INFO) {
 	if (argCount == 0 || !jerry_value_to_boolean(args[0])) {
 		u16 pal = mainConsole->fontCurPal;
 		mainConsole->fontCurPal = ConsolePalette::RED;
+		for (int i = 0; i < consoleGroups; i++) putchar(' ');
 		printf("Assertion failed: ");
 		consolePrint(args + 1, argCount - 1);
 		mainConsole->fontCurPal = pal;
@@ -249,16 +264,35 @@ static jerry_value_t consoleAssertHandler(CALL_INFO) {
 }
 
 static jerry_value_t consoleDebugHandler(CALL_INFO) {
-	u16 pal = mainConsole->fontCurPal;
-	mainConsole->fontCurPal = ConsolePalette::NAVY;
-	consolePrint(args, argCount);
-	mainConsole->fontCurPal = pal;
+	if (argCount > 0) {
+		u16 pal = mainConsole->fontCurPal;
+		mainConsole->fontCurPal = ConsolePalette::NAVY;
+		for (int i = 0; i < consoleGroups; i++) putchar(' ');
+		consolePrint(args, argCount);
+		mainConsole->fontCurPal = pal;
+	}
+	return jerry_create_undefined();
+}
+
+static jerry_value_t consoleTraceHandler(CALL_INFO) {
+	for (int j = 0; j < consoleGroups; j++) putchar(' ');
+	if (argCount == 0) printf("Trace\n");
+	else consolePrint(args, argCount);
+	jerry_value_t backtrace = jerry_get_backtrace(10);
+	u32 length = jerry_get_array_length(backtrace);
+	for (u32 i = 0; i < length; i++) {
+		char *step = getString(jerry_get_property_by_index(backtrace, i), NULL, true);
+		for (int j = 0; j < consoleGroups; j++) putchar(' ');
+		printf(" @ %s\n", step);
+		free(step);
+	}
+	jerry_release_value(backtrace);
 	return jerry_create_undefined();
 }
 
 static jerry_value_t consoleDirHandler(CALL_INFO) {
-	for (int i = 0; i < consoleGroups; i++) putchar(' ');
 	if (argCount > 0) {
+		for (int i = 0; i < consoleGroups; i++) putchar(' ');
 		if (jerry_value_is_object(args[0])) consolePrintObject(args[0]);
 		else consolePrintLiteral(args[0]);
 		putchar('\n');
@@ -267,54 +301,13 @@ static jerry_value_t consoleDirHandler(CALL_INFO) {
 }
 
 static jerry_value_t consoleDirxmlHandler(CALL_INFO) {
-	for (int i = 0; i < consoleGroups; i++) putchar(' ');
-	for (u32 i = 0; i < argCount; i++) {
-		consolePrintLiteral(args[i]);
-		if (i < argCount - 1) putchar(' ');
-	}
-	putchar('\n');
-	return jerry_create_undefined();
-}
-
-static jerry_value_t consoleClearHandler(CALL_INFO) {
-	consoleClear();
-	return jerry_create_undefined();
-}
-
-std::map<std::string, int> consoleCounter;
-static jerry_value_t consoleCountHandler(CALL_INFO) {
-	for (int i = 0; i < consoleGroups; i++) putchar(' ');
-	std::string label;
-	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
-		label = std::string(lbl);
-		free(lbl);
-	}
-	else label = "default";
-	if (consoleCounter.count(label) == 0) {
-		printf("%s: %i\n", label.c_str(), 1);
-		consoleCounter[label] = 1;
-	}
-	else {
-		printf("%s: %i\n", label.c_str(), ++consoleCounter[label]);
-	}
-	return jerry_create_undefined();
-}
-
-static jerry_value_t consoleCountResetHandler(CALL_INFO) {
-	std::string label;
-	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
-		label = std::string(lbl);
-		free(lbl);
-	}
-	else label = "default";
-	if (consoleCounter.count(label) == 0) {
+	if (argCount > 0) {
 		for (int i = 0; i < consoleGroups; i++) putchar(' ');
-		printf("Count for '%s' does not exist\n", label.c_str());
-	}
-	else {
-		consoleCounter[label] = 0;
+		for (u32 i = 0; i < argCount; i++) {
+			consolePrintLiteral(args[i]);
+			if (i < argCount - 1) putchar(' ');
+		}
+		putchar('\n');
 	}
 	return jerry_create_undefined();
 }
@@ -329,7 +322,45 @@ static jerry_value_t consoleGroupEndHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
-std::map<std::string, time_t> consoleTimer;
+std::map<std::string, int> consoleCounters;
+static jerry_value_t consoleCountHandler(CALL_INFO) {
+	for (int i = 0; i < consoleGroups; i++) putchar(' ');
+	std::string label;
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		label = std::string(lbl);
+		free(lbl);
+	}
+	else label = "default";
+	if (consoleCounters.count(label) == 0) {
+		printf("%s: %i\n", label.c_str(), 1);
+		consoleCounters[label] = 1;
+	}
+	else {
+		printf("%s: %i\n", label.c_str(), ++consoleCounters[label]);
+	}
+	return jerry_create_undefined();
+}
+
+static jerry_value_t consoleCountResetHandler(CALL_INFO) {
+	std::string label;
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		label = std::string(lbl);
+		free(lbl);
+	}
+	else label = "default";
+	if (consoleCounters.count(label) == 0) {
+		for (int i = 0; i < consoleGroups; i++) putchar(' ');
+		printf("Count for '%s' does not exist\n", label.c_str());
+	}
+	else {
+		consoleCounters[label] = 0;
+	}
+	return jerry_create_undefined();
+}
+
+std::map<std::string, time_t> consoleTimers;
 static jerry_value_t consoleTimeHandler(CALL_INFO) {
 	std::string label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
@@ -338,8 +369,8 @@ static jerry_value_t consoleTimeHandler(CALL_INFO) {
 		free(lbl);
 	}
 	else label = "default";
-	if (consoleTimer.count(label) == 0) {
-		consoleTimer[label] = time(NULL);
+	if (consoleTimers.count(label) == 0) {
+		consoleTimers[label] = time(NULL);
 	}
 	else {
 		for (int i = 0; i < consoleGroups; i++) putchar(' ');
@@ -357,11 +388,11 @@ static jerry_value_t consoleTimeLogHandler(CALL_INFO) {
 		free(lbl);
 	}
 	else label = "default";
-	if (consoleTimer.count(label) == 0) {
+	if (consoleTimers.count(label) == 0) {
 		printf("Timer '%s' does not exist\n", label.c_str());
 	}
 	else {
-		double elapsed = difftime(time(NULL), consoleTimer[label]);
+		double elapsed = difftime(time(NULL), consoleTimers[label]);
 		printf("%s: %lg s\n", label.c_str(), elapsed);
 	}
 	return jerry_create_undefined();
@@ -376,14 +407,19 @@ static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
 		free(lbl);
 	}
 	else label = "default";
-	if (consoleTimer.count(label) == 0) {
+	if (consoleTimers.count(label) == 0) {
 		printf("Timer '%s' does not exist\n", label.c_str());
 	}
 	else {
-		double elapsed = difftime(time(NULL), consoleTimer[label]);
-		consoleTimer.erase(label);
+		double elapsed = difftime(time(NULL), consoleTimers[label]);
+		consoleTimers.erase(label);
 		printf("%s: %lg s\n", label.c_str(), elapsed);
 	}
+	return jerry_create_undefined();
+}
+
+static jerry_value_t consoleClearHandler(CALL_INFO) {
+	consoleClear();
 	return jerry_create_undefined();
 }
 
@@ -416,6 +452,7 @@ void exposeAPI() {
 	setMethod(console, "time", consoleTimeHandler);
 	setMethod(console, "timeLog", consoleTimeLogHandler);
 	setMethod(console, "timeEnd", consoleTimeEndHandler);
+	setMethod(console, "trace", consoleTraceHandler);
 	setMethod(console, "warn", consoleWarnHandler);
 	jerry_release_value(console);
 
