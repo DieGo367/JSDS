@@ -15,7 +15,7 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
 		i++;
 		u16 pal = mainConsole->fontCurPal;
-		char *msg = getString(args[0], NULL, false);
+		char *msg = getString(args[0]);
 		char *pos = msg;
 		if (pos) while (i < argCount) {
 			char *find = strchr(pos, '%');
@@ -31,7 +31,7 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 			else if (specifier == 'd' || specifier == 'i') { // output next param as integer (parseInt)
 				if (jerry_value_is_symbol(args[i])) printf("NaN");
 				else {
-					char *string = getString(jerry_value_to_string(args[i]), NULL, true);
+					char *string = getAsString(args[i]);
 					char *endptr = NULL;
 					int64_t integer = strtoll(string, &endptr, 10);
 					if (endptr == string) printf("NaN");
@@ -44,7 +44,7 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 			else if (specifier == 'f') { // output next param as float (parseFloat)
 				if (jerry_value_is_symbol(args[i])) printf("NaN");
 				else {
-					char *string = getString(jerry_value_to_string(args[i]), NULL, true);
+					char *string = getAsString(args[i]);
 					char *endptr = NULL;
 					double floatVal = strtod(string, &endptr);
 					if (endptr == string) printf("NaN");
@@ -66,7 +66,7 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 				i++;
 			}
 			else if (specifier == 'c') { // use next param as CSS rule
-				char *cssString = getString(jerry_value_to_string(args[i]), NULL, true);
+				char *cssString = getAsString(args[i]);
 				char attribute[31] = {0};
 				char value[31] = {0};
 				int numSet = sscanf(cssString, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
@@ -134,7 +134,7 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 	}
 	else if (jerry_value_is_string(value)) {
 		mainConsole->fontCurPal = ConsolePalette::LIME;
-		char *string = getString(value, NULL, false);
+		char *string = getString(value);
 		if (strchr(string, '"') == NULL) printf("\"%s\"", string);
 		else if (strchr(string, '\'') == NULL) printf("'%s'", string);
 		else if (strchr(string, '`') == NULL) printf("`%s`", string);
@@ -160,7 +160,7 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 	}
 	else if (jerry_value_is_function(value)) {
 		mainConsole->fontCurPal = ConsolePalette::AQUA;
-		char* name = getString(getProperty(value, "name"), NULL, true);
+		char* name = getStringProperty(value, "name");
 		putchar('[');
 		if (jerry_value_is_async_function(value)) printf("Async");
 		printf("Function");
@@ -228,21 +228,23 @@ void consolePrintObject(jerry_value_t obj, u8 level) {
 	else {
 		printf("{ ");
 		for (u32 i = 0; i < length; i++) {
+			jerry_value_t key = jerry_get_property_by_index(keysArray, i);
 			jerry_length_t keySize;
-			char* key = getString(jerry_get_property_by_index(keysArray, i), &keySize, true);
+			char* keyStr = getString(key, &keySize);
+			jerry_release_value(key);
 			char capture[keySize + 1];
-			if (sscanf(key, "%[A-Za-z0-9]", capture) > 0 && strcmp(key, capture) == 0) {
-				printf(key);
+			if (sscanf(keyStr, "%[A-Za-z0-9]", capture) > 0 && strcmp(keyStr, capture) == 0) {
+				printf(keyStr);
 			}
 			else {
 				u16 pal = mainConsole->fontCurPal;
 				mainConsole->fontCurPal = ConsolePalette::LIME;
-				if (strchr(key, '"') == NULL) printf("\"%s\"", key);
-				else if (strchr(key, '\'') == NULL) printf("'%s'", key);
+				if (strchr(keyStr, '"') == NULL) printf("\"%s\"", keyStr);
+				else if (strchr(keyStr, '\'') == NULL) printf("'%s'", keyStr);
 				else {
 					putchar('"');
-					char *pos = key;
-					for (char* ch = key; (ch = strchr(ch, '"')); ch++) {
+					char *pos = keyStr;
+					for (char* ch = keyStr; (ch = strchr(ch, '"')); ch++) {
 						*ch = '\0';
 						printf("%s\\\"", pos);
 						*ch = '"';
@@ -254,8 +256,8 @@ void consolePrintObject(jerry_value_t obj, u8 level) {
 				mainConsole->fontCurPal = pal;
 			}
 			printf(": ");
-			jerry_value_t item = getProperty(obj, key);
-			free(key);
+			jerry_value_t item = getProperty(obj, keyStr);
+			free(keyStr);
 			consolePrintLiteral(item, level + 1);
 			jerry_release_value(item);
 			if (i < length - 1) printf(", ");
@@ -288,7 +290,7 @@ static u8 tableValueWidth(jerry_value_t value) {
 static void tableValuePrint(jerry_value_t item, u8 width) {
 	u16 pal = mainConsole->fontCurPal;
 	if (jerry_value_is_string(item)) {
-		char* str = getString(item, NULL, false);
+		char* str = getString(item);
 		printf("%-*s", width, str);
 		free(str);
 		return;
@@ -298,7 +300,7 @@ static void tableValuePrint(jerry_value_t item, u8 width) {
 		mainConsole->fontCurPal = ConsolePalette::YELLOW;
 		jerry_value_t asString = jerry_value_to_string(item);
 		u32 numLen = jerry_get_string_length(asString);
-		char* str = getString(asString, NULL, false);
+		char* str = getString(asString);
 		printf(str);
 		free(str);
 		jerry_release_value(asString);
@@ -446,7 +448,7 @@ void consolePrintTable(const jerry_value_t args[], jerry_value_t argCount, int i
 		printf("%*s%-*s", indent, "", idxColWidth, "i");
 		for (u32 colIdx = 0; colIdx < sharedKeyCount; colIdx++) {
 			jerry_value_t key = jerry_get_property_by_index(sharedKeys, colIdx);
-			char *keyStr = getString(key, NULL, false);
+			char *keyStr = getString(key);
 			printf("|%-*s", colWidths[colIdx], keyStr);
 			free(keyStr);
 			jerry_release_value(key);
@@ -462,7 +464,7 @@ void consolePrintTable(const jerry_value_t args[], jerry_value_t argCount, int i
 		// print for each row in the object
 		for (u32 rowIdx = 0; rowIdx < keyCount; rowIdx++) {
 			jerry_value_t rowKey = jerry_get_property_by_index(keys, rowIdx);
-			char *keyStr = getString(rowKey, NULL, false);
+			char *keyStr = getString(rowKey);
 			printf("%*s%-*s", indent, "", idxColWidth, keyStr);
 			free(keyStr);
 			jerry_value_t obj = jerry_get_property(args[0], rowKey);
@@ -493,7 +495,7 @@ void consolePrintTable(const jerry_value_t args[], jerry_value_t argCount, int i
 		for (u32 i = 0; i < keyCount; i++) {
 			// print key
 			jerry_value_t key = jerry_get_property_by_index(keys, i);
-			char *keyStr = getString(key, NULL, false);
+			char *keyStr = getString(key);
 			printf("%*s%-*s|", indent, "", idxColWidth, keyStr);
 			free(keyStr);
 			// print value

@@ -80,7 +80,7 @@ static jerry_value_t atobHandler(CALL_INFO) {
 	jerry_char_t *errorMsg = (jerry_char_t *) "Failed to decode base64.";
 
 	jerry_length_t dataSize;
-	char *data = getString(jerry_value_to_string(args[0]), &dataSize, true);
+	char *data = getAsString(args[0], &dataSize);
 	char *dataEnd = data + dataSize;
 
 	// (1) strip ASCII whitespace
@@ -154,7 +154,7 @@ static jerry_value_t btoaHandler(CALL_INFO) {
 	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'btoa': 1 argument required, but only 0 present.");
 
 	jerry_length_t dataSize;
-	char *data = getString(jerry_value_to_string(args[0]), &dataSize, true);
+	char *data = getAsString(args[0], &dataSize);
 	char *dataEnd = data + dataSize;
 
 	// convert UTF8 representation to binary, and count size
@@ -281,10 +281,12 @@ static jerry_value_t consoleTraceHandler(CALL_INFO) {
 	jerry_value_t backtrace = jerry_get_backtrace(10);
 	u32 length = jerry_get_array_length(backtrace);
 	for (u32 i = 0; i < length; i++) {
-		char *step = getString(jerry_get_property_by_index(backtrace, i), NULL, true);
+		jerry_value_t traceLine = jerry_get_property_by_index(backtrace, i);
+		char *step = getString(traceLine);
 		for (int j = 0; j < consoleGroups; j++) putchar(' ');
 		printf(" @ %s\n", step);
 		free(step);
+		jerry_release_value(traceLine);
 	}
 	jerry_release_value(backtrace);
 	return jerry_create_undefined();
@@ -332,7 +334,7 @@ static jerry_value_t consoleCountHandler(CALL_INFO) {
 	for (int i = 0; i < consoleGroups; i++) putchar(' ');
 	std::string label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		char *lbl = getAsString(args[0]);
 		label = std::string(lbl);
 		free(lbl);
 	}
@@ -350,7 +352,7 @@ static jerry_value_t consoleCountHandler(CALL_INFO) {
 static jerry_value_t consoleCountResetHandler(CALL_INFO) {
 	std::string label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		char *lbl = getAsString(args[0]);
 		label = std::string(lbl);
 		free(lbl);
 	}
@@ -369,7 +371,7 @@ std::map<std::string, time_t> consoleTimers;
 static jerry_value_t consoleTimeHandler(CALL_INFO) {
 	std::string label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		char *lbl = getAsString(args[0]);
 		label = std::string(lbl);
 		free(lbl);
 	}
@@ -388,7 +390,7 @@ static jerry_value_t consoleTimeLogHandler(CALL_INFO) {
 	for (int i = 0; i < consoleGroups; i++) putchar(' ');
 	std::string label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		char *lbl = getAsString(args[0]);
 		label = std::string(lbl);
 		free(lbl);
 	}
@@ -407,7 +409,7 @@ static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
 	for (int i = 0; i < consoleGroups; i++) putchar(' ');
 	std::string label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getString(jerry_value_to_string(args[0]), NULL, true);
+		char *lbl = getAsString(args[0]);
 		label = std::string(lbl);
 		free(lbl);
 	}

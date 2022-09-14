@@ -58,8 +58,8 @@ void tempLoadMain() {
 				printf("\n\n\n\n\tPress START to exit.");
 			}
 			else {
-				char *message = getString(getProperty(errorThrown, "message"), NULL, true);
-				char *name = getString(getProperty(errorThrown, "name"), NULL, true);
+				char *name = getStringProperty(errorThrown, "name");
+				char *message = getStringProperty(errorThrown, "message");
 				printf("\n\n\tUncaught %s\n\n\t%s\n\n\n\n\tPress START to exit.", name, message);
 				free(message);
 				free(name);
@@ -103,8 +103,8 @@ void repl() {
 				printValue(errorThrown);
 			}
 			else {
-				char *message = getString(getProperty(errorThrown, "message"), NULL, true);
-				char *name = getString(getProperty(errorThrown, "name"), NULL, true);
+				char *message = getStringProperty(errorThrown, "message");
+				char *name = getStringProperty(errorThrown, "name");
 				printf("%s: %s\n", name, message);
 				free(message);
 				free(name);
