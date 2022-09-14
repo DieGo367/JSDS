@@ -19,11 +19,11 @@ inline void setProperty(jerry_value_t object, const char *property, jerry_value_
 	jerry_release_value(propString);
 }
 
-// Set object method via c string and function.
+inline jerry_value_t nameValue;
+// Set object method via c string and function. "nameValue" must have been set up previously
 inline void setMethod(jerry_value_t object, const char *method, jerry_external_handler_t function) {
 	jerry_value_t func = jerry_create_external_function(function);
 	jerry_value_t methodName = jerry_create_string((jerry_char_t *) method);
-	jerry_value_t nameString = jerry_create_string((jerry_char_t *) "name");
 
 	// Function.prototype.name isn't being set automatically, so it must be defined manually
 	jerry_property_descriptor_t propDesc;
@@ -31,11 +31,10 @@ inline void setMethod(jerry_value_t object, const char *method, jerry_external_h
 	propDesc.value = methodName;
 	propDesc.is_value_defined = true;
 	propDesc.is_configurable = true;
-	jerry_define_own_property(func, nameString, &propDesc);
+	jerry_define_own_property(func, nameValue, &propDesc);
 
 	jerry_release_value(jerry_set_property(object, methodName, func));
 
-	jerry_release_value(nameString);
 	jerry_release_value(methodName);
 	jerry_release_value(func);
 }

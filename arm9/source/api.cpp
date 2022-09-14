@@ -431,6 +431,7 @@ static jerry_value_t consoleClearHandler(CALL_INFO) {
 }
 
 void exposeAPI() {
+	nameValue = jerry_create_string((jerry_char_t *) "name");
 	jerry_value_t global = jerry_get_global_object();
 	setProperty(global, "self", global);
 
@@ -465,4 +466,5 @@ void exposeAPI() {
 	jerry_release_value(console);
 
 	jerry_release_value(global);
+	jerry_release_value(nameValue);
 }
