@@ -31,5 +31,6 @@ enum ConsolePalette {
 void consolePrint(const jerry_value_t args[], jerry_value_t argCount);
 void consolePrintLiteral(jerry_value_t value, u8 level = 0);
 void consolePrintObject(jerry_value_t value, u8 level = 0);
+void consolePrintTable(const jerry_value_t args[], jerry_value_t argCount, int indent);
 
 #endif /* JSDS_CONSOLE_H */

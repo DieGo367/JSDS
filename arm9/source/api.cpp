@@ -312,6 +312,11 @@ static jerry_value_t consoleDirxmlHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
+static jerry_value_t consoleTableHandler(CALL_INFO) {
+	if (argCount > 0) consolePrintTable(args, argCount, consoleGroups);
+	return jerry_create_undefined();
+}
+
 static jerry_value_t consoleGroupHandler(CALL_INFO) {
 	consoleGroups++;
 	return jerry_create_undefined();
@@ -449,6 +454,7 @@ void exposeAPI() {
 	setMethod(console, "groupEnd", consoleGroupEndHandler);
 	setMethod(console, "info", consoleInfoHandler);
 	setMethod(console, "log", consoleLogHandler);
+	setMethod(console, "table", consoleTableHandler);
 	setMethod(console, "time", consoleTimeHandler);
 	setMethod(console, "timeLog", consoleTimeLogHandler);
 	setMethod(console, "timeEnd", consoleTimeEndHandler);
