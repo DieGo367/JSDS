@@ -10,6 +10,19 @@
 
 
 
+void execPromises() {
+	jerry_value_t jobResult;
+	while (true) {
+		jobResult = jerry_run_all_enqueued_jobs();
+		if (jerry_value_is_error(jobResult)) {
+			consolePrintLiteral(jobResult);
+			jerry_release_value(jobResult);
+		}
+		else break;
+	}
+	jerry_release_value(jobResult);
+}
+
 jerry_value_t execFile(FILE *file, bool closeFile) {
 	fseek(file, 0, SEEK_END);
 	long size = ftell(file);
@@ -24,12 +37,15 @@ jerry_value_t execFile(FILE *file, bool closeFile) {
 		JERRY_PARSE_STRICT_MODE & JERRY_PARSE_MODULE
 	);
 	free(script);
-	if (jerry_value_is_error(parsedCode)) return parsedCode;
+
+	jerry_value_t result;
+	if (jerry_value_is_error(parsedCode)) result = parsedCode;
 	else {
-		jerry_value_t result = jerry_run(parsedCode);
+		result = jerry_run(parsedCode);
 		jerry_release_value(parsedCode);
-		return result;
 	}
+	execPromises();
+	return result;
 }
 
 void tempLoadMain() {
@@ -51,9 +67,9 @@ void tempLoadMain() {
 void repl() {
 	consoleSetWindow(NULL, 0, 0, 32, 14);
 	keyboardShow();
-	while(true) {
+	while (true) {
 		keyboardClearBuffer();
-		while(true) {
+		while (true) {
 			swiWaitForVBlank();
 			if (keyboardEnterPressed) break;
 			keyboardUpdate();
@@ -71,6 +87,7 @@ void repl() {
 			result = jerry_run(parsedLine);
 			jerry_release_value(parsedLine);
 		}
+		execPromises();
 
 		printf("-> ");
 		consolePrintLiteral(result);
@@ -93,7 +110,7 @@ int main(int argc, char **argv) {
 	tempLoadMain();
 
 	// wait, then cleanup and exit
-	while(true) {
+	while (true) {
 		swiWaitForVBlank();
 		scanKeys();
 		if (keysDown() & KEY_START) break;
