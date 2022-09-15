@@ -74,6 +74,13 @@ inline char *getStringProperty(jerry_value_t object, const char *property, jerry
 	return string;
 }
 
+// Print a string value.
+inline void printString(jerry_value_t stringValue) {
+	char *string = getString(stringValue);
+	printf(string);
+	free(string);
+}
+
 // Print any value as a string.
 inline void printValue(const jerry_value_t value) {
 	char *string = getAsString(value);

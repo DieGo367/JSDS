@@ -37,34 +37,12 @@ void tempLoadMain() {
 	FILE *file = fopen("/main.js", "r");
 	if (file == NULL) {
 		BG_PALETTE_SUB[0] = 0x001F;
-		printf("\n\n\tFile read error!\n\nCouldn't open \"/main.js\".\n\n\n\n\tPress START to exit.");
-		while(true) {
-			swiWaitForVBlank();
-			scanKeys();
-			if (keysDown() & KEY_START) break;
-		}
+		printf("\n\n\tFile read error!\n\nCouldn't open \"/main.js\".");
 	}
 	else {
 		jerry_value_t result = execFile(file, true);
 		if (jerry_value_is_error(result)) {
-			BG_PALETTE_SUB[0] = 0x8010;
-			consoleClear();
-
-			jerry_error_t errorCode = jerry_get_error_type(result);
-			jerry_value_t errorThrown = jerry_get_value_from_error(result, false);
-			if (errorCode == JERRY_ERROR_NONE) {
-				printf("\n\n\tUncaught value\n\n\t");
-				printValue(errorThrown);
-				printf("\n\n\n\n\tPress START to exit.");
-			}
-			else {
-				char *name = getStringProperty(errorThrown, "name");
-				char *message = getStringProperty(errorThrown, "message");
-				printf("\n\n\tUncaught %s\n\n\t%s\n\n\n\n\tPress START to exit.", name, message);
-				free(message);
-				free(name);
-			}
-			jerry_release_value(errorThrown);
+			consolePrintLiteral(result);
 		}
 		jerry_release_value(result);
 	}
@@ -95,23 +73,7 @@ void repl() {
 		}
 
 		printf("-> ");
-		if (jerry_value_is_error(result)) {
-			jerry_error_t errorCode = jerry_get_error_type(result);
-			jerry_value_t errorThrown = jerry_get_value_from_error(result, false);
-			if (errorCode == JERRY_ERROR_NONE) {
-				printf("Uncaught value: ");
-				printValue(errorThrown);
-			}
-			else {
-				char *message = getStringProperty(errorThrown, "message");
-				char *name = getStringProperty(errorThrown, "name");
-				printf("%s: %s\n", name, message);
-				free(message);
-				free(name);
-			}
-			jerry_release_value(errorThrown);
-		}
-		else consolePrintLiteral(result);
+		consolePrintLiteral(result);
 		putchar('\n');
 		jerry_release_value(result);
 	}

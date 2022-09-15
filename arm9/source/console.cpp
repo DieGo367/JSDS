@@ -109,7 +109,7 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 		if (i < argCount) putchar(' ');
 	}
 	for (; i < argCount; i++) {
-		if (jerry_value_is_string(args[i])) printValue(args[i]);
+		if (jerry_value_is_string(args[i])) printString(args[i]);
 		else consolePrintLiteral(args[i]);
 		if (i < argCount - 1) putchar(' ');
 	}
@@ -118,105 +118,126 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 
 void consolePrintLiteral(jerry_value_t value, u8 level) {
 	u16 pal = mainConsole->fontCurPal;
-	bool test = false;
-	if (jerry_value_is_boolean(value) || jerry_value_is_number(value) || (test = jerry_value_is_bigint(value))) {
-		mainConsole->fontCurPal = ConsolePalette::YELLOW;
-		printValue(value);
-		if (test) putchar('n');
-	}
-	else if (jerry_value_is_null(value)) {
-		mainConsole->fontCurPal = ConsolePalette::SILVER;
-		printf("null");
-	}
-	else if (jerry_value_is_undefined(value)) {
-		mainConsole->fontCurPal = ConsolePalette::GRAY;
-		printf("undefined");
-	}
-	else if (jerry_value_is_string(value)) {
-		mainConsole->fontCurPal = ConsolePalette::LIME;
-		char *string = getString(value);
-		if (strchr(string, '"') == NULL) printf("\"%s\"", string);
-		else if (strchr(string, '\'') == NULL) printf("'%s'", string);
-		else if (strchr(string, '`') == NULL) printf("`%s`", string);
-		else {
-			putchar('"');
-			char *pos = string;
-			for (char* ch = string; (ch = strchr(ch, '"')); ch++) {
-				*ch = '\0';
-				printf("%s\\\"", pos);
-				*ch = '"';
-				pos = ch + 1;
+	jerry_type_t type = jerry_value_get_type(value);
+	switch(type) {
+		case JERRY_TYPE_BOOLEAN:
+		case JERRY_TYPE_NUMBER:
+		case JERRY_TYPE_BIGINT: {}
+			mainConsole->fontCurPal = ConsolePalette::YELLOW;
+			printValue(value);
+			if (type == JERRY_TYPE_BIGINT) putchar('n');
+			break;
+		case JERRY_TYPE_NULL:
+			mainConsole->fontCurPal = ConsolePalette::SILVER;
+			printf("null");
+			break;
+		case JERRY_TYPE_UNDEFINED:
+			mainConsole->fontCurPal = ConsolePalette::GRAY;
+			printf("undefined");
+			break;
+		case JERRY_TYPE_STRING: {
+			mainConsole->fontCurPal = ConsolePalette::LIME;
+			char *string = getString(value);
+			if (strchr(string, '"') == NULL) printf("\"%s\"", string);
+			else if (strchr(string, '\'') == NULL) printf("'%s'", string);
+			else if (strchr(string, '`') == NULL) printf("`%s`", string);
+			else {
+				putchar('"');
+				char *pos = string;
+				for (char* ch = string; (ch = strchr(ch, '"')); ch++) {
+					*ch = '\0';
+					printf("%s\\\"", pos);
+					*ch = '"';
+					pos = ch + 1;
+				}
+				printf(pos);
+				putchar('"');
 			}
-			printf(pos);
-			putchar('"');
-		}
-		free(string);
-	}
-	else if (jerry_value_is_symbol(value)) {
-		mainConsole->fontCurPal = ConsolePalette::LIME;
-		jerry_value_t description = jerry_get_symbol_descriptive_string(value);
-		printValue(description);
-		jerry_release_value(description);
-	}
-	else if (jerry_value_is_function(value)) {
-		mainConsole->fontCurPal = ConsolePalette::AQUA;
-		char* name = getStringProperty(value, "name");
-		putchar('[');
-		if (jerry_value_is_async_function(value)) printf("Async");
-		printf("Function");
-		if (*name) printf(": %s]", name);
-		else putchar(']');
-		free(name);
-	}
-	else if (jerry_value_is_typedarray(value)) {
-		jerry_length_t length = jerry_get_typedarray_length(value);
-		jerry_typedarray_type_t type = jerry_get_typedarray_type(value);
-		switch (type) {
-			case JERRY_TYPEDARRAY_UINT8:		printf("Uint8"); break;
-			case JERRY_TYPEDARRAY_UINT8CLAMPED:	printf("Uint8Clamped"); break;
-			case JERRY_TYPEDARRAY_INT8:			printf("Int8"); break;
-			case JERRY_TYPEDARRAY_UINT16:		printf("Uint16"); break;
-			case JERRY_TYPEDARRAY_INT16:		printf("Int16"); break;
-			case JERRY_TYPEDARRAY_UINT32:		printf("Uint32"); break;
-			case JERRY_TYPEDARRAY_INT32:		printf("Int32"); break;
-			case JERRY_TYPEDARRAY_FLOAT32:		printf("Float32"); break;
-			case JERRY_TYPEDARRAY_FLOAT64:		printf("Float64"); break;
-			case JERRY_TYPEDARRAY_BIGINT64:		printf("BigInt64"); break;
-			case JERRY_TYPEDARRAY_BIGUINT64:	printf("BigUint64"); break;
-			default:							printf("Typed"); break;
-		}
-		printf("Array(%lu) ", length);
-		if (length == 0) printf("[]");
-		else {
-			printf("[ ");
-			for (u32 i = 0; i < length; i++) {
-				jerry_value_t item = jerry_get_property_by_index(value, i);
-				consolePrintLiteral(item);
-				jerry_release_value(item);
-				if (i < length - 1) printf(", ");
+			free(string);
+		} break;
+		case JERRY_TYPE_SYMBOL: {
+			mainConsole->fontCurPal = ConsolePalette::LIME;
+			jerry_value_t description = jerry_get_symbol_descriptive_string(value);
+			printString(description);
+			jerry_release_value(description);
+		} break;
+		case JERRY_TYPE_FUNCTION: {
+			mainConsole->fontCurPal = ConsolePalette::AQUA;
+			char *name = getStringProperty(value, "name");
+			putchar('[');
+			if (jerry_value_is_async_function(value)) printf("Async");
+			printf("Function");
+			if (*name) printf(": %s]", name);
+			else putchar(']');
+			free(name);
+		} break;
+		case JERRY_TYPE_ERROR: {
+			jerry_error_t errorCode = jerry_get_error_type(value);
+			jerry_value_t errorThrown = jerry_get_value_from_error(value, false);
+			if (errorCode == JERRY_ERROR_NONE) {
+				printf("Uncaught ");
+				consolePrintLiteral(errorThrown);
 			}
-			printf(" ]");
-		}
-	}
-	else if (jerry_value_is_array(value)) {
-		u32 length = jerry_get_array_length(value);
-		if (length == 0) printf("[]");
-		else if (level > MAX_PRINT_RECURSION) printf("[...]");
-		else {
-			printf("[ ");
-			for (u32 i = 0; i < length; i++) {
-				jerry_value_t item = jerry_get_property_by_index(value, i);
-				consolePrintLiteral(item, level + 1);
-				jerry_release_value(item);
-				if (i < length - 1) printf(", ");
+			else {
+				char *message = getStringProperty(errorThrown, "message");
+				char *name = getStringProperty(errorThrown, "name");
+				printf("%s: %s", name, message);
+				free(message);
+				free(name);
 			}
-			printf(" ]");
-		}
+			jerry_release_value(errorThrown);
+		} break;
+		case JERRY_TYPE_OBJECT:
+			if (jerry_value_is_typedarray(value)) {
+				jerry_length_t length = jerry_get_typedarray_length(value);
+				jerry_typedarray_type_t type = jerry_get_typedarray_type(value);
+				switch (type) {
+					case JERRY_TYPEDARRAY_UINT8:		printf("Uint8");		break;
+					case JERRY_TYPEDARRAY_UINT8CLAMPED:	printf("Uint8Clamped");	break;
+					case JERRY_TYPEDARRAY_INT8:			printf("Int8");			break;
+					case JERRY_TYPEDARRAY_UINT16:		printf("Uint16");		break;
+					case JERRY_TYPEDARRAY_INT16:		printf("Int16");		break;
+					case JERRY_TYPEDARRAY_UINT32:		printf("Uint32");		break;
+					case JERRY_TYPEDARRAY_INT32:		printf("Int32");		break;
+					case JERRY_TYPEDARRAY_FLOAT32:		printf("Float32");		break;
+					case JERRY_TYPEDARRAY_FLOAT64:		printf("Float64");		break;
+					case JERRY_TYPEDARRAY_BIGINT64:		printf("BigInt64");		break;
+					case JERRY_TYPEDARRAY_BIGUINT64:	printf("BigUint64");	break;
+					default:							printf("Typed");		break;
+				}
+				printf("Array(%lu) ", length);
+				if (length == 0) printf("[]");
+				else {
+					printf("[ ");
+					for (u32 i = 0; i < length; i++) {
+						jerry_value_t item = jerry_get_property_by_index(value, i);
+						consolePrintLiteral(item);
+						jerry_release_value(item);
+						if (i < length - 1) printf(", ");
+					}
+					printf(" ]");
+				}
+			}
+			else if (jerry_value_is_array(value)) {
+				u32 length = jerry_get_array_length(value);
+				if (length == 0) printf("[]");
+				else if (level > MAX_PRINT_RECURSION) printf("[...]");
+				else {
+					printf("[ ");
+					for (u32 i = 0; i < length; i++) {
+						jerry_value_t item = jerry_get_property_by_index(value, i);
+						consolePrintLiteral(item, level + 1);
+						jerry_release_value(item);
+						if (i < length - 1) printf(", ");
+					}
+					printf(" ]");
+				}
+			}
+			else consolePrintObject(value, level);
+			break;
+		default:
+			printValue(value); // catch-all, shouldn't be reachable but should work anyway if it is
 	}
-	else if (jerry_value_is_object(value)) {
-		consolePrintObject(value, level);
-	}
-	else printValue(value); // catch-all, shouldn't be reachable but should work anyway if it is
 	mainConsole->fontCurPal = pal;
 }
 
@@ -268,73 +289,71 @@ void consolePrintObject(jerry_value_t obj, u8 level) {
 }
 
 static u8 tableValueWidth(jerry_value_t value) {
-	if (jerry_value_is_string(value)) return jerry_get_string_length(value);
-	bool isBigInt = jerry_value_is_bigint(value);
-	if (isBigInt || jerry_value_is_number(value)) {
-		jerry_value_t asString = jerry_value_to_string(value);
-		u32 numLen = jerry_get_string_length(asString);
-		jerry_release_value(asString);
-		if (isBigInt) numLen++;
-		return numLen;
+	jerry_type_t type = jerry_value_get_type(value);
+	switch (type) {
+		case JERRY_TYPE_STRING: return jerry_get_string_length(value);
+		case JERRY_TYPE_NUMBER:
+		case JERRY_TYPE_BIGINT: {
+			jerry_value_t asString = jerry_value_to_string(value);
+			u32 numLen = jerry_get_string_length(asString);
+			jerry_release_value(asString);
+			if (type == JERRY_TYPE_BIGINT) numLen++;
+			return numLen;
+		}
+		case JERRY_TYPE_BOOLEAN: return jerry_value_to_boolean(value) ? 4 : 5;
+		case JERRY_TYPE_NULL: return 4;
+		case JERRY_TYPE_FUNCTION: return 8; // Function
+		case JERRY_TYPE_SYMBOL: return 6;
+		case JERRY_TYPE_OBJECT:
+			return 5; // [...] for arrays or {...} for other objects
+		default: return 0; // undefined and anything else
 	}
-	else if (jerry_value_is_boolean(value)) {
-		return jerry_value_to_boolean(value) ? 4 : 5;
-	}
-	else if (jerry_value_is_null(value)) return 4;
-	else if (jerry_value_is_function(value)) return 8; // Function
-	else if (jerry_value_is_symbol(value)) return 6; // Symbol
-	else if (jerry_value_is_array(value) || jerry_value_is_object(value)) return 5; // [...] or {...}
-	return 0; // undefined and anything else
 }
 
-static void tableValuePrint(jerry_value_t item, u8 width) {
+static void tableValuePrint(jerry_value_t value, u8 width) {
 	u16 pal = mainConsole->fontCurPal;
-	if (jerry_value_is_string(item)) {
-		char* str = getString(item);
-		printf("%-*s", width, str);
-		free(str);
-		return;
+	jerry_type_t type = jerry_value_get_type(value);
+	switch (type) {
+		case JERRY_TYPE_STRING: {
+			char* str = getString(value);
+			printf("%-*s", width, str);
+			free(str);
+		} break;
+		case JERRY_TYPE_NUMBER:
+		case JERRY_TYPE_BIGINT: {
+			mainConsole->fontCurPal = ConsolePalette::YELLOW;
+			jerry_value_t asString = jerry_value_to_string(value);
+			u32 numLen = jerry_get_string_length(asString);
+			printString(asString);
+			jerry_release_value(asString);
+			if (type == JERRY_TYPE_BIGINT) {
+				numLen++;
+				putchar('n');
+			}
+			printf("%-*s", (int) (width - numLen), "");
+		} break;
+		case JERRY_TYPE_BOOLEAN:
+			mainConsole->fontCurPal = ConsolePalette::YELLOW;
+			printf("%-*s", width, jerry_value_to_boolean(value) ? "true" : "false");
+			break;
+		case JERRY_TYPE_NULL:
+			mainConsole->fontCurPal = ConsolePalette::SILVER;
+			printf("%-*s", width, "null");
+			break;
+		case JERRY_TYPE_FUNCTION:
+			mainConsole->fontCurPal = ConsolePalette::AQUA;
+			printf("%-*s", width, "Function");
+			break;
+		case JERRY_TYPE_SYMBOL:
+			mainConsole->fontCurPal = ConsolePalette::LIME;
+			printf("%-*s", width, "Symbol");
+			break;
+		case JERRY_TYPE_OBJECT:
+			mainConsole->fontCurPal = ConsolePalette::SILVER;
+			printf("%-*s", width, jerry_value_is_array(value) ? "[...]" : "{...}");
+			break;
+		default: printf("%-*s", width, "");; // undefined and anything else
 	}
-	bool isBigInt = jerry_value_is_bigint(item);
-	if (isBigInt || jerry_value_is_number(item)) {
-		mainConsole->fontCurPal = ConsolePalette::YELLOW;
-		jerry_value_t asString = jerry_value_to_string(item);
-		u32 numLen = jerry_get_string_length(asString);
-		char* str = getString(asString);
-		printf(str);
-		free(str);
-		jerry_release_value(asString);
-		if (isBigInt) {
-			numLen++;
-			putchar('n');
-		}
-		printf("%-*s", (int) (width - numLen), "");
-	}
-	else if (jerry_value_is_boolean(item)) {
-		mainConsole->fontCurPal = ConsolePalette::YELLOW;
-		printf("%-*s", width, jerry_value_to_boolean(item) ? "true" : "false");
-	}
-	else if (jerry_value_is_null(item)) {
-		mainConsole->fontCurPal = ConsolePalette::SILVER;
-		printf("%-*s", width, "null");
-	}
-	else if (jerry_value_is_function(item)) {
-		mainConsole->fontCurPal = ConsolePalette::AQUA;
-		printf("%-*s", width, "Function");
-	}
-	else if (jerry_value_is_symbol(item)) {
-		mainConsole->fontCurPal = ConsolePalette::LIME;
-		printf("%-*s", width, "Symbol");
-	}
-	else if (jerry_value_is_array(item)) {
-		mainConsole->fontCurPal = ConsolePalette::SILVER;
-		printf("%-*s", width, "[...]");
-	}
-	else if (jerry_value_is_object(item)) {
-		mainConsole->fontCurPal = ConsolePalette::SILVER;
-		printf("%-*s", width, "{...}");
-	}
-	else printf("%-*s", width, "");
 	mainConsole->fontCurPal = pal;
 }
 
