@@ -14,7 +14,10 @@
  */
 #include "jerryscript.h"
 #include "jerryscript-port-default.h"
-#include <nds.h>
+#include <nds/ndstypes.h>
+#include <nds/arm9/input.h>
+#include <nds/arm9/video.h>
+#include <nds/interrupts.h>
 
 
 /**

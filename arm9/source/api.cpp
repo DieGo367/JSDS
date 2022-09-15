@@ -1,10 +1,12 @@
 #include "api.h"
 
-#include <nds.h>
-#include <stdio.h>
-#include <time.h>
 #include <map>
+#include <nds/arm9/input.h>
+#include <nds/interrupts.h>
+#include <stdio.h>
 #include <string>
+#include <time.h>
+
 #include "jerry/jerryscript.h"
 #include "console.h"
 #include "keyboard.h"

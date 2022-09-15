@@ -1,7 +1,6 @@
 #ifndef JSDS_INLINE_H
 #define JSDS_INLINE_H
 
-#include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
 
 // Get object property via c string. Return value must be released!

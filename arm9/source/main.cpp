@@ -1,12 +1,14 @@
-#include <nds.h>
 #include <fat.h>
+#include <nds/arm9/input.h>
+#include <nds/interrupts.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include "jerry/jerryscript.h"
 #include "api.h"
 #include "console.h"
-#include "keyboard.h"
 #include "inline.h"
+#include "jerry/jerryscript.h"
+#include "keyboard.h"
 
 
 

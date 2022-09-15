@@ -1,6 +1,8 @@
 #include "console.h"
 
-#include <nds.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "jerry/jerryscript.h"
 #include "inline.h"
 

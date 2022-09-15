@@ -1,6 +1,8 @@
 #include "keyboard.h"
 
-#include <nds.h>
+#include <nds/arm9/console.h>
+#include <string.h>
+
 #include "jerry/jerryscript.h"
 
 
