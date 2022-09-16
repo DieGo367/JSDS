@@ -17,7 +17,7 @@ bool timerOn = false;
 
 void timerTick() {
 	for (const auto &[id, timeout] : timeouts) {
-		if (timeout.remaining > 0) timeouts[id].remaining--;
+		timeouts[id].remaining--;
 	}
 }
 
@@ -117,11 +117,18 @@ void runTimeout(timeout t) {
 }
 
 void checkTimeouts() {
-	for (auto it = timeouts.begin(); it != timeouts.end(); /* no increment here */) {
-		// increment the iterator while keeping the current reference.
-		// this allows the loop to continue even if "current" is invalidated when the timeout is removed from the map.
-		auto current = it++;
-		if (current->second.remaining <= 0) runTimeout(current->second);
+	int minAmount = 0;
+	while (minAmount < 1) {
+		minAmount = 1;
+		for (const auto &[id, timeout] : timeouts) {
+			if (timeout.remaining < minAmount) minAmount = timeout.remaining;
+		}
+		if (minAmount < 1) for (auto it = timeouts.begin(); it != timeouts.end(); /* no increment here */) {
+			// increment the iterator while keeping the current reference.
+			// this allows the loop to continue even if "current" is invalidated when the timeout is removed from the map.
+			auto current = it++;
+			if (current->second.remaining == minAmount) runTimeout(current->second);
+		}
 	}
 	if (timerOn && timeouts.size() == 0) { // disable the timer while it's not being used
 		timerStop(0);
