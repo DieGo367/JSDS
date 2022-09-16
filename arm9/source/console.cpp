@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "jerry/jerryscript.h"
 #include "inline.h"
+#include "jerry/jerryscript.h"
 
 
 

@@ -1,16 +1,17 @@
 #include "api.h"
 
-#include <map>
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>
 #include <stdio.h>
 #include <string>
 #include <time.h>
+#include <unordered_map>
 
-#include "jerry/jerryscript.h"
 #include "console.h"
 #include "keyboard.h"
 #include "inline.h"
+#include "jerry/jerryscript.h"
+#include "timeouts.h"
 
 
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
@@ -210,6 +211,52 @@ static jerry_value_t btoaHandler(CALL_INFO) {
 	return result;
 }
 
+static jerry_value_t setTimeoutHandler(CALL_INFO) {
+	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, false);
+	else {
+		jerry_value_t undefined = jerry_create_undefined();
+		jerry_value_t zero = jerry_create_number(0);
+		jerry_value_t result = addTimeout(
+			argCount > 0 ? args[0] : undefined,
+			argCount > 1 ? args[1] : zero,
+			(jerry_value_t *)(args) + 2,
+			argCount - 2,
+			false
+		);
+		jerry_release_value(zero);
+		jerry_release_value(undefined);
+		return result;
+	}
+}
+
+static jerry_value_t setIntervalHandler(CALL_INFO) {
+	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, true);
+	else {
+		jerry_value_t undefined = jerry_create_undefined();
+		jerry_value_t zero = jerry_create_number(0);
+		jerry_value_t result = addTimeout(
+			argCount > 0 ? args[0] : undefined,
+			argCount > 1 ? args[1] : zero,
+			(jerry_value_t *)(args) + 2,
+			argCount - 2,
+			true
+		);
+		jerry_release_value(zero);
+		jerry_release_value(undefined);
+		return result;
+	}
+}
+
+static jerry_value_t clearTimeoutHandler(CALL_INFO) {
+	if (argCount > 0) clearTimeout(args[0]);
+	else {
+		jerry_value_t undefined = jerry_create_undefined();
+		clearTimeout(undefined);
+		jerry_release_value(undefined);
+	}
+	return jerry_create_undefined();
+}
+
 int consoleGroups = 0;
 
 static jerry_value_t consoleLogHandler(CALL_INFO) {
@@ -331,7 +378,7 @@ static jerry_value_t consoleGroupEndHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
-std::map<std::string, int> consoleCounters;
+std::unordered_map<std::string, int> consoleCounters;
 static jerry_value_t consoleCountHandler(CALL_INFO) {
 	for (int i = 0; i < consoleGroups; i++) putchar(' ');
 	std::string label;
@@ -369,7 +416,7 @@ static jerry_value_t consoleCountResetHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
-std::map<std::string, time_t> consoleTimers;
+std::unordered_map<std::string, time_t> consoleTimers;
 static jerry_value_t consoleTimeHandler(CALL_INFO) {
 	std::string label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
@@ -440,9 +487,13 @@ void exposeAPI() {
 	setMethod(global, "alert", alertHandler);
 	setMethod(global, "atob", atobHandler);
 	setMethod(global, "btoa", btoaHandler);
+	setMethod(global, "clearInterval", clearTimeoutHandler);
+	setMethod(global, "clearTimeout", clearTimeoutHandler);
 	setMethod(global, "close", closeHandler);
 	setMethod(global, "confirm", confirmHandler);
 	setMethod(global, "prompt", promptHandler);
+	setMethod(global, "setInterval", setIntervalHandler);
+	setMethod(global, "setTimeout", setTimeoutHandler);
 	
 	jerry_value_t console = jerry_create_object();
 	setProperty(global, "console", console);
