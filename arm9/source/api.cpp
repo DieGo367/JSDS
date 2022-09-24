@@ -216,13 +216,7 @@ static jerry_value_t setTimeoutHandler(CALL_INFO) {
 	else {
 		jerry_value_t undefined = jerry_create_undefined();
 		jerry_value_t zero = jerry_create_number(0);
-		jerry_value_t result = addTimeout(
-			argCount > 0 ? args[0] : undefined,
-			argCount > 1 ? args[1] : zero,
-			(jerry_value_t *)(args) + 2,
-			argCount - 2,
-			false
-		);
+		jerry_value_t result = addTimeout(argCount > 0 ? args[0] : undefined, zero, NULL, 0, false);
 		jerry_release_value(zero);
 		jerry_release_value(undefined);
 		return result;
@@ -234,13 +228,7 @@ static jerry_value_t setIntervalHandler(CALL_INFO) {
 	else {
 		jerry_value_t undefined = jerry_create_undefined();
 		jerry_value_t zero = jerry_create_number(0);
-		jerry_value_t result = addTimeout(
-			argCount > 0 ? args[0] : undefined,
-			argCount > 1 ? args[1] : zero,
-			(jerry_value_t *)(args) + 2,
-			argCount - 2,
-			true
-		);
+		jerry_value_t result = addTimeout(argCount > 0 ? args[0] : undefined, zero, NULL, 0, true);
 		jerry_release_value(zero);
 		jerry_release_value(undefined);
 		return result;
@@ -479,6 +467,98 @@ static jerry_value_t consoleClearHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
+static jerry_value_t EventConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor Event cannot be invoked without 'new'");
+	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'Event': 1 argument required, but only 0 present.");
+
+	jerry_value_t True = jerry_create_boolean(true);
+	jerry_value_t False = jerry_create_boolean(false);
+	jerry_value_t null = jerry_create_null();
+	jerry_value_t zero = jerry_create_number(0);
+	setInternalProperty(thisValue, "initialized", True);               // initialized flag
+	setInternalProperty(thisValue, "dispatch", False);                 // dispatch flag
+	setInternalProperty(thisValue, "inPassiveListener", False);        // in passive listener flag
+	setInternalProperty(thisValue, "stopPropagation", False);          // stop propagation flag
+	setInternalProperty(thisValue, "stopImmediatePropagation", False); // stop immediate propagation flag
+	setInternalProperty(thisValue, "target", null);
+	setInternalProperty(thisValue, "currentTarget", null);
+	setInternalProperty(thisValue, "eventPhase", zero);
+	setInternalProperty(thisValue, "bubbles", False);
+	setInternalProperty(thisValue, "cancelable", False);
+	setInternalProperty(thisValue, "defaultPrevented", False);         // canceled flag
+	setInternalProperty(thisValue, "composed", False);                 // composed flag
+	setInternalProperty(thisValue, "isTrusted", False);
+	setInternalProperty(thisValue, "timeStamp", zero);
+	jerry_release_value(zero);
+	jerry_release_value(null);
+	jerry_release_value(False);
+	jerry_release_value(True);
+
+	jerry_value_t typeAsString = jerry_value_to_string(args[0]);	
+	setInternalProperty(thisValue, "type", typeAsString);
+	jerry_release_value(typeAsString);
+
+	if (argCount > 1 && jerry_value_is_object(args[1])) {
+		jerry_value_t bubblesVal = getProperty(args[1], "bubbles");
+		jerry_value_t bubblesBool = jerry_create_boolean(jerry_value_to_boolean(bubblesVal));
+		setInternalProperty(thisValue, "bubbles", bubblesBool);
+		jerry_release_value(bubblesBool);
+		jerry_release_value(bubblesVal);
+		jerry_value_t cancelableVal = getProperty(args[1], "cancelable");
+		jerry_value_t cancelableBool = jerry_create_boolean(jerry_value_to_boolean(cancelableVal));
+		setInternalProperty(thisValue, "cancelable", cancelableBool);
+		jerry_release_value(cancelableBool);
+		jerry_release_value(cancelableVal);
+		jerry_value_t composedVal = getProperty(args[1], "composed");
+		jerry_value_t composedBool = jerry_create_boolean(jerry_value_to_boolean(composedVal));
+		setInternalProperty(thisValue, "composed", composedBool);
+		jerry_release_value(composedBool);
+		jerry_release_value(composedVal);
+	}
+
+	return jerry_create_undefined();
+}
+
+static jerry_value_t EventNONEGetter(CALL_INFO)            { return jerry_create_number(0); }
+static jerry_value_t EventCAPTURING_PHASEGetter(CALL_INFO) { return jerry_create_number(1); }
+static jerry_value_t EventAT_TARGETGetter(CALL_INFO)       { return jerry_create_number(2); }
+static jerry_value_t EventBUBBLING_PHASEGetter(CALL_INFO)  { return jerry_create_number(3); }
+
+static jerry_value_t EventComposedPathHandler(CALL_INFO) {
+	return jerry_create_array(0);
+}
+
+static jerry_value_t EventStopPropagationHandler(CALL_INFO) {
+	jerry_value_t True = jerry_create_boolean(true);
+	setInternalProperty(thisValue, "stopPropagation", True);
+	jerry_release_value(True);
+	return jerry_create_undefined();
+}
+
+static jerry_value_t EventStopImmediatePropagationHandler(CALL_INFO) {
+	jerry_value_t True = jerry_create_boolean(true);
+	setInternalProperty(thisValue, "stopPropagation", True);
+	setInternalProperty(thisValue, "stopImmediatePropagation", True);
+	jerry_release_value(True);
+	return jerry_create_undefined();
+}
+
+static jerry_value_t EventPreventDefaultHandler(CALL_INFO) {
+	jerry_value_t cancelable = getInternalProperty(thisValue, "cancelable");
+	jerry_value_t inPassiveListener = getInternalProperty(thisValue, "inPassiveListener");
+	if (jerry_value_to_boolean(cancelable) && !jerry_value_to_boolean(inPassiveListener)) {
+		jerry_value_t True = jerry_create_boolean(true);
+		setInternalProperty(thisValue, "defaultPrevented", True);
+		jerry_release_value(True);
+	}
+	jerry_release_value(inPassiveListener);
+	jerry_release_value(cancelable);
+	return jerry_create_undefined();
+}
+
 void exposeAPI() {
 	nameValue = jerry_create_string((jerry_char_t *) "name");
 	jerry_value_t global = jerry_get_global_object();
@@ -517,6 +597,34 @@ void exposeAPI() {
 	setMethod(console, "trace", consoleTraceHandler);
 	setMethod(console, "warn", consoleWarnHandler);
 	jerry_release_value(console);
+
+	jerry_value_t Event = newMethod(global, "Event", EventConstructor);
+	defGetter(Event, "NONE",            EventNONEGetter);
+	defGetter(Event, "CAPTURING_PHASE", EventCAPTURING_PHASEGetter);
+	defGetter(Event, "AT_TARGET",       EventAT_TARGETGetter);
+	defGetter(Event, "BUBBLING_PHASE",  EventBUBBLING_PHASEGetter);
+	jerry_value_t EventProto = jerry_create_object();
+	setProperty(Event, "prototype", EventProto);
+	defReadonly(EventProto, "type");
+	defReadonly(EventProto, "target");
+	defReadonly(EventProto, "currentTarget");
+	setMethod(EventProto, "composedPath", EventComposedPathHandler);
+	defReadonly(EventProto, "eventPhase");
+	defGetter(EventProto, "NONE",            EventNONEGetter);
+	defGetter(EventProto, "CAPTURING_PHASE", EventCAPTURING_PHASEGetter);
+	defGetter(EventProto, "AT_TARGET",       EventAT_TARGETGetter);
+	defGetter(EventProto, "BUBBLING_PHASE",  EventBUBBLING_PHASEGetter);
+	setMethod(EventProto, "stopPropagation", EventStopPropagationHandler);
+	setMethod(EventProto, "stopImmediatePropagation", EventStopImmediatePropagationHandler);
+	defReadonly(EventProto, "bubbles");
+	defReadonly(EventProto, "cancelable");
+	setMethod(EventProto, "preventDefault", EventPreventDefaultHandler);
+	defReadonly(EventProto, "defaultPrevented");
+	defReadonly(EventProto, "composed");
+	defReadonly(EventProto, "isTrusted");
+	defReadonly(EventProto, "timeStamp");
+	jerry_release_value(EventProto);
+	jerry_release_value(Event);
 
 	jerry_release_value(global);
 	jerry_release_value(nameValue);

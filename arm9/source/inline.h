@@ -19,23 +19,66 @@ inline void setProperty(jerry_value_t object, const char *property, jerry_value_
 }
 
 inline jerry_value_t nameValue;
+inline jerry_property_descriptor_t nameDesc = {
+	.is_value_defined = true,
+	.is_configurable = true
+};
+// Creates and returns a method on object via c string and function. Return value must be released! "nameValue" must have been set up previously
+inline jerry_value_t newMethod(jerry_value_t object, const char *method, jerry_external_handler_t function) {
+	jerry_value_t func = jerry_create_external_function(function);
+	// Function.prototype.name isn't being set automatically, so it must be defined manually
+	nameDesc.value = jerry_create_string((jerry_char_t *) method);
+	jerry_release_value(jerry_define_own_property(func, nameValue, &nameDesc));
+	jerry_release_value(jerry_set_property(object, nameDesc.value, func));
+	jerry_release_value(nameDesc.value);
+	return func;
+}
 // Set object method via c string and function. "nameValue" must have been set up previously
 inline void setMethod(jerry_value_t object, const char *method, jerry_external_handler_t function) {
-	jerry_value_t func = jerry_create_external_function(function);
-	jerry_value_t methodName = jerry_create_string((jerry_char_t *) method);
+	jerry_release_value(newMethod(object, method, function));
+}
 
-	// Function.prototype.name isn't being set automatically, so it must be defined manually
-	jerry_property_descriptor_t propDesc;
-	jerry_init_property_descriptor_fields(&propDesc);
-	propDesc.value = methodName;
-	propDesc.is_value_defined = true;
-	propDesc.is_configurable = true;
-	jerry_define_own_property(func, nameValue, &propDesc);
+inline jerry_property_descriptor_t getterDesc = {.is_get_defined = true};
+// Create a getter on an object for a certain property via c string and function.
+inline void defGetter(jerry_value_t object, const char *property, jerry_external_handler_t getter) {
+	getterDesc.getter = jerry_create_external_function(getter);
+	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
+	jerry_release_value(jerry_define_own_property(object, propString, &getterDesc));
+	jerry_release_value(propString);
+	jerry_release_value(getterDesc.getter);
+}
 
-	jerry_release_value(jerry_set_property(object, methodName, func));
+// Get object internal property via c string. Return value must be released!
+inline jerry_value_t getInternalProperty(jerry_value_t object, const char *property) {
+	jerry_value_t propString = jerry_create_string((const jerry_char_t *) property);
+	jerry_value_t value = jerry_get_internal_property(object, propString);
+	jerry_release_value(propString);
+	return value;
+}
 
-	jerry_release_value(methodName);
-	jerry_release_value(func);
+// Set object internal property via c string.
+inline void setInternalProperty(jerry_value_t object, const char *property, jerry_value_t value) {
+	jerry_value_t propString = jerry_create_string((const jerry_char_t *) property);
+	jerry_set_internal_property(object, propString, value);
+	jerry_release_value(propString);
+}
+
+static jerry_value_t internalGetter(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
+	jerry_value_t propertyValue = getProperty(function, "name");
+	jerry_value_t got = jerry_get_internal_property(thisValue, propertyValue);
+	jerry_release_value(propertyValue);
+	return got;
+}
+
+// Create a getter on an object that returns the value of an internal property with the same name. "nameValue" must have been set up previously
+inline void defReadonly(jerry_value_t object, const char *property) {
+	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
+		getterDesc.getter = jerry_create_external_function(internalGetter);
+			nameDesc.value = propString;
+			jerry_release_value(jerry_define_own_property(getterDesc.getter, nameValue, &nameDesc));
+			jerry_release_value(jerry_define_own_property(object, propString, &getterDesc));
+		jerry_release_value(getterDesc.getter);
+	jerry_release_value(propString);
 }
 
 /*
