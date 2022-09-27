@@ -491,7 +491,9 @@ static jerry_value_t EventConstructor(CALL_INFO) {
 	setInternalProperty(thisValue, "defaultPrevented", False);         // canceled flag
 	setInternalProperty(thisValue, "composed", False);                 // composed flag
 	setInternalProperty(thisValue, "isTrusted", False);
-	setInternalProperty(thisValue, "timeStamp", zero);
+	jerry_value_t currentTime = jerry_create_number(time(NULL));
+	setInternalProperty(thisValue, "timeStamp", currentTime);
+	jerry_release_value(currentTime);
 	jerry_release_value(zero);
 	jerry_release_value(null);
 	jerry_release_value(False);
@@ -584,6 +586,7 @@ static jerry_value_t EventTargetConstructor(CALL_INFO) {
 static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'addEventListener': 2 arguments required.");
 	if (jerry_value_is_null(args[1])) return jerry_create_undefined();
+	jerry_value_t target = jerry_value_is_undefined(thisValue) ? jerry_get_global_object() : jerry_acquire_value(thisValue);
 	
 	jerry_value_t typeStr = jerry_create_string((jerry_char_t *) "type");
 	jerry_value_t callbackStr = jerry_create_string((jerry_char_t *) "callback");
@@ -616,7 +619,7 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 		else capture = jerry_value_to_boolean(args[2]);
 	}
 
-	jerry_value_t eventListeners = getInternalProperty(thisValue, "eventListeners");
+	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
 	u32 length = jerry_get_array_length(eventListeners);
 	bool shouldAppend = true;
 	for (u32 i = 0; shouldAppend && i < length; i++) {
@@ -673,12 +676,14 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	jerry_release_value(captureStr);
 	jerry_release_value(callbackStr);
 	jerry_release_value(typeStr);
+	jerry_release_value(target);
 
 	return jerry_create_undefined();
 }
 
 static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'removeEventListener': 2 arguments required.");
+	jerry_value_t target = jerry_value_is_undefined(thisValue) ? jerry_get_global_object() : jerry_acquire_value(thisValue);
 	
 	jerry_value_t typeStr = jerry_create_string((jerry_char_t *) "type");
 	jerry_value_t callbackStr = jerry_create_string((jerry_char_t *) "callback");
@@ -696,7 +701,7 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 		else capture = jerry_value_to_boolean(args[2]);
 	}
 
-	jerry_value_t eventListeners = getInternalProperty(thisValue, "eventListeners");
+	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
 	u32 length = jerry_get_array_length(eventListeners);
 	bool removed = false;
 	for (u32 i = 0; !removed && i < length; i++) {
@@ -732,12 +737,14 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 	jerry_release_value(captureStr);
 	jerry_release_value(callbackStr);
 	jerry_release_value(typeStr);
+	jerry_release_value(target);
 
 	return jerry_create_undefined();
 }
 
 static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	if (argCount < 1) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'dispatchEvent': 1 argument required.");
+	jerry_value_t target = jerry_value_is_undefined(thisValue) ? jerry_get_global_object() : jerry_acquire_value(thisValue);
 	jerry_value_t Event = jerry_eval((jerry_char_t *) "Event", 5, JERRY_PARSE_NO_OPTS);
 	jerry_value_t isInstanceVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, args[0], Event);
 	bool isInstance = jerry_get_boolean_value(isInstanceVal);
@@ -766,10 +773,10 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	jerry_set_internal_property(args[0], eventPhaseStr, AT_TARGET);
 	jerry_release_value(AT_TARGET);
 
-	jerry_set_internal_property(args[0], targetStr, thisValue);
-	jerry_set_internal_property(args[0], currentTargetStr, thisValue);
+	jerry_set_internal_property(args[0], targetStr, target);
+	jerry_set_internal_property(args[0], currentTargetStr, target);
 
-	jerry_value_t listeners = getInternalProperty(thisValue, "eventListeners");
+	jerry_value_t listeners = getInternalProperty(target, "eventListeners");
 	jerry_value_t sliceFunc = getProperty(listeners, "slice");
 	jerry_value_t listenersCopy = jerry_call_function(sliceFunc, listeners, NULL, 0);
 	jerry_release_value(sliceFunc);
@@ -829,7 +836,7 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 				jerry_release_value(callbackVal);
 
 				if (callable) {
-					jerry_value_t result = jerry_call_function(callback, thisValue, args, 1);
+					jerry_value_t result = jerry_call_function(callback, target, args, 1);
 					if (jerry_value_is_error(result)) {
 						consolePrintLiteral(result);
 						putchar('\n');
@@ -872,6 +879,7 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	jerry_release_value(targetStr);
 	jerry_release_value(eventPhaseStr);
 	jerry_release_value(dispatchStr);
+	jerry_release_value(target);
 	
 	jerry_value_t canceledVal = getInternalProperty(args[0], "defaultPrevented");
 	bool canceled = jerry_get_boolean_value(canceledVal);
@@ -882,7 +890,11 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 void exposeAPI() {
 	nameValue = jerry_create_string((jerry_char_t *) "name");
 	jerry_value_t global = jerry_get_global_object();
+
 	setProperty(global, "self", global);
+	jerry_value_t null = jerry_create_null();
+	setProperty(global, "onload", null);
+	jerry_release_value(null);
 
 	setMethod(global, "alert", alertHandler);
 	setMethod(global, "atob", atobHandler);
@@ -949,6 +961,10 @@ void exposeAPI() {
 	jerry_value_t EventTarget = newMethod(global, "EventTarget", EventTargetConstructor);
 	jerry_value_t EventTargetProto = jerry_create_object();
 	setProperty(EventTarget, "prototype", EventTargetProto);
+	jerry_release_value(jerry_set_prototype(global, EventTargetProto));
+	jerry_value_t globalListeners = jerry_create_array(0);
+	setInternalProperty(global, "eventListeners", globalListeners);
+	jerry_release_value(globalListeners);
 	setMethod(EventTargetProto, "addEventListener", EventTargetAddEventListenerHandler);
 	setMethod(EventTargetProto, "removeEventListener", EventTargetRemoveEventListenerHandler);
 	setMethod(EventTargetProto, "dispatchEvent", EventTargetDispatchEventHandler);
