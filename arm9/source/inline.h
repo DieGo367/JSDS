@@ -18,6 +18,23 @@ inline void setProperty(jerry_value_t object, const char *property, jerry_value_
 	jerry_release_value(propString);
 }
 
+// Sets a non-enumerable property via c string.
+inline void setPropertyNonEnumerable(jerry_value_t object, const char *property, jerry_value_t value) {
+	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
+	jerry_property_descriptor_t propDesc = {
+		.is_value_defined = true,
+		.is_writable_defined = true,
+		.is_writable = true,
+		.is_enumerable_defined = true,
+		.is_enumerable = false,
+		.is_configurable_defined = true,
+		.is_configurable = true,
+		.value = value
+	};
+	jerry_define_own_property(object, propString, &propDesc);
+	jerry_release_value(propString);
+}
+
 inline jerry_value_t nameValue;
 inline jerry_property_descriptor_t nameDesc = {
 	.is_value_defined = true,

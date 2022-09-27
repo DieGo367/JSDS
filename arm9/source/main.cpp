@@ -57,6 +57,7 @@ void tempLoadMain() {
 		jerry_value_t result = execute(parsedCode);
 		if (jerry_value_is_error(result)) {
 			consolePrintLiteral(result);
+			putchar('\n');
 		}
 		jerry_release_value(result);
 	}
