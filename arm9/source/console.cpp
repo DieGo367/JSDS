@@ -183,9 +183,20 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 			else {
 				char *message = getStringProperty(errorThrown, "message");
 				char *name = getStringProperty(errorThrown, "name");
-				printf("%s: %s", name, message);
+				printf("Uncaught %s: %s", name, message);
 				free(message);
 				free(name);
+				jerry_value_t backtrace = getInternalProperty(errorThrown, "backtrace");
+				u32 length = jerry_get_array_length(backtrace);
+				for (u32 i = 0; i < length; i++) {
+					jerry_value_t traceLine = jerry_get_property_by_index(backtrace, i);
+					char *step = getString(traceLine);
+					for (int j = 0; j < level; j++) putchar(' ');
+					printf("\n @ %s", step);
+					free(step);
+					jerry_release_value(traceLine);
+				}
+				jerry_release_value(backtrace);
 			}
 			jerry_release_value(errorThrown);
 		} break;
