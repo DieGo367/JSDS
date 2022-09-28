@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "console.h"
+#include "execute.h"
 #include "keyboard.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
@@ -819,31 +820,21 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 				if (passive) jerry_set_internal_property(args[0], inPassiveListenerStr, True);
 				
 				jerry_value_t callbackVal = jerry_get_property(listener, callbackStr);
-				jerry_value_t callback;
-				bool callable = false;
 				if (jerry_value_is_function(callbackVal)) {
-					callback = jerry_acquire_value(callbackVal);
-					callable = true;
+					jerry_value_t result = jerry_call_function(callbackVal, target, args, 1);
+					if (jerry_value_is_error(result)) handleError(result);
+					jerry_release_value(result);
 				}
 				else if (jerry_value_is_object(callbackVal)) {
 					jerry_value_t handler = jerry_get_property(callbackVal, handleEventStr);
 					if (jerry_value_is_function(handler)) {
-						callback = handler;
-						callable = true;
+						jerry_value_t result = jerry_call_function(handler, target, args, 1);
+						if (jerry_value_is_error(result)) handleError(result);
+						jerry_release_value(result);
 					}
 					else jerry_release_value(handler);
 				}
 				jerry_release_value(callbackVal);
-
-				if (callable) {
-					jerry_value_t result = jerry_call_function(callback, target, args, 1);
-					if (jerry_value_is_error(result)) {
-						consolePrintLiteral(result);
-						putchar('\n');
-					}
-					jerry_release_value(result);
-					jerry_release_value(callback);
-				}
 
 				jerry_set_internal_property(args[0], inPassiveListenerStr, False);
 			}
@@ -885,6 +876,71 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	bool canceled = jerry_get_boolean_value(canceledVal);
 	jerry_release_value(canceledVal);
 	return jerry_create_boolean(!canceled);
+}
+
+static jerry_value_t ErrorEventConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor ErrorEvent cannot be invoked without 'new'");
+	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'ErrorEvent': 1 argument required.");
+	jerry_value_t undefined = EventConstructor(function, thisValue, args, argCount);
+
+	jerry_value_t messageProp = jerry_create_string((jerry_char_t *) "message");
+	jerry_value_t filenameProp = jerry_create_string((jerry_char_t *) "filename");
+	jerry_value_t linenoProp = jerry_create_string((jerry_char_t *) "lineno");
+	jerry_value_t colnoProp = jerry_create_string((jerry_char_t *) "colno");
+	jerry_value_t emptyStr = jerry_create_string((jerry_char_t *) "");
+	jerry_value_t zero = jerry_create_number(0);
+	jerry_set_internal_property(thisValue, messageProp, emptyStr);
+	jerry_set_internal_property(thisValue, filenameProp, emptyStr);
+	jerry_set_internal_property(thisValue, linenoProp, zero);
+	jerry_set_internal_property(thisValue, colnoProp, zero);
+	jerry_release_value(zero);
+	jerry_release_value(emptyStr);
+
+	if (argCount > 1 && jerry_value_is_object(args[1])) {
+		jerry_value_t messageVal = jerry_get_property(args[1], messageProp);
+		if (!jerry_value_is_undefined(messageVal)) {
+			jerry_value_t messageStr = jerry_value_to_string(messageVal);
+			jerry_set_internal_property(thisValue, messageProp, messageStr);
+			jerry_release_value(messageStr);
+		}
+		jerry_release_value(messageVal);
+		jerry_value_t filenameVal = jerry_get_property(args[1], filenameProp);
+		if (!jerry_value_is_undefined(filenameVal)) {
+			jerry_value_t filenameStr = jerry_value_to_string(filenameVal);
+			jerry_set_internal_property(thisValue, filenameProp, filenameStr);
+			jerry_release_value(filenameStr);
+		}
+		jerry_release_value(filenameVal);
+		jerry_value_t linenoVal = jerry_get_property(args[1], linenoProp);
+		if (!jerry_value_is_undefined(linenoVal)) {
+			jerry_value_t linenoNum = jerry_value_to_number(linenoVal);
+			jerry_set_internal_property(thisValue, linenoProp, linenoNum);
+			jerry_release_value(linenoNum);
+		}
+		jerry_release_value(linenoVal);
+		jerry_value_t colnoVal = jerry_get_property(args[1], colnoProp);
+		if (!jerry_value_is_undefined(colnoVal)) {
+			jerry_value_t colnoNum = jerry_value_to_number(colnoVal);
+			jerry_set_internal_property(thisValue, colnoProp, colnoNum);
+			jerry_release_value(colnoNum);
+		}
+		jerry_release_value(colnoVal);
+		jerry_value_t errorProp = jerry_create_string((jerry_char_t *) "error");
+		jerry_value_t errorVal = jerry_get_property(args[1], errorProp);
+		jerry_set_internal_property(thisValue, errorProp, errorVal);
+		jerry_release_value(errorVal);
+		jerry_release_value(errorProp);
+	}
+
+	jerry_release_value(colnoProp);
+	jerry_release_value(linenoProp);
+	jerry_release_value(filenameProp);
+	jerry_release_value(messageProp);
+
+	return undefined;
 }
 
 void exposeAPI() {
@@ -955,7 +1011,6 @@ void exposeAPI() {
 	defReadonly(EventProto, "composed");
 	defReadonly(EventProto, "isTrusted");
 	defReadonly(EventProto, "timeStamp");
-	jerry_release_value(EventProto);
 	jerry_release_value(Event);
 
 	jerry_value_t EventTarget = newMethod(global, "EventTarget", EventTargetConstructor);
@@ -970,6 +1025,19 @@ void exposeAPI() {
 	setMethod(EventTargetProto, "dispatchEvent", EventTargetDispatchEventHandler);
 	jerry_release_value(EventTargetProto);
 	jerry_release_value(EventTarget);
+
+	jerry_value_t ErrorEvent = newMethod(global, "ErrorEvent", ErrorEventConstructor);
+	jerry_value_t ErrorEventProto = jerry_create_object();
+	setProperty(ErrorEvent, "prototype", ErrorEventProto);
+	jerry_release_value(jerry_set_prototype(ErrorEventProto, EventProto));
+	defReadonly(ErrorEventProto, "message");
+	defReadonly(ErrorEventProto, "filename");
+	defReadonly(ErrorEventProto, "lineno");
+	defReadonly(ErrorEventProto, "colno");
+	defReadonly(ErrorEventProto, "error");
+	jerry_release_value(ErrorEventProto);
+	jerry_release_value(ErrorEvent);
+	jerry_release_value(EventProto);
 
 	jerry_release_value(global);
 	jerry_release_value(nameValue);

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "api.h"
+#include "execute.h"
 #include "console.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
@@ -12,27 +13,6 @@
 #include "timeouts.h"
 
 
-
-/* Executes and releases parsed code. Returns the result of execution, which must be released!
- * Automatically releases parsedCode, unless it was an error value initially, in which case it is returned as is.
- */
-jerry_value_t execute(jerry_value_t parsedCode) {
-	if (jerry_value_is_error(parsedCode)) return parsedCode;
-
-	jerry_value_t result = jerry_run(parsedCode);
-	jerry_release_value(parsedCode);
-	jerry_value_t jobResult;
-	while (true) {
-		jobResult = jerry_run_all_enqueued_jobs();
-		if (jerry_value_is_error(jobResult)) {
-			consolePrintLiteral(jobResult);
-			jerry_release_value(jobResult);
-		}
-		else break;
-	}
-	jerry_release_value(jobResult);
-	return result;
-}
 
 void onErrorCreated(jerry_value_t errorObject, void *userPtr) {
 	jerry_value_t backtrace = jerry_get_backtrace(10);
@@ -60,41 +40,8 @@ void tempLoadMain() {
 			JERRY_PARSE_STRICT_MODE & JERRY_PARSE_MODULE
 		);
 		free(script);
-		jerry_value_t result = execute(parsedCode);
-		if (jerry_value_is_error(result)) {
-			consolePrintLiteral(result);
-			putchar('\n');
-		}
-		jerry_release_value(result);
-		jerry_value_t global = jerry_get_global_object();
-		jerry_value_t Event = getProperty(global, "Event");
-		jerry_value_t loadStr = jerry_create_string((jerry_char_t *) "load");
-		jerry_value_t loadEvent = jerry_construct_object(Event, &loadStr, 1);
-		jerry_release_value(loadStr);
-		jerry_release_value(Event);
-		jerry_value_t True = jerry_create_boolean(true);
-		setInternalProperty(loadEvent, "isTrusted", True);
-		jerry_release_value(True);
-		jerry_value_t dispatchFunc = getProperty(global, "dispatchEvent");
-		jerry_value_t result2 = jerry_call_function(dispatchFunc, global, &loadEvent, 1);
-		if (jerry_value_is_error(result2)) {
-			consolePrintLiteral(result2);
-			putchar('\n');
-		}
-		jerry_release_value(result2);
-		jerry_release_value(dispatchFunc);
-		jerry_value_t handler = getProperty(global, "onload");
-		if (jerry_value_is_function(handler)) {
-			jerry_value_t result = jerry_call_function(handler, global, &loadEvent, 1);
-			if (jerry_value_is_error(result)) {
-				consolePrintLiteral(result);
-				putchar('\n');
-			}
-			jerry_release_value(result);
-		}
-		jerry_release_value(handler);
-		jerry_release_value(loadEvent);
-		jerry_release_value(global);
+		jerry_release_value(execute(parsedCode));
+		fireLoadEvent();
 	}
 	while (true) {
 		swiWaitForVBlank();
@@ -124,9 +71,11 @@ void repl() {
 		);
 		jerry_value_t result = execute(parsedCode);
 
-		printf("-> ");
-		consolePrintLiteral(result);
-		putchar('\n');
+		if (!jerry_value_is_error(result)) {
+			printf("-> ");
+			consolePrintLiteral(result);
+			putchar('\n');
+		}
 		jerry_release_value(result);
 	}
 }
@@ -141,8 +90,8 @@ int main(int argc, char **argv) {
 	jerry_set_error_object_created_callback(onErrorCreated, NULL);
 	exposeAPI();
 
-	// repl();
-	tempLoadMain();
+	if (inREPL) repl();
+	else tempLoadMain();
 
 	jerry_cleanup();
 	return 0;
