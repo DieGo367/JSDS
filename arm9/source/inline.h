@@ -40,19 +40,45 @@ inline jerry_property_descriptor_t nameDesc = {
 	.is_value_defined = true,
 	.is_configurable = true
 };
-// Creates and returns a method on object via c string and function. Return value must be released! "nameValue" must have been set up previously
-inline jerry_value_t newMethod(jerry_value_t object, const char *method, jerry_external_handler_t function) {
+// Set object method via c string and function. "nameValue" must have been set up previously
+inline void setMethod(jerry_value_t object, const char *method, jerry_external_handler_t function) {
 	jerry_value_t func = jerry_create_external_function(function);
 	// Function.prototype.name isn't being set automatically, so it must be defined manually
 	nameDesc.value = jerry_create_string((jerry_char_t *) method);
 	jerry_release_value(jerry_define_own_property(func, nameValue, &nameDesc));
 	jerry_release_value(jerry_set_property(object, nameDesc.value, func));
 	jerry_release_value(nameDesc.value);
-	return func;
+	jerry_release_value(func);
 }
-// Set object method via c string and function. "nameValue" must have been set up previously
-inline void setMethod(jerry_value_t object, const char *method, jerry_external_handler_t function) {
-	jerry_release_value(newMethod(object, method, function));
+
+struct jsClass {
+	jerry_value_t constructor;
+	jerry_value_t prototype;
+};
+/* Creates a class on object via c string and function. "nameValue" must have been set up previously
+ * Returns a jsClass struct containing the constructor and prototype function values.
+ * Both functions must be released!
+ */
+inline jsClass createClass(jerry_value_t object, const char *name, jerry_external_handler_t constructor) {
+	jerry_value_t classFunc = jerry_create_external_function(constructor);
+	nameDesc.value = jerry_create_string((jerry_char_t *) name);
+	jerry_release_value(jerry_define_own_property(classFunc, nameValue, &nameDesc));
+	jerry_release_value(jerry_set_property(object, nameDesc.value, classFunc));
+	jerry_release_value(nameDesc.value);
+	jerry_value_t proto = jerry_create_object();
+	setProperty(classFunc, "prototype", proto);
+	return {.constructor = classFunc, .prototype = proto};
+}
+
+/* Creates a class on object via c string and function, which extends an existing class via its prototype.
+ * "nameValue" must have been set up previously
+ * Returns a jsClass struct containing the constructor and prototype function values.
+ * Both functions must be released!
+ */
+inline jsClass extendClass(jerry_value_t object, const char *name, jerry_external_handler_t constructor, jerry_value_t parentPrototype) {
+	jsClass result = createClass(object, name, constructor);
+	jerry_release_value(jerry_set_prototype(result.prototype, parentPrototype));
+	return result;
 }
 
 inline jerry_property_descriptor_t getterDesc = {.is_get_defined = true};
