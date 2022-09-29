@@ -67,6 +67,7 @@ inline jsClass createClass(jerry_value_t object, const char *name, jerry_externa
 	jerry_release_value(nameDesc.value);
 	jerry_value_t proto = jerry_create_object();
 	setProperty(classFunc, "prototype", proto);
+	setPropertyNonEnumerable(proto, "constructor", classFunc);
 	return {.constructor = classFunc, .prototype = proto};
 }
 
@@ -81,7 +82,11 @@ inline jsClass extendClass(jerry_value_t object, const char *name, jerry_externa
 	return result;
 }
 
-inline jerry_property_descriptor_t getterDesc = {.is_get_defined = true};
+inline jerry_property_descriptor_t getterDesc = {
+	.is_get_defined = true,
+	.is_enumerable_defined = true,
+	.is_enumerable = true
+};
 // Create a getter on an object for a certain property via c string and function.
 inline void defGetter(jerry_value_t object, const char *property, jerry_external_handler_t getter) {
 	getterDesc.getter = jerry_create_external_function(getter);
@@ -113,14 +118,21 @@ static jerry_value_t internalGetter(const jerry_value_t function, const jerry_va
 	return got;
 }
 
-// Create a getter on an object that returns the value of an internal property with the same name. "nameValue" must have been set up previously
-inline void defReadonly(jerry_value_t object, const char *property) {
+
+// Create a getter on an object via jerry value that returns the value of an internal property. "nameValue" must have been set up previously
+inline void setReadonlyJV(jerry_value_t object, jerry_value_t property, jerry_value_t value) {
+	jerry_set_internal_property(object, property, value);
+	getterDesc.getter = jerry_create_external_function(internalGetter);
+	nameDesc.value = property;
+	jerry_release_value(jerry_define_own_property(getterDesc.getter, nameValue, &nameDesc));
+	jerry_release_value(jerry_define_own_property(object, property, &getterDesc));
+	jerry_release_value(getterDesc.getter);
+}
+
+// Create a getter on an object via c string that returns the value of an internal property. "nameValue" must have been set up previously
+inline void setReadonly(jerry_value_t object, const char *property, jerry_value_t value) {
 	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
-		getterDesc.getter = jerry_create_external_function(internalGetter);
-			nameDesc.value = propString;
-			jerry_release_value(jerry_define_own_property(getterDesc.getter, nameValue, &nameDesc));
-			jerry_release_value(jerry_define_own_property(object, propString, &getterDesc));
-		jerry_release_value(getterDesc.getter);
+	setReadonlyJV(object, propString, value);
 	jerry_release_value(propString);
 }
 

@@ -473,7 +473,6 @@ static jerry_value_t EventConstructor(CALL_INFO) {
 	jerry_release_value(newTarget);
 	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor Event cannot be invoked without 'new'");
 	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'Event': 1 argument required.");
-	setPropertyNonEnumerable(thisValue, "constructor", function);
 
 	jerry_value_t True = jerry_create_boolean(true);
 	jerry_value_t False = jerry_create_boolean(false);
@@ -484,16 +483,16 @@ static jerry_value_t EventConstructor(CALL_INFO) {
 	setInternalProperty(thisValue, "inPassiveListener", False);        // in passive listener flag
 	setInternalProperty(thisValue, "stopPropagation", False);          // stop propagation flag
 	setInternalProperty(thisValue, "stopImmediatePropagation", False); // stop immediate propagation flag
-	setInternalProperty(thisValue, "target", null);
-	setInternalProperty(thisValue, "currentTarget", null);
-	setInternalProperty(thisValue, "eventPhase", zero);
-	setInternalProperty(thisValue, "bubbles", False);
-	setInternalProperty(thisValue, "cancelable", False);
-	setInternalProperty(thisValue, "defaultPrevented", False);         // canceled flag
-	setInternalProperty(thisValue, "composed", False);                 // composed flag
-	setInternalProperty(thisValue, "isTrusted", False);
+	setReadonly(thisValue, "target", null);
+	setReadonly(thisValue, "currentTarget", null);
+	setReadonly(thisValue, "eventPhase", zero);
+	setReadonly(thisValue, "bubbles", False);
+	setReadonly(thisValue, "cancelable", False);
+	setReadonly(thisValue, "defaultPrevented", False);                 // canceled flag
+	setReadonly(thisValue, "composed", False);                         // composed flag
+	setReadonly(thisValue, "isTrusted", False);
 	jerry_value_t currentTime = jerry_create_number(time(NULL));
-	setInternalProperty(thisValue, "timeStamp", currentTime);
+	setReadonly(thisValue, "timeStamp", currentTime);
 	jerry_release_value(currentTime);
 	jerry_release_value(zero);
 	jerry_release_value(null);
@@ -501,7 +500,7 @@ static jerry_value_t EventConstructor(CALL_INFO) {
 	jerry_release_value(True);
 
 	jerry_value_t typeAsString = jerry_value_to_string(args[0]);	
-	setInternalProperty(thisValue, "type", typeAsString);
+	setReadonly(thisValue, "type", typeAsString);
 	jerry_release_value(typeAsString);
 
 	if (argCount > 1 && jerry_value_is_object(args[1])) {
@@ -575,7 +574,6 @@ static jerry_value_t EventTargetConstructor(CALL_INFO) {
 	bool targetUndefined = jerry_value_is_undefined(newTarget);
 	jerry_release_value(newTarget);
 	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor EventTarget cannot be invoked without 'new'");
-	setPropertyNonEnumerable(thisValue, "constructor", function);
 
 	jerry_value_t eventListenerList = jerry_create_array(0);
 	setInternalProperty(thisValue, "eventListeners", eventListenerList);
@@ -892,10 +890,11 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 	jerry_value_t colnoProp = jerry_create_string((jerry_char_t *) "colno");
 	jerry_value_t emptyStr = jerry_create_string((jerry_char_t *) "");
 	jerry_value_t zero = jerry_create_number(0);
-	jerry_set_internal_property(thisValue, messageProp, emptyStr);
-	jerry_set_internal_property(thisValue, filenameProp, emptyStr);
-	jerry_set_internal_property(thisValue, linenoProp, zero);
-	jerry_set_internal_property(thisValue, colnoProp, zero);
+	setReadonly(thisValue, "error", undefined);
+	setReadonlyJV(thisValue, messageProp, emptyStr);
+	setReadonlyJV(thisValue, filenameProp, emptyStr);
+	setReadonlyJV(thisValue, linenoProp, zero);
+	setReadonlyJV(thisValue, colnoProp, zero);
 	jerry_release_value(zero);
 	jerry_release_value(emptyStr);
 
@@ -1003,32 +1002,17 @@ void exposeAPI() {
 	defGetter(Event.constructor, "CAPTURING_PHASE", EventCAPTURING_PHASEGetter);
 	defGetter(Event.constructor, "AT_TARGET",       EventAT_TARGETGetter);
 	defGetter(Event.constructor, "BUBBLING_PHASE",  EventBUBBLING_PHASEGetter);
-	defReadonly(Event.prototype, "type");
-	defReadonly(Event.prototype, "target");
-	defReadonly(Event.prototype, "currentTarget");
-	setMethod(Event.prototype, "composedPath", EventComposedPathHandler);
-	defReadonly(Event.prototype, "eventPhase");
 	defGetter(Event.prototype, "NONE",            EventNONEGetter);
 	defGetter(Event.prototype, "CAPTURING_PHASE", EventCAPTURING_PHASEGetter);
 	defGetter(Event.prototype, "AT_TARGET",       EventAT_TARGETGetter);
 	defGetter(Event.prototype, "BUBBLING_PHASE",  EventBUBBLING_PHASEGetter);
+	setMethod(Event.prototype, "composedPath", EventComposedPathHandler);
 	setMethod(Event.prototype, "stopPropagation", EventStopPropagationHandler);
 	setMethod(Event.prototype, "stopImmediatePropagation", EventStopImmediatePropagationHandler);
-	defReadonly(Event.prototype, "bubbles");
-	defReadonly(Event.prototype, "cancelable");
 	setMethod(Event.prototype, "preventDefault", EventPreventDefaultHandler);
-	defReadonly(Event.prototype, "defaultPrevented");
-	defReadonly(Event.prototype, "composed");
-	defReadonly(Event.prototype, "isTrusted");
-	defReadonly(Event.prototype, "timeStamp");
 	jerry_release_value(Event.constructor);
 
 	jsClass ErrorEvent = extendClass(global, "ErrorEvent", ErrorEventConstructor, Event.prototype);
-	defReadonly(ErrorEvent.prototype, "message");
-	defReadonly(ErrorEvent.prototype, "filename");
-	defReadonly(ErrorEvent.prototype, "lineno");
-	defReadonly(ErrorEvent.prototype, "colno");
-	defReadonly(ErrorEvent.prototype, "error");
 	jerry_release_value(ErrorEvent.constructor);
 	jerry_release_value(ErrorEvent.prototype);
 	jerry_release_value(Event.prototype);
