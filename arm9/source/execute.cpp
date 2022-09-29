@@ -40,25 +40,15 @@ jerry_value_t execute(jerry_value_t parsedCode) {
  */
 void handleError(jerry_value_t error) {
 	jerry_value_t global = jerry_get_global_object();
-
-	jerry_value_t listeners = getInternalProperty(global, "eventListeners");
-	u32 length = jerry_get_array_length(listeners);
-	jerry_value_t typeStr = jerry_create_string((jerry_char_t *) "type");
 	jerry_value_t errorStr = jerry_create_string((jerry_char_t *) "error");
-	bool found = false;
-	for (u32 i = 0; !found && i < length; i++) {
-		jerry_value_t listener = jerry_get_property_by_index(listeners, i);
-		jerry_value_t typeVal = jerry_get_property(listener, typeStr);
-		jerry_value_t typesEqual = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, typeVal, errorStr);
-		if (jerry_get_boolean_value(typesEqual)) found = true;
-		jerry_release_value(typesEqual);
-		jerry_release_value(typeVal);
-		jerry_release_value(listener);
-	}
-	jerry_release_value(typeStr);
-	jerry_release_value(listeners);
 
-	if (found) {
+	jerry_value_t eventListeners = getInternalProperty(global, "eventListeners");
+	jerry_value_t errorEventListeners = jerry_get_property(eventListeners, errorStr);
+	bool listenersExist = jerry_value_is_array(errorEventListeners) && jerry_get_array_length(errorEventListeners) > 0;
+	jerry_release_value(errorEventListeners);
+	jerry_release_value(eventListeners);
+
+	if (listenersExist) {
 		jerry_value_t errorEventInit = jerry_create_object();
 
 		jerry_error_t errorCode = jerry_get_error_type(error);
@@ -111,7 +101,7 @@ void handleError(jerry_value_t error) {
 	jerry_release_value(errorStr);
 	jerry_release_value(global);
 
-	if (!found) {
+	if (!listenersExist) {
 		consolePrintLiteral(error);
 		putchar('\n');
 		if (!inREPL) { // if not in the REPL, abort on uncaught error. Waits for START like normal.

@@ -575,7 +575,7 @@ static jerry_value_t EventTargetConstructor(CALL_INFO) {
 	jerry_release_value(newTarget);
 	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor EventTarget cannot be invoked without 'new'");
 
-	jerry_value_t eventListenerList = jerry_create_array(0);
+	jerry_value_t eventListenerList = jerry_create_object();
 	setInternalProperty(thisValue, "eventListeners", eventListenerList);
 	jerry_release_value(eventListenerList);
 
@@ -619,24 +619,26 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	}
 
 	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
-	u32 length = jerry_get_array_length(eventListeners);
+	jerry_value_t listenersOfType = jerry_get_property(eventListeners, typeVal);
+	if (jerry_value_is_undefined(listenersOfType)) {
+		jerry_release_value(listenersOfType);
+		listenersOfType = jerry_create_array(0);
+		jerry_release_value(jerry_set_property(eventListeners, typeVal, listenersOfType));
+	}
+	u32 length = jerry_get_array_length(listenersOfType);
 	bool shouldAppend = true;
 	for (u32 i = 0; shouldAppend && i < length; i++) {
-		jerry_value_t storedListener = jerry_get_property_by_index(eventListeners, i);
-		jerry_value_t storedType = jerry_get_property(storedListener, typeStr);
+		jerry_value_t storedListener = jerry_get_property_by_index(listenersOfType, i);
 		jerry_value_t storedCallback = jerry_get_property(storedListener, callbackStr);
 		jerry_value_t storedCapture = jerry_get_property(storedListener, captureStr);
-		jerry_value_t typeEquality = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, typeVal, storedType);
 		jerry_value_t callbackEquality = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallback);
 		bool captureEquality = capture == jerry_get_boolean_value(storedCapture);
-		if (jerry_get_boolean_value(typeEquality) && jerry_get_boolean_value(callbackEquality) && captureEquality) {
+		if (jerry_get_boolean_value(callbackEquality) && captureEquality) {
 			shouldAppend = false;
 		}
 		jerry_release_value(callbackEquality);
-		jerry_release_value(typeEquality);
 		jerry_release_value(storedCapture);
 		jerry_release_value(storedCallback);
-		jerry_release_value(storedType);
 		jerry_release_value(storedListener);
 	}
 
@@ -661,13 +663,14 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 		setProperty(listener, "removed", False);
 		jerry_release_value(False);
 
-		jerry_value_t pushFunc = getProperty(eventListeners, "push");
-		jerry_release_value(jerry_call_function(pushFunc, eventListeners, &listener, 1));
+		jerry_value_t pushFunc = getProperty(listenersOfType, "push");
+		jerry_release_value(jerry_call_function(pushFunc, listenersOfType, &listener, 1));
 		jerry_release_value(pushFunc);
 
 		jerry_release_value(listener);
 	}
 
+	jerry_release_value(listenersOfType);
 	jerry_release_value(eventListeners);
 	jerry_release_value(typeVal);
 	jerry_release_value(passiveStr);
@@ -701,36 +704,35 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 	}
 
 	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
-	u32 length = jerry_get_array_length(eventListeners);
-	bool removed = false;
-	for (u32 i = 0; !removed && i < length; i++) {
-		jerry_value_t storedListener = jerry_get_property_by_index(eventListeners, i);
-		jerry_value_t storedType = jerry_get_property(storedListener, typeStr);
-		jerry_value_t storedCallback = jerry_get_property(storedListener, callbackStr);
-		jerry_value_t storedCapture = jerry_get_property(storedListener, captureStr);
-		jerry_value_t typeEquality = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, typeVal, storedType);
-		jerry_value_t callbackEquality = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallback);
-		bool captureEquality = capture == jerry_get_boolean_value(storedCapture);
-		if (jerry_get_boolean_value(typeEquality) && jerry_get_boolean_value(callbackEquality) && captureEquality) {
-			jerry_value_t spliceFunc = getProperty(eventListeners, "splice");
-			jerry_value_t spliceArgs[2] = {jerry_create_number(i), jerry_create_number(1)};
-			jerry_release_value(jerry_call_function(spliceFunc, eventListeners, spliceArgs, 2));
-			jerry_release_value(spliceArgs[1]);
-			jerry_release_value(spliceArgs[0]);
-			jerry_release_value(spliceFunc);
-			jerry_value_t True = jerry_create_boolean(true);
-			setProperty(storedListener, "removed", True);
-			jerry_release_value(True);
-			removed = true;
+	jerry_value_t listenersOfType = jerry_get_property(eventListeners, typeVal);
+	if (jerry_value_is_array(listenersOfType)) {
+		u32 length = jerry_get_array_length(listenersOfType);
+		bool removed = false;
+		for (u32 i = 0; !removed && i < length; i++) {
+			jerry_value_t storedListener = jerry_get_property_by_index(listenersOfType, i);
+			jerry_value_t storedCallback = jerry_get_property(storedListener, callbackStr);
+			jerry_value_t storedCapture = jerry_get_property(storedListener, captureStr);
+			jerry_value_t callbackEquality = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallback);
+			bool captureEquality = capture == jerry_get_boolean_value(storedCapture);
+			if (jerry_get_boolean_value(callbackEquality) && captureEquality) {
+				jerry_value_t spliceFunc = getProperty(listenersOfType, "splice");
+				jerry_value_t spliceArgs[2] = {jerry_create_number(i), jerry_create_number(1)};
+				jerry_release_value(jerry_call_function(spliceFunc, listenersOfType, spliceArgs, 2));
+				jerry_release_value(spliceArgs[1]);
+				jerry_release_value(spliceArgs[0]);
+				jerry_release_value(spliceFunc);
+				jerry_value_t True = jerry_create_boolean(true);
+				setProperty(storedListener, "removed", True);
+				jerry_release_value(True);
+				removed = true;
+			}
+			jerry_release_value(callbackEquality);
+			jerry_release_value(storedCapture);
+			jerry_release_value(storedCallback);
+			jerry_release_value(storedListener);
 		}
-		jerry_release_value(callbackEquality);
-		jerry_release_value(typeEquality);
-		jerry_release_value(storedCapture);
-		jerry_release_value(storedCallback);
-		jerry_release_value(storedType);
-		jerry_release_value(storedListener);
 	}
-	
+	jerry_release_value(listenersOfType);
 	jerry_release_value(eventListeners);
 	jerry_release_value(typeVal);
 	jerry_release_value(captureStr);
@@ -775,39 +777,35 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	jerry_set_internal_property(args[0], targetStr, target);
 	jerry_set_internal_property(args[0], currentTargetStr, target);
 
-	jerry_value_t listeners = getInternalProperty(target, "eventListeners");
-	jerry_value_t sliceFunc = getProperty(listeners, "slice");
-	jerry_value_t listenersCopy = jerry_call_function(sliceFunc, listeners, NULL, 0);
-	jerry_release_value(sliceFunc);
+	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
+	jerry_value_t eventType = getInternalProperty(args[0], "type");
+	jerry_value_t listenersOfType = jerry_get_property(eventListeners, eventType);
+	if (jerry_value_is_array(listenersOfType)) {
+		jerry_value_t sliceFunc = getProperty(listenersOfType, "slice");
+		jerry_value_t listenersCopy = jerry_call_function(sliceFunc, listenersOfType, NULL, 0);
+		jerry_release_value(sliceFunc);
 
-	u32 length = jerry_get_array_length(listenersCopy);
-	jerry_value_t removedStr = jerry_create_string((jerry_char_t *) "removed");
-	jerry_value_t typeStr = jerry_create_string((jerry_char_t *) "type");
-	jerry_value_t onceStr = jerry_create_string((jerry_char_t *) "once");
-	jerry_value_t passiveStr = jerry_create_string((jerry_char_t *) "passive");
-	jerry_value_t callbackStr = jerry_create_string((jerry_char_t *) "callback");
-	jerry_value_t eventType = jerry_get_internal_property(args[0], typeStr);
-	jerry_value_t spliceFunc = getProperty(listeners, "splice");
-	jerry_value_t inPassiveListenerStr = jerry_create_string((jerry_char_t *) "inPassiveListener");
-	jerry_value_t handleEventStr = jerry_create_string((jerry_char_t *) "handleEvent");
-	for (u32 i = 0; i < length; i++) {
-		jerry_value_t listener = jerry_get_property_by_index(listenersCopy, i);
-		jerry_value_t removedVal = jerry_get_property(listener, removedStr);
-		bool removed = jerry_get_boolean_value(removedVal);
-		jerry_release_value(removedVal);
-		if (!removed) {
-			jerry_value_t listenerType = jerry_get_property(listener, typeStr);
-			jerry_value_t typesMatchVal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, eventType, listenerType);
-			bool typesMatch = jerry_get_boolean_value(typesMatchVal);
-			jerry_release_value(typesMatchVal);
-			jerry_release_value(listenerType);
-			if (typesMatch) {
+		u32 length = jerry_get_array_length(listenersCopy);
+		jerry_value_t removedStr = jerry_create_string((jerry_char_t *) "removed");
+		jerry_value_t onceStr = jerry_create_string((jerry_char_t *) "once");
+		jerry_value_t passiveStr = jerry_create_string((jerry_char_t *) "passive");
+		jerry_value_t callbackStr = jerry_create_string((jerry_char_t *) "callback");
+		jerry_value_t spliceFunc = getProperty(listenersOfType, "splice");
+		jerry_value_t inPassiveListenerStr = jerry_create_string((jerry_char_t *) "inPassiveListener");
+		jerry_value_t handleEventStr = jerry_create_string((jerry_char_t *) "handleEvent");
+
+		for (u32 i = 0; i < length; i++) {
+			jerry_value_t listener = jerry_get_property_by_index(listenersCopy, i);
+			jerry_value_t removedVal = jerry_get_property(listener, removedStr);
+			bool removed = jerry_get_boolean_value(removedVal);
+			jerry_release_value(removedVal);
+			if (!removed) {
 				jerry_value_t onceVal = jerry_get_property(listener, onceStr);
 				bool once = jerry_get_boolean_value(onceVal);
 				jerry_release_value(onceVal);
 				if (once) {
 					jerry_value_t spliceArgs[2] = {jerry_create_number(i), jerry_create_number(1)};
-					jerry_release_value(jerry_call_function(spliceFunc, listeners, spliceArgs, 2));
+					jerry_release_value(jerry_call_function(spliceFunc, listenersOfType, spliceArgs, 2));
 					jerry_release_value(spliceArgs[1]);
 					jerry_release_value(spliceArgs[0]);
 					jerry_release_value(jerry_set_property(listener, removedStr, True));
@@ -836,20 +834,21 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 
 				jerry_set_internal_property(args[0], inPassiveListenerStr, False);
 			}
+			jerry_release_value(listener);
 		}
-		jerry_release_value(listener);
+
+		jerry_release_value(handleEventStr);
+		jerry_release_value(inPassiveListenerStr);
+		jerry_release_value(spliceFunc);
+		jerry_release_value(callbackStr);
+		jerry_release_value(passiveStr);
+		jerry_release_value(onceStr);
+		jerry_release_value(removedStr);
+		jerry_release_value(listenersCopy);
 	}
-	jerry_release_value(handleEventStr);
-	jerry_release_value(inPassiveListenerStr);
-	jerry_release_value(spliceFunc);
+	jerry_release_value(listenersOfType);
 	jerry_release_value(eventType);
-	jerry_release_value(callbackStr);
-	jerry_release_value(passiveStr);
-	jerry_release_value(onceStr);
-	jerry_release_value(typeStr);
-	jerry_release_value(removedStr);
-	jerry_release_value(listenersCopy);
-	jerry_release_value(listeners);
+	jerry_release_value(eventListeners);
 
 	jerry_value_t NONE = jerry_create_number(0);
 	jerry_set_internal_property(args[0], eventPhaseStr, NONE);
