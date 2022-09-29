@@ -946,9 +946,6 @@ void exposeAPI() {
 	jerry_value_t global = jerry_get_global_object();
 
 	setProperty(global, "self", global);
-	jerry_value_t null = jerry_create_null();
-	setProperty(global, "onload", null);
-	jerry_release_value(null);
 
 	setMethod(global, "alert", alertHandler);
 	setMethod(global, "atob", atobHandler);
@@ -1015,6 +1012,9 @@ void exposeAPI() {
 	jerry_release_value(ErrorEvent.constructor);
 	jerry_release_value(ErrorEvent.prototype);
 	jerry_release_value(Event.prototype);
+
+	defEventAttribute(global, "onload");
+	defEventAttribute(global, "onerror");
 
 	jerry_release_value(global);
 	jerry_release_value(nameValue);

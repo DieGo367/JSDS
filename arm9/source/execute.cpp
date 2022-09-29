@@ -69,7 +69,7 @@ void handleError(jerry_value_t error) {
 			jerry_value_t filenameVal = jerry_create_string_sz((jerry_char_t *) resource, colon - resource);
 			setProperty(errorEventInit, "filename", filenameVal);
 			jerry_release_value(filenameVal);
-			
+
 			char *endptr = NULL;
 			int64 lineno = strtoll(colon + 1, &endptr, 10);
 			jerry_value_t linenoVal = endptr == (colon + 1) ? jerry_create_number_nan() : jerry_create_number(lineno);
@@ -133,14 +133,6 @@ void fireLoadEvent() {
 	if (jerry_value_is_error(result)) handleError(result);
 	jerry_release_value(result);
 	jerry_release_value(dispatchFunc);
-
-	jerry_value_t handler = getProperty(global, "onload");
-	if (jerry_value_is_function(handler)) {
-		result = jerry_call_function(handler, global, &loadEvent, 1);
-		if (jerry_value_is_error(result)) handleError(result);
-		jerry_release_value(result);
-	}
-	jerry_release_value(handler);
 
 	jerry_release_value(loadEvent);
 	jerry_release_value(global);

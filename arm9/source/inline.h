@@ -118,7 +118,6 @@ static jerry_value_t internalGetter(const jerry_value_t function, const jerry_va
 	return got;
 }
 
-
 // Create a getter on an object via jerry value that returns the value of an internal property. "nameValue" must have been set up previously
 inline void setReadonlyJV(jerry_value_t object, jerry_value_t property, jerry_value_t value) {
 	jerry_set_internal_property(object, property, value);
@@ -134,6 +133,64 @@ inline void setReadonly(jerry_value_t object, const char *property, jerry_value_
 	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
 	setReadonlyJV(object, propString, value);
 	jerry_release_value(propString);
+}
+
+static jerry_value_t eventAttributeSetter(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
+	jerry_value_t attrNameVal = getProperty(function, "name");
+	jerry_length_t size = jerry_get_string_size(attrNameVal);
+	char *attrName = (char *) malloc(size + 1);
+	jerry_string_to_utf8_char_buffer(attrNameVal, (jerry_char_t *) attrName, size);
+	attrName[size] = '\0';
+	jerry_value_t eventType = jerry_create_string_sz((jerry_char_t *) (attrName + 2), size - 2); // skip "on" prefix
+	free(attrName);
+
+	jerry_value_t storedCallback = jerry_get_internal_property(thisValue, attrNameVal);
+	if (jerry_value_is_null(storedCallback) == false) {
+		jerry_value_t remove = getProperty(thisValue, "removeEventListener");
+		jerry_value_t removeArgs[2] = {eventType, storedCallback};
+		jerry_release_value(jerry_call_function(remove, thisValue, removeArgs, 2));
+		jerry_release_value(remove);
+	}
+	jerry_release_value(storedCallback);
+
+	if (jerry_value_is_function(args[0])) {
+		jerry_set_internal_property(thisValue, attrNameVal, args[0]);
+		jerry_value_t add = getProperty(thisValue, "addEventListener");
+		jerry_value_t addArgs[2] = {eventType, args[0]};
+		jerry_release_value(jerry_call_function(add, thisValue, addArgs, 2));
+		jerry_release_value(add);
+	}
+	else {
+		jerry_value_t null = jerry_create_null();
+		jerry_set_internal_property(thisValue, attrNameVal, null);
+		jerry_release_value(null);
+	}
+
+	jerry_release_value(eventType);
+	jerry_release_value(attrNameVal);
+	return jerry_create_undefined();
+}
+
+inline jerry_property_descriptor_t eventAttributeDesc = {
+	.is_get_defined = true,
+	.is_set_defined = true,
+	.is_enumerable_defined = true,
+	.is_enumerable = true
+};
+// Shortcut for making event handlers on event targets. "nameValue" must have been set up previously
+inline void defEventAttribute(jerry_value_t eventTarget, const char *attributeName) {
+	nameDesc.value = jerry_create_string((jerry_char_t *) attributeName);
+	jerry_value_t null = jerry_create_null();
+	jerry_set_internal_property(eventTarget, nameDesc.value, null);
+	jerry_release_value(null);
+	eventAttributeDesc.getter = jerry_create_external_function(internalGetter);
+	jerry_release_value(jerry_define_own_property(eventAttributeDesc.getter, nameValue, &nameDesc));
+	eventAttributeDesc.setter = jerry_create_external_function(eventAttributeSetter);
+	jerry_release_value(jerry_define_own_property(eventAttributeDesc.setter, nameValue, &nameDesc));
+	jerry_release_value(jerry_define_own_property(eventTarget, nameDesc.value, &eventAttributeDesc));
+	jerry_release_value(eventAttributeDesc.getter);
+	jerry_release_value(eventAttributeDesc.setter);
+	jerry_release_value(nameDesc.value);
 }
 
 /*
