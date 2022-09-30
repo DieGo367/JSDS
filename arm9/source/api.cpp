@@ -949,6 +949,30 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
+static jerry_value_t CustomEventConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor CustomEvent cannot be invoked without 'new'");
+	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'CustomEvent': 1 argument required.");
+	jerry_value_t undefined = EventConstructor(function, thisValue, args, argCount);
+
+	jerry_value_t detailProp = jerry_create_string((jerry_char_t *) "detail");
+	jerry_value_t null = jerry_create_null();
+	setReadonlyJV(thisValue, detailProp, null);
+	jerry_release_value(null);
+	if (argCount > 1 && jerry_value_is_object(args[1])) {
+		jerry_value_t detailVal = jerry_get_property(args[1], detailProp);
+		if (!jerry_value_is_undefined(detailVal)) {
+			jerry_set_internal_property(thisValue, detailProp, detailVal);
+		}
+		jerry_release_value(detailVal);
+	}
+	jerry_release_value(detailProp);
+
+	return undefined;
+}
+
 void exposeAPI() {
 	nameValue = jerry_create_string((jerry_char_t *) "name");
 	jerry_value_t global = jerry_get_global_object();
@@ -1020,6 +1044,10 @@ void exposeAPI() {
 	jsClass ErrorEvent = extendClass(global, "ErrorEvent", ErrorEventConstructor, Event.prototype);
 	jerry_release_value(ErrorEvent.constructor);
 	jerry_release_value(ErrorEvent.prototype);
+
+	jsClass CustomEvent = extendClass(global, "CustomEvent", CustomEventConstructor, Event.prototype);
+	jerry_release_value(CustomEvent.constructor);
+	jerry_release_value(CustomEvent.prototype);
 	jerry_release_value(Event.prototype);
 
 	defEventAttribute(global, "onload");
