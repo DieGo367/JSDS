@@ -54,7 +54,16 @@ void handleError(jerry_value_t error) {
 		jerry_error_t errorCode = jerry_get_error_type(error);
 		jerry_value_t errorThrown = jerry_get_value_from_error(error, false);
 		jerry_release_value(jerry_set_property(errorEventInit, errorStr, errorThrown));
-		if (errorCode != JERRY_ERROR_NONE) {
+		if (errorCode == JERRY_ERROR_NONE) {
+			jerry_value_t strVal = jerry_value_to_string(errorThrown);
+			jerry_value_t uncaughtStr = jerry_create_string((jerry_char_t *) "Uncaught ");
+			jerry_value_t concatenated = jerry_binary_operation(JERRY_BIN_OP_ADD, uncaughtStr, strVal);
+			setProperty(errorEventInit, "message", concatenated);
+			jerry_release_value(concatenated);
+			jerry_release_value(uncaughtStr);
+			jerry_release_value(strVal);
+		}
+		else {
 			jerry_value_t messageVal = jerry_value_to_string(errorThrown);
 			setProperty(errorEventInit, "message", messageVal);
 			jerry_release_value(messageVal);
