@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "console.h"
+#include "execute.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
 
@@ -90,7 +91,7 @@ void runTimeout(timeout t) {
 	while (true) {
 		jobResult = jerry_run_all_enqueued_jobs();
 		if (jerry_value_is_error(jobResult)) {
-			consolePrintLiteral(jobResult);
+			handleError(jobResult);
 			jerry_release_value(jobResult);
 		}
 		else break;
@@ -99,7 +100,7 @@ void runTimeout(timeout t) {
 
 	// handle execution result
 	if (jerry_value_is_error(result)) {
-		consolePrintLiteral(result);
+		handleError(result);
 	}
 	jerry_release_value(result);
 

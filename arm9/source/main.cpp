@@ -71,11 +71,9 @@ void repl() {
 		);
 		jerry_value_t result = execute(parsedCode);
 
-		if (!jerry_value_is_error(result)) {
-			printf("-> ");
-			consolePrintLiteral(result);
-			putchar('\n');
-		}
+		printf("-> ");
+		consolePrintLiteral(result);
+		putchar('\n');
 		jerry_release_value(result);
 	}
 }

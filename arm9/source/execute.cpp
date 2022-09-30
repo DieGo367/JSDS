@@ -31,7 +31,17 @@ jerry_value_t execute(jerry_value_t parsedCode) {
 		else break;
 	}
 	jerry_release_value(jobResult);
-	if (jerry_value_is_error(result)) handleError(result);
+	if (!inREPL && jerry_value_is_error(result)) {
+		// if not in the REPL, abort on uncaught error. Waits for START like normal.
+		consolePrintLiteral(result);
+		putchar('\n');
+		while (true) {
+			swiWaitForVBlank();
+			scanKeys();
+			if (keysDown() & KEY_START) break;
+		}
+		exit(1);
+	}
 	return result;
 }
 
