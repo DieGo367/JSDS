@@ -81,7 +81,8 @@ static jerry_value_t promptHandler(CALL_INFO) {
 
 static jerry_value_t atobHandler(CALL_INFO) {
 	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'atob': 1 argument required.");
-	jerry_char_t *errorMsg = (jerry_char_t *) "Failed to decode base64.";
+	char errorName[22] = "InvalidCharacterError";
+	char errorMsg[25] = "Failed to decode base64.";
 
 	jerry_length_t dataSize;
 	char *data = getAsString(args[0], &dataSize);
@@ -100,7 +101,7 @@ static jerry_value_t atobHandler(CALL_INFO) {
 		else if (*ch == '=') n = 64; // equal sign will be handled later
 		else { // (4) error on invalid character
 			free(data);
-			return jerry_create_error(JERRY_ERROR_COMMON, errorMsg);
+			return createDOMExceptionError(errorMsg, errorName);
 		}
 		*ch = n;
 		strippedSize++;
@@ -117,7 +118,7 @@ static jerry_value_t atobHandler(CALL_INFO) {
 	// (3) fail on %4==1
 	else if (strippedSize % 4 == 1) {
 		free(data);
-		return jerry_create_error(JERRY_ERROR_COMMON, errorMsg);
+		return createDOMExceptionError(errorMsg, errorName);
 	}
 
 	// (5-8) output, buffer, position and loop
@@ -127,7 +128,7 @@ static jerry_value_t atobHandler(CALL_INFO) {
 	for (char *ch = data; ch != dataEnd; ch++) {
 		if (*ch == 64) { // (4 again) fail on equal sign not at end of string
 			free(data);
-			return jerry_create_error(JERRY_ERROR_COMMON, errorMsg);
+			return createDOMExceptionError(errorMsg, errorName);
 		}
 		buffer = buffer << 6 | *ch; // (8.2) append 6 bits to buffer
 		bits += 6;
@@ -166,7 +167,7 @@ static jerry_value_t btoaHandler(CALL_INFO) {
 		if (*ch & BIT(7)) { // greater than U+007F
 			if (*ch & 0b00111100) { // greater than U+00FF, is out of range and therefore invalid
 				free(data);
-				return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Failed to execute 'btoa': The string to be encoded contains characters outside of the Latin1 range.");
+				return createDOMExceptionError("Failed to execute 'btoa': The string to be encoded contains characters outside of the Latin1 range.", "InvalidCharacterError");
 			}
 			*ch = (*ch << 6 & 0b11000000) | (*ch & 0b00111111);
 			ch++;
@@ -475,6 +476,22 @@ static jerry_value_t consoleClearHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
+static jerry_value_t DOMExceptionConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor DOMException cannot be invoked without 'new'");
+
+	jerry_value_t messageVal = argCount > 0 ? jerry_value_to_string(args[0]) : jerry_create_string((jerry_char_t *) "");
+	setReadonly(thisValue, "message", messageVal);
+	jerry_release_value(messageVal);
+	jerry_value_t nameVal = argCount > 1 ? jerry_value_to_string(args[1]) : jerry_create_string((jerry_char_t *) "Error");
+	setReadonly(thisValue, "name", nameVal);
+	jerry_release_value(nameVal);
+	
+	return jerry_create_undefined();
+}
+
 static jerry_value_t EventConstructor(CALL_INFO) {
 	jerry_value_t newTarget = jerry_get_new_target();
 	bool targetUndefined = jerry_value_is_undefined(newTarget);
@@ -767,7 +784,7 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	jerry_release_value(dispatchVal);
 	if (dispatched) {
 		jerry_release_value(dispatchStr);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Invalid event state");
+		return createDOMExceptionError("Invalid event state", "InvalidStateError");
 	}
 
 	jerry_value_t eventPhaseStr = jerry_create_string((jerry_char_t *) "eventPhase");
@@ -1026,15 +1043,19 @@ void exposeAPI() {
 	jerry_release_value(EventTarget.constructor);
 	jerry_release_value(EventTarget.prototype);
 
+	jerry_value_t Error = getProperty(global, "Error");
+	jerry_value_t ErrorPrototype = getProperty(Error, "prototype");
+	jsClass DOMException = extendClass(global, "DOMException", DOMExceptionConstructor, ErrorPrototype);
+	jerry_release_value(DOMException.constructor);
+	jerry_release_value(DOMException.prototype);
+	jerry_release_value(ErrorPrototype);
+	jerry_release_value(Error);
+
 	jsClass Event = createClass(global, "Event", EventConstructor);
-	defGetter(Event.constructor, "NONE",            EventNONEGetter);
-	defGetter(Event.constructor, "CAPTURING_PHASE", EventCAPTURING_PHASEGetter);
-	defGetter(Event.constructor, "AT_TARGET",       EventAT_TARGETGetter);
-	defGetter(Event.constructor, "BUBBLING_PHASE",  EventBUBBLING_PHASEGetter);
-	defGetter(Event.prototype, "NONE",            EventNONEGetter);
-	defGetter(Event.prototype, "CAPTURING_PHASE", EventCAPTURING_PHASEGetter);
-	defGetter(Event.prototype, "AT_TARGET",       EventAT_TARGETGetter);
-	defGetter(Event.prototype, "BUBBLING_PHASE",  EventBUBBLING_PHASEGetter);
+	classDefGetter(Event, "NONE",            EventNONEGetter);
+	classDefGetter(Event, "CAPTURING_PHASE", EventCAPTURING_PHASEGetter);
+	classDefGetter(Event, "AT_TARGET",       EventAT_TARGETGetter);
+	classDefGetter(Event, "BUBBLING_PHASE",  EventBUBBLING_PHASEGetter);
 	setMethod(Event.prototype, "composedPath", EventComposedPathHandler);
 	setMethod(Event.prototype, "stopPropagation", EventStopPropagationHandler);
 	setMethod(Event.prototype, "stopImmediatePropagation", EventStopImmediatePropagationHandler);

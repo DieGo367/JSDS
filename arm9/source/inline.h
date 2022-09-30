@@ -135,6 +135,16 @@ inline void setReadonly(jerry_value_t object, const char *property, jerry_value_
 	jerry_release_value(propString);
 }
 
+// Create a getter on both the constructor and prototype of a class for a certain property via c string and function.
+inline void classDefGetter(jsClass cls, const char *property, jerry_external_handler_t getter) {
+	getterDesc.getter = jerry_create_external_function(getter);
+	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
+	jerry_release_value(jerry_define_own_property(cls.constructor, propString, &getterDesc));
+	jerry_release_value(jerry_define_own_property(cls.prototype, propString, &getterDesc));
+	jerry_release_value(propString);
+	jerry_release_value(getterDesc.getter);
+}
+
 static jerry_value_t eventAttributeSetter(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
 	jerry_value_t attrNameVal = getProperty(function, "name");
 	jerry_length_t size = jerry_get_string_size(attrNameVal);
@@ -191,6 +201,23 @@ inline void defEventAttribute(jerry_value_t eventTarget, const char *attributeNa
 	jerry_release_value(eventAttributeDesc.getter);
 	jerry_release_value(eventAttributeDesc.setter);
 	jerry_release_value(nameDesc.value);
+}
+
+// helper to throw DOMExceptions in API methods
+inline jerry_value_t createDOMExceptionError(const char *message, const char *name) {
+	jerry_value_t global = jerry_get_global_object();
+	jerry_value_t DOMException = getProperty(global, "DOMException");
+	jerry_value_t args[2] = {jerry_create_string((jerry_char_t *) message), jerry_create_string((jerry_char_t *) name)};
+	jerry_value_t exception = jerry_construct_object(DOMException, args, 2);
+	jerry_release_value(args[0]);
+	jerry_release_value(args[1]);
+	jerry_release_value(DOMException);
+	jerry_release_value(global);
+	jerry_value_t backtrace = jerry_get_backtrace(10);
+	setInternalProperty(exception, "backtrace", backtrace);
+	jerry_release_value(backtrace);
+	jerry_value_t error = jerry_create_error_from_value(exception, true);
+	return error;
 }
 
 /*

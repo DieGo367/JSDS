@@ -176,7 +176,14 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 		case JERRY_TYPE_ERROR: {
 			jerry_error_t errorCode = jerry_get_error_type(value);
 			jerry_value_t errorThrown = jerry_get_value_from_error(value, false);
-			if (errorCode == JERRY_ERROR_NONE) {
+			jerry_value_t global = jerry_get_global_object();
+			jerry_value_t Error = getProperty(global, "Error");
+			jerry_value_t isErrorVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, errorThrown, Error);
+			bool isError = jerry_get_boolean_value(isErrorVal);
+			jerry_release_value(isErrorVal);
+			jerry_release_value(Error);
+			jerry_release_value(global);
+			if (errorCode == JERRY_ERROR_NONE && !isError) {
 				printf("Uncaught ");
 				consolePrintLiteral(errorThrown);
 			}
