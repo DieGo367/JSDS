@@ -245,6 +245,14 @@ static jerry_value_t clearTimeoutHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
+static jerry_value_t reportErrorHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'reportError': 1 argument required.");
+	jerry_value_t error = jerry_create_error_from_value(args[0], false);
+	handleError(error);
+	jerry_release_value(error);
+	return jerry_create_undefined();
+}
+
 int consoleGroups = 0;
 
 static jerry_value_t consoleLogHandler(CALL_INFO) {
@@ -955,6 +963,7 @@ void exposeAPI() {
 	setMethod(global, "close", closeHandler);
 	setMethod(global, "confirm", confirmHandler);
 	setMethod(global, "prompt", promptHandler);
+	setMethod(global, "reportError", reportErrorHandler);
 	setMethod(global, "setInterval", setIntervalHandler);
 	setMethod(global, "setTimeout", setTimeoutHandler);
 	
