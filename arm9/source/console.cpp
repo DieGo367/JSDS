@@ -538,6 +538,7 @@ void consolePrintTable(const jerry_value_t args[], jerry_value_t argCount, int i
 			putchar('\n');
 		}
 	}
+	jerry_release_value(keys);
 	jerry_release_value(spliceArgs[1]);
 	jerry_release_value(spliceFunc);
 	jerry_release_value(pushFunc);
