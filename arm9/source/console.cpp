@@ -174,26 +174,15 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 			free(name);
 		} break;
 		case JERRY_TYPE_ERROR: {
-			jerry_error_t errorCode = jerry_get_error_type(value);
 			jerry_value_t errorThrown = jerry_get_value_from_error(value, false);
-			jerry_value_t global = jerry_get_global_object();
-			jerry_value_t Error = getProperty(global, "Error");
-			jerry_value_t isErrorVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, errorThrown, Error);
-			bool isError = jerry_get_boolean_value(isErrorVal);
-			jerry_release_value(isErrorVal);
-			jerry_release_value(Error);
-			jerry_release_value(global);
-			if (errorCode == JERRY_ERROR_NONE && !isError) {
-				printf("Uncaught ");
-				consolePrintLiteral(errorThrown);
-			}
-			else {
+			jerry_value_t isErrorVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, errorThrown, ref_Error);
+			if (jerry_get_boolean_value(isErrorVal)) {
 				char *message = getStringProperty(errorThrown, "message");
 				char *name = getStringProperty(errorThrown, "name");
 				printf("Uncaught %s: %s", name, message);
 				free(message);
 				free(name);
-				jerry_value_t backtrace = getInternalProperty(errorThrown, "backtrace");
+				jerry_value_t backtrace = jerry_get_internal_property(errorThrown, ref_str_backtrace);
 				u32 length = jerry_get_array_length(backtrace);
 				for (u32 i = 0; i < length; i++) {
 					jerry_value_t traceLine = jerry_get_property_by_index(backtrace, i);
@@ -205,6 +194,11 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 				}
 				jerry_release_value(backtrace);
 			}
+			else {
+				printf("Uncaught ");
+				consolePrintLiteral(errorThrown);
+			}
+			jerry_release_value(isErrorVal);
 			jerry_release_value(errorThrown);
 		} break;
 		case JERRY_TYPE_OBJECT:

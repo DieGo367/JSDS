@@ -4,6 +4,7 @@
 #include <nds/interrupts.h>
 #include <stdlib.h>
 #include <string.h>
+#include <queue>
 
 #include "console.h"
 #include "inline.h"
@@ -45,6 +46,69 @@ jerry_value_t execute(jerry_value_t parsedCode) {
 	return result;
 }
 
+std::queue<Task> taskQueue;
+
+/* The Event Loop™
+ * This runs just a single iteration, so it must be used in a loop to fully live up to its name.
+ * Executes all tasks currently in the task queue (newly enqueued tasks are not run).
+ * After each task, microtasks are executed until the microtask queue is empty.
+ */
+void eventLoop() {
+	u32 size = taskQueue.size();
+	while (size--) {
+		Task task = taskQueue.front();
+		taskQueue.pop();
+		jerry_value_t taskResult = jerry_call_function(task.function, task.thisValue, task.args, task.argCount);
+		jerry_value_t microtaskResult;
+		while (true) {
+			microtaskResult = jerry_run_all_enqueued_jobs();
+			if (jerry_value_is_error(microtaskResult)) {
+				handleError(microtaskResult);
+				jerry_release_value(microtaskResult);
+			}
+			else break;
+		}
+		jerry_release_value(microtaskResult);
+		if (jerry_value_is_error(taskResult)) {
+			consolePrintLiteral(taskResult);
+			putchar('\n');
+			if (!inREPL) { // if not in the REPL, abort on uncaught error. Waits for START like normal.
+				while (true) {
+					swiWaitForVBlank();
+					scanKeys();
+					if (keysDown() & KEY_START) break;
+				}
+				exit(1);
+			}
+		}
+		jerry_release_value(taskResult);
+		jerry_release_value(task.function);
+		jerry_release_value(task.thisValue);
+		for (u32 i = 0; i < task.argCount; i++) jerry_release_value(task.args[i]);
+	}
+}
+
+void queueTask(jerry_value_t function, jerry_value_t thisValue, jerry_value_t *args, jerry_length_t argCount) {
+	Task task;
+	task.function = jerry_acquire_value(function);
+	task.thisValue = jerry_acquire_value(thisValue);
+	task.args = (jerry_value_t *) malloc(argCount * sizeof(jerry_value_t));
+	for (u32 i = 0; i < argCount; i++) task.args[i] = jerry_acquire_value(args[i]);
+	task.argCount = argCount;
+	taskQueue.push(task);
+}
+
+void clearTasks() {
+	u32 size = taskQueue.size();
+	while (size--) {
+		Task task = taskQueue.front();
+		taskQueue.pop();
+		jerry_release_value(task.function);
+		jerry_release_value(task.thisValue);
+		for (u32 i = 0; i < task.argCount; i++) jerry_release_value(task.args[i]);
+	}
+}
+
 /* Attempts to handle an error by dispatching an ErrorEvent.
  * If left unhandled, the error will be printed and (unless in the REPL) the program will exit.
  */
@@ -77,7 +141,7 @@ void handleError(jerry_value_t error) {
 			setProperty(errorEventInit, "message", messageVal);
 			jerry_release_value(messageVal);
 
-			jerry_value_t backtrace = getInternalProperty(errorThrown, "backtrace");
+			jerry_value_t backtrace = jerry_get_internal_property(errorThrown, ref_str_backtrace);
 			jerry_value_t resourceVal = jerry_get_property_by_index(backtrace, 0);
 			char *resource = getString(resourceVal);
 			jerry_release_value(resourceVal);
@@ -106,12 +170,10 @@ void handleError(jerry_value_t error) {
 		setInternalProperty(errorEvent, "isTrusted", True);
 		jerry_release_value(True);
 
-		jerry_value_t dispatchFunc = getProperty(global, "dispatchEvent");
-		jerry_value_t result = jerry_call_function(dispatchFunc, global, &errorEvent, 1);
+		jerry_value_t result = jerry_call_function(ref_task_dispatchEvent, global, &errorEvent, 1);
 		if (jerry_value_is_error(result)) handleError(result); // lol
 		else if (jerry_get_boolean_value(result) == false) errorHandled = true;
 		jerry_release_value(result);
-		jerry_release_value(dispatchFunc);
 
 		jerry_release_value(errorEvent);
 	}
@@ -137,21 +199,15 @@ void handleError(jerry_value_t error) {
 void fireLoadEvent() {
 	jerry_value_t global = jerry_get_global_object();
 
-	jerry_value_t Event = getProperty(global, "Event");
 	jerry_value_t loadStr = jerry_create_string((jerry_char_t *) "load");
-	jerry_value_t loadEvent = jerry_construct_object(Event, &loadStr, 1);
+	jerry_value_t loadEvent = jerry_construct_object(ref_Event, &loadStr, 1);
 	jerry_release_value(loadStr);
-	jerry_release_value(Event);
 
 	jerry_value_t True = jerry_create_boolean(true);
 	setInternalProperty(loadEvent, "isTrusted", True);
 	jerry_release_value(True);
 
-	jerry_value_t dispatchFunc = getProperty(global, "dispatchEvent");
-	jerry_value_t result = jerry_call_function(dispatchFunc, global, &loadEvent, 1);
-	if (jerry_value_is_error(result)) handleError(result);
-	jerry_release_value(result);
-	jerry_release_value(dispatchFunc);
+	queueTask(ref_task_dispatchEvent, global, &loadEvent, 1);
 
 	jerry_release_value(loadEvent);
 	jerry_release_value(global);

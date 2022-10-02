@@ -16,7 +16,7 @@
 
 void onErrorCreated(jerry_value_t errorObject, void *userPtr) {
 	jerry_value_t backtrace = jerry_get_backtrace(10);
-	setInternalProperty(errorObject, "backtrace", backtrace);
+	jerry_set_internal_property(errorObject, ref_str_backtrace, backtrace);
 	jerry_release_value(backtrace);
 }
 
@@ -46,6 +46,7 @@ void tempLoadMain() {
 	while (true) {
 		swiWaitForVBlank();
 		checkTimeouts();
+		eventLoop();
 		scanKeys();
 		if (keysDown() & KEY_START) break;
 	}
@@ -59,6 +60,7 @@ void repl() {
 		while (true) {
 			swiWaitForVBlank();
 			checkTimeouts();
+			eventLoop();
 			if (keyboardEnterPressed) break;
 			keyboardUpdate();
 		}
@@ -86,11 +88,27 @@ int main(int argc, char **argv) {
 	keyboard->OnKeyPressed = onKeyboardKeyPress;
 	jerry_init(JERRY_INIT_EMPTY);
 	jerry_set_error_object_created_callback(onErrorCreated, NULL);
+	ref_str_name = jerry_create_string((jerry_char_t *) "name");
+	ref_str_constructor = jerry_create_string((jerry_char_t *) "constructor");
+	ref_str_prototype = jerry_create_string((jerry_char_t *) "prototype");
+	ref_str_backtrace = jerry_create_string((jerry_char_t *) "backtrace");
+	ref_task_runTimeout = jerry_create_external_function(runTimeoutTask);
 	exposeAPI();
 
 	if (inREPL) repl();
 	else tempLoadMain();
 
+	jerry_release_value(ref_Event);
+	jerry_release_value(ref_Error);
+	jerry_release_value(ref_DOMException);
+	jerry_release_value(ref_task_runTimeout);
+	jerry_release_value(ref_task_dispatchEvent);
+	jerry_release_value(ref_str_name);
+	jerry_release_value(ref_str_constructor);
+	jerry_release_value(ref_str_prototype);
+	jerry_release_value(ref_str_backtrace);
+	clearTasks();
+	clearTimeouts();
 	jerry_cleanup();
 	return 0;
 }

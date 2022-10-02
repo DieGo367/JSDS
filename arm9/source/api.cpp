@@ -771,11 +771,9 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	if (argCount < 1) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'dispatchEvent': 1 argument required.");
 	jerry_value_t target = jerry_value_is_undefined(thisValue) ? jerry_get_global_object() : jerry_acquire_value(thisValue);
-	jerry_value_t Event = jerry_eval((jerry_char_t *) "Event", 5, JERRY_PARSE_NO_OPTS);
-	jerry_value_t isInstanceVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, args[0], Event);
+	jerry_value_t isInstanceVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, args[0], ref_Event);
 	bool isInstance = jerry_get_boolean_value(isInstanceVal);
 	jerry_release_value(isInstanceVal);
-	jerry_release_value(Event);
 	if (!isInstance) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Not an instance of Event.");
 
 	jerry_value_t dispatchStr = jerry_create_string((jerry_char_t *) "dispatch");
@@ -991,9 +989,7 @@ static jerry_value_t CustomEventConstructor(CALL_INFO) {
 }
 
 void exposeAPI() {
-	nameValue = jerry_create_string((jerry_char_t *) "name");
 	jerry_value_t global = jerry_get_global_object();
-
 	setProperty(global, "self", global);
 
 	setMethod(global, "alert", alertHandler);
@@ -1035,6 +1031,7 @@ void exposeAPI() {
 	setMethod(EventTarget.prototype, "addEventListener", EventTargetAddEventListenerHandler);
 	setMethod(EventTarget.prototype, "removeEventListener", EventTargetRemoveEventListenerHandler);
 	setMethod(EventTarget.prototype, "dispatchEvent", EventTargetDispatchEventHandler);
+	ref_task_dispatchEvent = getProperty(EventTarget.prototype, "dispatchEvent");
 	// turn global into an EventTarget
 	jerry_release_value(jerry_set_prototype(global, EventTarget.prototype));
 	jerry_value_t globalListeners = jerry_create_array(0);
@@ -1043,13 +1040,12 @@ void exposeAPI() {
 	jerry_release_value(EventTarget.constructor);
 	jerry_release_value(EventTarget.prototype);
 
-	jerry_value_t Error = getProperty(global, "Error");
-	jerry_value_t ErrorPrototype = getProperty(Error, "prototype");
+	ref_Error = getProperty(global, "Error");
+	jerry_value_t ErrorPrototype = jerry_get_property(ref_Error, ref_str_prototype);
 	jsClass DOMException = extendClass(global, "DOMException", DOMExceptionConstructor, ErrorPrototype);
-	jerry_release_value(DOMException.constructor);
+	ref_DOMException = DOMException.constructor;
 	jerry_release_value(DOMException.prototype);
 	jerry_release_value(ErrorPrototype);
-	jerry_release_value(Error);
 
 	jsClass Event = createClass(global, "Event", EventConstructor);
 	classDefGetter(Event, "NONE",            EventNONEGetter);
@@ -1060,7 +1056,7 @@ void exposeAPI() {
 	setMethod(Event.prototype, "stopPropagation", EventStopPropagationHandler);
 	setMethod(Event.prototype, "stopImmediatePropagation", EventStopImmediatePropagationHandler);
 	setMethod(Event.prototype, "preventDefault", EventPreventDefaultHandler);
-	jerry_release_value(Event.constructor);
+	ref_Event = Event.constructor;
 
 	jsClass ErrorEvent = extendClass(global, "ErrorEvent", ErrorEventConstructor, Event.prototype);
 	jerry_release_value(ErrorEvent.constructor);
@@ -1075,5 +1071,4 @@ void exposeAPI() {
 	defEventAttribute(global, "onerror");
 
 	jerry_release_value(global);
-	jerry_release_value(nameValue);
 }

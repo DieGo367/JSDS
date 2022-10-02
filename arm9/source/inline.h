@@ -3,6 +3,18 @@
 
 #include "jerry/jerryscript.h"
 
+// global references that will be kept during the duration of the program
+
+inline jerry_value_t ref_Event;
+inline jerry_value_t ref_Error;
+inline jerry_value_t ref_DOMException;
+inline jerry_value_t ref_task_runTimeout;
+inline jerry_value_t ref_task_dispatchEvent;
+inline jerry_value_t ref_str_name;
+inline jerry_value_t ref_str_constructor;
+inline jerry_value_t ref_str_prototype;
+inline jerry_value_t ref_str_backtrace;
+
 // Get object property via c string. Return value must be released!
 inline jerry_value_t getProperty(jerry_value_t object, const char *property) {
 	jerry_value_t propString = jerry_create_string((const jerry_char_t *) property);
@@ -18,34 +30,33 @@ inline void setProperty(jerry_value_t object, const char *property, jerry_value_
 	jerry_release_value(propString);
 }
 
+inline jerry_property_descriptor_t nonEnumerableDesc = {
+	.is_value_defined = true,
+	.is_writable_defined = true,
+	.is_writable = true,
+	.is_enumerable_defined = true,
+	.is_enumerable = false,
+	.is_configurable_defined = true,
+	.is_configurable = true
+};
 // Sets a non-enumerable property via c string.
 inline void setPropertyNonEnumerable(jerry_value_t object, const char *property, jerry_value_t value) {
 	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
-	jerry_property_descriptor_t propDesc = {
-		.is_value_defined = true,
-		.is_writable_defined = true,
-		.is_writable = true,
-		.is_enumerable_defined = true,
-		.is_enumerable = false,
-		.is_configurable_defined = true,
-		.is_configurable = true,
-		.value = value
-	};
-	jerry_define_own_property(object, propString, &propDesc);
+	nonEnumerableDesc.value = value;
+	jerry_define_own_property(object, propString, &nonEnumerableDesc);
 	jerry_release_value(propString);
 }
 
-inline jerry_value_t nameValue;
 inline jerry_property_descriptor_t nameDesc = {
 	.is_value_defined = true,
 	.is_configurable = true
 };
-// Set object method via c string and function. "nameValue" must have been set up previously
+// Set object method via c string and function.
 inline void setMethod(jerry_value_t object, const char *method, jerry_external_handler_t function) {
 	jerry_value_t func = jerry_create_external_function(function);
 	// Function.prototype.name isn't being set automatically, so it must be defined manually
 	nameDesc.value = jerry_create_string((jerry_char_t *) method);
-	jerry_release_value(jerry_define_own_property(func, nameValue, &nameDesc));
+	jerry_release_value(jerry_define_own_property(func, ref_str_name, &nameDesc));
 	jerry_release_value(jerry_set_property(object, nameDesc.value, func));
 	jerry_release_value(nameDesc.value);
 	jerry_release_value(func);
@@ -55,24 +66,24 @@ struct jsClass {
 	jerry_value_t constructor;
 	jerry_value_t prototype;
 };
-/* Creates a class on object via c string and function. "nameValue" must have been set up previously
+/* Creates a class on object via c string and function.
  * Returns a jsClass struct containing the constructor and prototype function values.
  * Both functions must be released!
  */
 inline jsClass createClass(jerry_value_t object, const char *name, jerry_external_handler_t constructor) {
 	jerry_value_t classFunc = jerry_create_external_function(constructor);
 	nameDesc.value = jerry_create_string((jerry_char_t *) name);
-	jerry_release_value(jerry_define_own_property(classFunc, nameValue, &nameDesc));
+	jerry_release_value(jerry_define_own_property(classFunc, ref_str_name, &nameDesc));
 	jerry_release_value(jerry_set_property(object, nameDesc.value, classFunc));
 	jerry_release_value(nameDesc.value);
 	jerry_value_t proto = jerry_create_object();
-	setProperty(classFunc, "prototype", proto);
-	setPropertyNonEnumerable(proto, "constructor", classFunc);
+	jerry_release_value(jerry_set_property(classFunc, ref_str_prototype, proto));
+	nonEnumerableDesc.value = classFunc;
+	jerry_release_value(jerry_define_own_property(proto, ref_str_constructor, &nonEnumerableDesc));
 	return {.constructor = classFunc, .prototype = proto};
 }
 
 /* Creates a class on object via c string and function, which extends an existing class via its prototype.
- * "nameValue" must have been set up previously
  * Returns a jsClass struct containing the constructor and prototype function values.
  * Both functions must be released!
  */
@@ -118,17 +129,17 @@ static jerry_value_t internalGetter(const jerry_value_t function, const jerry_va
 	return got;
 }
 
-// Create a getter on an object via jerry value that returns the value of an internal property. "nameValue" must have been set up previously
+// Create a getter on an object via jerry value that returns the value of an internal property.
 inline void setReadonlyJV(jerry_value_t object, jerry_value_t property, jerry_value_t value) {
 	jerry_set_internal_property(object, property, value);
 	getterDesc.getter = jerry_create_external_function(internalGetter);
 	nameDesc.value = property;
-	jerry_release_value(jerry_define_own_property(getterDesc.getter, nameValue, &nameDesc));
+	jerry_release_value(jerry_define_own_property(getterDesc.getter, ref_str_name, &nameDesc));
 	jerry_release_value(jerry_define_own_property(object, property, &getterDesc));
 	jerry_release_value(getterDesc.getter);
 }
 
-// Create a getter on an object via c string that returns the value of an internal property. "nameValue" must have been set up previously
+// Create a getter on an object via c string that returns the value of an internal property.
 inline void setReadonly(jerry_value_t object, const char *property, jerry_value_t value) {
 	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
 	setReadonlyJV(object, propString, value);
@@ -187,16 +198,16 @@ inline jerry_property_descriptor_t eventAttributeDesc = {
 	.is_enumerable_defined = true,
 	.is_enumerable = true
 };
-// Shortcut for making event handlers on event targets. "nameValue" must have been set up previously
+// Shortcut for making event handlers on event targets.
 inline void defEventAttribute(jerry_value_t eventTarget, const char *attributeName) {
 	nameDesc.value = jerry_create_string((jerry_char_t *) attributeName);
 	jerry_value_t null = jerry_create_null();
 	jerry_set_internal_property(eventTarget, nameDesc.value, null);
 	jerry_release_value(null);
 	eventAttributeDesc.getter = jerry_create_external_function(internalGetter);
-	jerry_release_value(jerry_define_own_property(eventAttributeDesc.getter, nameValue, &nameDesc));
+	jerry_release_value(jerry_define_own_property(eventAttributeDesc.getter, ref_str_name, &nameDesc));
 	eventAttributeDesc.setter = jerry_create_external_function(eventAttributeSetter);
-	jerry_release_value(jerry_define_own_property(eventAttributeDesc.setter, nameValue, &nameDesc));
+	jerry_release_value(jerry_define_own_property(eventAttributeDesc.setter, ref_str_name, &nameDesc));
 	jerry_release_value(jerry_define_own_property(eventTarget, nameDesc.value, &eventAttributeDesc));
 	jerry_release_value(eventAttributeDesc.getter);
 	jerry_release_value(eventAttributeDesc.setter);
@@ -205,16 +216,12 @@ inline void defEventAttribute(jerry_value_t eventTarget, const char *attributeNa
 
 // helper to throw DOMExceptions in API methods
 inline jerry_value_t createDOMExceptionError(const char *message, const char *name) {
-	jerry_value_t global = jerry_get_global_object();
-	jerry_value_t DOMException = getProperty(global, "DOMException");
 	jerry_value_t args[2] = {jerry_create_string((jerry_char_t *) message), jerry_create_string((jerry_char_t *) name)};
-	jerry_value_t exception = jerry_construct_object(DOMException, args, 2);
+	jerry_value_t exception = jerry_construct_object(ref_DOMException, args, 2);
 	jerry_release_value(args[0]);
 	jerry_release_value(args[1]);
-	jerry_release_value(DOMException);
-	jerry_release_value(global);
 	jerry_value_t backtrace = jerry_get_backtrace(10);
-	setInternalProperty(exception, "backtrace", backtrace);
+	jerry_set_internal_property(exception, ref_str_backtrace, backtrace);
 	jerry_release_value(backtrace);
 	jerry_value_t error = jerry_create_error_from_value(exception, true);
 	return error;

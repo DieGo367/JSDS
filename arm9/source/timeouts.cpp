@@ -11,7 +11,7 @@
 
 
 
-std::map<int, timeout> timeouts;
+std::map<int, Timeout> timeouts;
 int ids = 0;
 int nestLevel = 0;
 bool timerOn = false;
@@ -23,7 +23,7 @@ void timerTick() {
 }
 
 jerry_value_t addTimeout(jerry_value_t handler, jerry_value_t timeoutVal, jerry_value_t *args, u32 argCount, bool repeat) {
-	timeout t;
+	Timeout t;
 	t.id = ++ids;
 	jerry_value_t timeoutNumVal = jerry_value_to_number(timeoutVal);
 	int ticks = jerry_value_as_int32(timeoutNumVal);
@@ -43,6 +43,7 @@ jerry_value_t addTimeout(jerry_value_t handler, jerry_value_t timeoutVal, jerry_
 	t.repeat = repeat;
 	t.nestLevel = nestLevel + 1;
 	t.remaining = t.timeout;
+	t.queued = false;
 
 	timeouts[t.id] = t;
 	if (!timerOn) {
@@ -57,7 +58,7 @@ void clearTimeout(jerry_value_t idVal) {
 	int id = jerry_value_as_int32(idNumVal);
 	jerry_release_value(idNumVal);
 	if (timeouts.count(id) != 0) {
-		timeout t = timeouts[id];
+		Timeout t = timeouts[id];
 		timeouts.erase(id);
 		jerry_release_value(t.handler);
 		for (u32 i = 0; i < t.argCount; i++) jerry_release_value(t.args[i]);
@@ -69,8 +70,10 @@ void clearTimeout(jerry_value_t idVal) {
 	}
 }
 
-void runTimeout(timeout t) {
-	if (timeouts.count(t.id) == 0) return;
+jerry_value_t runTimeoutTask(jerry_value_t function, jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
+	int id = jerry_get_number_value(args[0]);
+	if (timeouts.count(id) == 0) return jerry_create_undefined();
+	Timeout t = timeouts[id];
 	jerry_value_t global = jerry_get_global_object();
 	int prevNestLevel = nestLevel;
 
@@ -86,35 +89,21 @@ void runTimeout(timeout t) {
 		free(handlerStr);
 	}
 
-	// execute promises
-	jerry_value_t jobResult;
-	while (true) {
-		jobResult = jerry_run_all_enqueued_jobs();
-		if (jerry_value_is_error(jobResult)) {
-			handleError(jobResult);
-			jerry_release_value(jobResult);
-		}
-		else break;
-	}
-	jerry_release_value(jobResult);
-
-	// handle execution result
-	if (jerry_value_is_error(result)) {
-		handleError(result);
-	}
-	jerry_release_value(result);
-
 	nestLevel = prevNestLevel;
 	jerry_release_value(global);
-	if (timeouts.count(t.id) == 0) return;
-	if (t.repeat) { // continue interval
-		timeouts[t.id].remaining = t.timeout;
+	if (timeouts.count(t.id) > 0) {
+		if (t.repeat) { // continue interval
+			timeouts[t.id].remaining = t.timeout;
+			timeouts[t.id].queued = false;
+		}
+		else { // remove timeout
+			timeouts.erase(t.id);
+			jerry_release_value(t.handler);
+			for (u32 i = 0; i < t.argCount; i++) jerry_release_value(t.args[i]);
+		}
 	}
-	else { // remove timeout
-		timeouts.erase(t.id);
-		jerry_release_value(t.handler);
-		for (u32 i = 0; i < t.argCount; i++) jerry_release_value(t.args[i]);
-	}
+
+	return result;
 }
 
 void checkTimeouts() {
@@ -122,17 +111,27 @@ void checkTimeouts() {
 	while (minAmount < 1) {
 		minAmount = 1;
 		for (const auto &[id, timeout] : timeouts) {
-			if (timeout.remaining < minAmount) minAmount = timeout.remaining;
+			if (!timeout.queued && timeout.remaining < minAmount) minAmount = timeout.remaining;
 		}
-		if (minAmount < 1) for (auto it = timeouts.begin(); it != timeouts.end(); /* no increment here */) {
-			// increment the iterator while keeping the current reference.
-			// this allows the loop to continue even if "current" is invalidated when the timeout is removed from the map.
-			auto current = it++;
-			if (current->second.remaining == minAmount) runTimeout(current->second);
+		if (minAmount < 1) for (const auto &[id, timeout] : timeouts) {
+			if (!timeout.queued && timeout.remaining == minAmount) {
+				jerry_value_t idVal = jerry_create_number(id);
+				queueTask(ref_task_runTimeout, 0, &idVal, 1);
+				jerry_release_value(idVal);
+				timeouts[id].queued = true;
+			}
 		}
 	}
 	if (timerOn && timeouts.size() == 0) { // disable the timer while it's not being used
 		timerStop(0);
 		timerOn = false;
 	}
+}
+
+void clearTimeouts() {
+	for (const auto &[id, timeout] : timeouts) {
+		jerry_release_value(timeout.handler);
+		for (u32 i = 0; i < timeout.argCount; i++) jerry_release_value(timeout.args[i]);
+	}
+	timeouts.clear();
 }
