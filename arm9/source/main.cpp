@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
 	jerry_release_value(ref_DOMException);
 	jerry_release_value(ref_task_runTimeout);
 	jerry_release_value(ref_task_dispatchEvent);
+	jerry_release_value(ref_task_reportError);
 	jerry_release_value(ref_str_name);
 	jerry_release_value(ref_str_constructor);
 	jerry_release_value(ref_str_prototype);

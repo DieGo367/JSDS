@@ -254,6 +254,25 @@ static jerry_value_t reportErrorHandler(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
+static jerry_value_t queueMicrotaskHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'queueMicrotask': 1 argument required.");
+	if (!jerry_value_is_function(args[0])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'queueMicrotask': parameter is not of type 'Function'.");
+
+	jerry_value_t promise = jerry_create_promise();
+	jerry_value_t thenFunc = getProperty(promise, "then");
+	jerry_value_t thenPromise = jerry_call_function(thenFunc, promise, args, 1);
+	jerry_value_t catchFunc = getProperty(thenPromise, "catch");
+	jerry_release_value(jerry_call_function(catchFunc, thenPromise, &ref_task_reportError, 1));
+	jerry_release_value(catchFunc);
+	jerry_release_value(thenPromise);
+	jerry_release_value(thenFunc);
+
+	jerry_value_t undefined = jerry_create_undefined();
+	jerry_release_value(jerry_resolve_or_reject_promise(promise, undefined, true));
+	jerry_release_value(promise);
+	return undefined;
+}
+
 int consoleGroups = 0;
 
 static jerry_value_t consoleLogHandler(CALL_INFO) {
@@ -1037,7 +1056,9 @@ void exposeAPI() {
 	setMethod(global, "close", closeHandler);
 	setMethod(global, "confirm", confirmHandler);
 	setMethod(global, "prompt", promptHandler);
+	setMethod(global, "queueMicrotask", queueMicrotaskHandler);
 	setMethod(global, "reportError", reportErrorHandler);
+	ref_task_reportError = getProperty(global, "reportError");
 	setMethod(global, "setInterval", setIntervalHandler);
 	setMethod(global, "setTimeout", setTimeoutHandler);
 	

@@ -10,6 +10,7 @@ inline jerry_value_t ref_Error;
 inline jerry_value_t ref_DOMException;
 inline jerry_value_t ref_task_runTimeout;
 inline jerry_value_t ref_task_dispatchEvent;
+inline jerry_value_t ref_task_reportError;
 inline jerry_value_t ref_str_name;
 inline jerry_value_t ref_str_constructor;
 inline jerry_value_t ref_str_prototype;
