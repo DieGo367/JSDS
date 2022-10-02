@@ -121,7 +121,7 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 void consolePrintLiteral(jerry_value_t value, u8 level) {
 	u16 pal = mainConsole->fontCurPal;
 	jerry_type_t type = jerry_value_get_type(value);
-	switch(type) {
+	switch (type) {
 		case JERRY_TYPE_BOOLEAN:
 		case JERRY_TYPE_NUMBER:
 		case JERRY_TYPE_BIGINT: {}
@@ -246,6 +246,28 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 					}
 					printf(" ]");
 				}
+			}
+			else if (jerry_value_is_promise(value)) {
+				jerry_value_t promiseResult = jerry_get_promise_result(value);
+				printf("Promise {");
+				switch (jerry_get_promise_state(value)) {
+					case JERRY_PROMISE_STATE_PENDING:
+						mainConsole->fontCurPal = ConsolePalette::AQUA;
+						printf("<pending>");
+						mainConsole->fontCurPal = pal;
+						break;
+					case JERRY_PROMISE_STATE_REJECTED:
+						mainConsole->fontCurPal = ConsolePalette::RED;
+						printf("<rejected> ");
+						mainConsole->fontCurPal = pal;
+						// intentional fall-through
+					case JERRY_PROMISE_STATE_FULFILLED:
+						consolePrintLiteral(promiseResult);
+						break;
+					default: break;
+				}
+				printf("}");
+				jerry_release_value(promiseResult);
 			}
 			else consolePrintObject(value, level);
 			break;
