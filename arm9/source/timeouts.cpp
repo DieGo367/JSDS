@@ -107,6 +107,7 @@ jerry_value_t runTimeoutTask(jerry_value_t function, jerry_value_t thisValue, co
 }
 
 void checkTimeouts() {
+	if (!timerOn) return;
 	int minAmount = 0;
 	while (minAmount < 1) {
 		minAmount = 1;
@@ -134,4 +135,8 @@ void clearTimeouts() {
 		for (u32 i = 0; i < timeout.argCount; i++) jerry_release_value(timeout.args[i]);
 	}
 	timeouts.clear();
+}
+
+bool timeoutsExist() {
+	return timeouts.size() > 0;
 }

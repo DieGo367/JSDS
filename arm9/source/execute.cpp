@@ -10,6 +10,7 @@
 #include "console.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
+#include "timeouts.h"
 
 
 
@@ -128,6 +129,11 @@ void clearTasks() {
 		jerry_release_value(task.thisValue);
 		for (u32 i = 0; i < task.argCount; i++) jerry_release_value(task.args[i]);
 	}
+}
+
+// Returns whether there are still tasks to run or timeouts in progress
+bool workExists() {
+	return taskQueue.size() > 0 || timeoutsExist();
 }
 
 /* Attempts to handle an error by dispatching an ErrorEvent.

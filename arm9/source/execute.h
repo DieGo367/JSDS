@@ -21,6 +21,7 @@ void onPromiseRejectionOp(jerry_value_t promise, jerry_promise_rejection_operati
 void eventLoop();
 void queueTask(jerry_value_t function, jerry_value_t thisValue, jerry_value_t *args, jerry_length_t argCount);
 void clearTasks();
+bool workExists();
 
 void handleError(jerry_value_t error);
 void handleRejection(jerry_value_t promise);

@@ -44,12 +44,10 @@ void tempLoadMain() {
 		jerry_release_value(execute(parsedCode));
 		fireLoadEvent();
 	}
-	while (true) {
+	while (workExists()) {
 		swiWaitForVBlank();
 		checkTimeouts();
 		eventLoop();
-		scanKeys();
-		if (keysDown() & KEY_START) break;
 	}
 }
 
@@ -113,5 +111,10 @@ int main(int argc, char **argv) {
 	clearTasks();
 	clearTimeouts();
 	jerry_cleanup();
+	if (!inREPL) while (true) {
+		swiWaitForVBlank();
+		scanKeys();
+		if (keysDown() & KEY_START) break;
+	}
 	return 0;
 }

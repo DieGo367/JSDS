@@ -23,5 +23,6 @@ void clearTimeout(jerry_value_t idVal);
 jerry_value_t runTimeoutTask(jerry_value_t function, jerry_value_t thisValue, const jerry_value_t args[], u32 argCount);
 void checkTimeouts();
 void clearTimeouts();
+bool timeoutsExist();
 
 #endif /* JSDS_TIMEOUTS_H */
