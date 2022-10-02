@@ -1121,9 +1121,10 @@ void exposeAPI() {
 	releaseClass(extendClass(global, "CustomEvent", CustomEventConstructor, Event.prototype));
 	jerry_release_value(Event.prototype);
 
-	defEventAttribute(global, "onload");
 	defEventAttribute(global, "onerror");
+	defEventAttribute(global, "onload");
 	defEventAttribute(global, "onunhandledrejection");
+	defEventAttribute(global, "onunload");
 
 	jerry_release_value(global);
 }

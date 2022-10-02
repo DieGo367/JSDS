@@ -27,6 +27,7 @@ bool workExists();
 void handleError(jerry_value_t error);
 void handleRejection(jerry_value_t promise);
 
-void fireLoadEvent();
+void fireEvent(const char *eventName);
+void dispatchUnloadEvent();
 
 #endif /* JSDS_EXECUTE_H */

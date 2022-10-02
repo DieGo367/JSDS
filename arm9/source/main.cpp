@@ -42,13 +42,14 @@ void tempLoadMain() {
 		);
 		free(script);
 		jerry_release_value(execute(parsedCode));
-		fireLoadEvent();
+		fireEvent("load");
 	}
 	while (workExists()) {
 		swiWaitForVBlank();
 		checkTimeouts();
 		eventLoop();
 	}
+	if (!abortFlag) dispatchUnloadEvent();
 }
 
 void repl() {
@@ -78,6 +79,7 @@ void repl() {
 		}
 		jerry_release_value(result);
 	}
+	if (!abortFlag) dispatchUnloadEvent();
 }
 
 int main(int argc, char **argv) {

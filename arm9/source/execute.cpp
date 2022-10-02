@@ -14,7 +14,7 @@
 
 
 
-bool inREPL = true;
+bool inREPL = false;
 bool abortFlag = false;
 
 std::unordered_set<jerry_value_t> rejectedPromises;
@@ -273,19 +273,36 @@ void handleRejection(jerry_value_t promise) {
 
 }
 
-void fireLoadEvent() {
+void fireEvent(const char *eventName) {
 	jerry_value_t global = jerry_get_global_object();
 
-	jerry_value_t loadStr = jerry_create_string((jerry_char_t *) "load");
-	jerry_value_t loadEvent = jerry_construct_object(ref_Event, &loadStr, 1);
-	jerry_release_value(loadStr);
+	jerry_value_t eventNameVal = jerry_create_string((jerry_char_t *) eventName);
+	jerry_value_t event = jerry_construct_object(ref_Event, &eventNameVal, 1);
+	jerry_release_value(eventNameVal);
 
 	jerry_value_t True = jerry_create_boolean(true);
-	setInternalProperty(loadEvent, "isTrusted", True);
+	setInternalProperty(event, "isTrusted", True);
 	jerry_release_value(True);
 
-	queueTask(ref_task_dispatchEvent, global, &loadEvent, 1);
+	queueTask(ref_task_dispatchEvent, global, &event, 1);
 
-	jerry_release_value(loadEvent);
+	jerry_release_value(event);
+	jerry_release_value(global);
+}
+
+void dispatchUnloadEvent() {
+	jerry_value_t global = jerry_get_global_object();
+
+	jerry_value_t unloadStr = jerry_create_string((jerry_char_t *) "unload");
+	jerry_value_t unloadEvent = jerry_construct_object(ref_Event, &unloadStr, 1);
+	jerry_release_value(unloadStr);
+
+	jerry_value_t True = jerry_create_boolean(true);
+	setInternalProperty(unloadEvent, "isTrusted", True);
+	jerry_release_value(True);
+
+	jerry_release_value(jerry_call_function(ref_task_dispatchEvent, global, &unloadEvent, 1));
+
+	jerry_release_value(unloadEvent);
 	jerry_release_value(global);
 }
