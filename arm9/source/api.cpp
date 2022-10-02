@@ -964,6 +964,43 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
+static jerry_value_t PromiseRejectionEventConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor PromiseRejectionEvent cannot be invoked without 'new'");
+	else if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'PromiseRejectionEvent': 2 arguments required.");
+	else if (!jerry_value_is_object(args[1])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'PromiseRejectionEvent': The provided value is not of type 'PromiseRejectionEventInit'");
+
+	jerry_value_t promiseStr = jerry_create_string((jerry_char_t *) "promise");
+	jerry_value_t promiseVal = jerry_get_property(args[1], promiseStr);
+	if (jerry_value_is_undefined(promiseVal)) {
+		jerry_release_value(promiseStr);
+		jerry_release_value(promiseVal);
+		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'PromiseRejectionEvent': Failed to read the 'promise' property from options.");
+	}
+	jerry_value_t undefined = EventConstructor(function, thisValue, args, argCount);
+
+	if (jerry_value_is_promise(promiseVal)) {
+		setReadonlyJV(thisValue, promiseStr, promiseVal);
+		jerry_value_t reason = jerry_get_promise_result(promiseVal);
+		setReadonly(thisValue, "reason", reason);
+		jerry_release_value(reason);
+	}
+	else {
+		jerry_value_t promise = jerry_create_promise();
+		jerry_resolve_or_reject_promise(promise, promiseVal, true);
+		setReadonlyJV(thisValue, promiseStr, promise);
+		jerry_release_value(promise);
+		setReadonly(thisValue, "reason", undefined);
+	}
+
+	jerry_release_value(promiseVal);
+	jerry_release_value(promiseStr);
+
+	return undefined;
+}
+
 static jerry_value_t CustomEventConstructor(CALL_INFO) {
 	jerry_value_t newTarget = jerry_get_new_target();
 	bool targetUndefined = jerry_value_is_undefined(newTarget);
@@ -1037,8 +1074,7 @@ void exposeAPI() {
 	jerry_value_t globalListeners = jerry_create_array(0);
 	setInternalProperty(global, "eventListeners", globalListeners);
 	jerry_release_value(globalListeners);
-	jerry_release_value(EventTarget.constructor);
-	jerry_release_value(EventTarget.prototype);
+	releaseClass(EventTarget);
 
 	ref_Error = getProperty(global, "Error");
 	jerry_value_t ErrorPrototype = jerry_get_property(ref_Error, ref_str_prototype);
@@ -1058,17 +1094,14 @@ void exposeAPI() {
 	setMethod(Event.prototype, "preventDefault", EventPreventDefaultHandler);
 	ref_Event = Event.constructor;
 
-	jsClass ErrorEvent = extendClass(global, "ErrorEvent", ErrorEventConstructor, Event.prototype);
-	jerry_release_value(ErrorEvent.constructor);
-	jerry_release_value(ErrorEvent.prototype);
-
-	jsClass CustomEvent = extendClass(global, "CustomEvent", CustomEventConstructor, Event.prototype);
-	jerry_release_value(CustomEvent.constructor);
-	jerry_release_value(CustomEvent.prototype);
+	releaseClass(extendClass(global, "ErrorEvent", ErrorEventConstructor, Event.prototype));
+	releaseClass(extendClass(global, "PromiseRejectionEvent", PromiseRejectionEventConstructor, Event.prototype));
+	releaseClass(extendClass(global, "CustomEvent", CustomEventConstructor, Event.prototype));
 	jerry_release_value(Event.prototype);
 
 	defEventAttribute(global, "onload");
 	defEventAttribute(global, "onerror");
+	defEventAttribute(global, "onunhandledrejection");
 
 	jerry_release_value(global);
 }

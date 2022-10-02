@@ -2,9 +2,10 @@
 
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>
+#include <queue>
 #include <stdlib.h>
 #include <string.h>
-#include <queue>
+#include <unordered_set>
 
 #include "console.h"
 #include "inline.h"
@@ -14,6 +15,44 @@
 
 bool inREPL = false;
 
+std::unordered_set<jerry_value_t> rejectedPromises;
+
+void onPromiseRejectionOp(jerry_value_t promise, jerry_promise_rejection_operation_t operation) {
+	if (operation == JERRY_PROMISE_REJECTION_OPERATION_REJECT) {
+		rejectedPromises.emplace(jerry_acquire_value(promise));
+	}
+	else if (operation == JERRY_PROMISE_REJECTION_OPERATION_HANDLE) { // promise was handled after initially being rejected
+		auto it = rejectedPromises.begin();
+		while (it != rejectedPromises.end()) {
+			const jerry_value_t storedPromise = *(it++);
+			jerry_value_t equal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, promise, storedPromise);
+			if (jerry_get_boolean_value(equal)) {
+				jerry_release_value(storedPromise);
+				rejectedPromises.erase(storedPromise);
+			}
+			jerry_release_value(equal);
+		}
+	}
+}
+
+void runMicrotasks() {
+	jerry_value_t microtaskResult;
+	while (true) {
+		microtaskResult = jerry_run_all_enqueued_jobs();
+		if (jerry_value_is_error(microtaskResult)) {
+			handleError(microtaskResult);
+			jerry_release_value(microtaskResult);
+		}
+		else break;
+	}
+	jerry_release_value(microtaskResult);
+	for (const jerry_value_t &promise : rejectedPromises) {
+		handleRejection(promise);
+		jerry_release_value(promise);
+	}
+	rejectedPromises.clear();
+}
+
 /* Executes and releases parsed code. Returns the result of execution, which must be released!
  * Automatically releases parsedCode, unless it was an error value initially, in which case it is returned as is.
  */
@@ -22,16 +61,7 @@ jerry_value_t execute(jerry_value_t parsedCode) {
 
 	jerry_value_t result = jerry_run(parsedCode);
 	jerry_release_value(parsedCode);
-	jerry_value_t jobResult;
-	while (true) {
-		jobResult = jerry_run_all_enqueued_jobs();
-		if (jerry_value_is_error(jobResult)) {
-			handleError(jobResult);
-			jerry_release_value(jobResult);
-		}
-		else break;
-	}
-	jerry_release_value(jobResult);
+	runMicrotasks();
 	if (!inREPL && jerry_value_is_error(result)) {
 		// if not in the REPL, abort on uncaught error. Waits for START like normal.
 		consolePrintLiteral(result);
@@ -59,16 +89,7 @@ void eventLoop() {
 		Task task = taskQueue.front();
 		taskQueue.pop();
 		jerry_value_t taskResult = jerry_call_function(task.function, task.thisValue, task.args, task.argCount);
-		jerry_value_t microtaskResult;
-		while (true) {
-			microtaskResult = jerry_run_all_enqueued_jobs();
-			if (jerry_value_is_error(microtaskResult)) {
-				handleError(microtaskResult);
-				jerry_release_value(microtaskResult);
-			}
-			else break;
-		}
-		jerry_release_value(microtaskResult);
+		runMicrotasks();
 		if (jerry_value_is_error(taskResult)) {
 			consolePrintLiteral(taskResult);
 			putchar('\n');
@@ -194,6 +215,62 @@ void handleError(jerry_value_t error) {
 			exit(1);
 		}
 	}
+}
+
+void handleRejection(jerry_value_t promise) {
+	bool rejectionHandled = false;
+	
+	jerry_value_t global = jerry_get_global_object();
+	jerry_value_t eventListeners = getInternalProperty(global, "eventListeners");
+	jerry_value_t rejectionStr = jerry_create_string((jerry_char_t *) "unhandledrejection");
+	jerry_value_t rejectionEventListeners = jerry_get_property(eventListeners, rejectionStr);
+	if (jerry_value_is_array(rejectionEventListeners) && jerry_get_array_length(rejectionEventListeners) > 0) {
+		jerry_value_t rejectionEventInit = jerry_create_object();
+		
+		jerry_value_t True = jerry_create_boolean(true);
+		setProperty(rejectionEventInit, "cancelable", True);
+		setProperty(rejectionEventInit, "promise", promise);
+		jerry_value_t reason = jerry_get_promise_result(promise);
+		setProperty(rejectionEventInit, "reason", reason);
+		jerry_release_value(reason);
+
+		jerry_value_t PromiseRejectionEvent = getProperty(global, "PromiseRejectionEvent");
+		jerry_value_t args[2] = {rejectionStr, rejectionEventInit};
+		jerry_value_t rejectionEvent = jerry_construct_object(PromiseRejectionEvent, args, 2);
+		jerry_release_value(PromiseRejectionEvent);
+		jerry_release_value(rejectionEventInit);
+
+		setInternalProperty(rejectionEvent, "isTrusted", True);
+		jerry_release_value(True);
+
+		jerry_value_t result = jerry_call_function(ref_task_dispatchEvent, global, &rejectionEvent, 1);
+		if (jerry_value_is_error(result)) handleError(result);
+		else if (jerry_get_boolean_value(result) == false) rejectionHandled = true;
+		jerry_release_value(result);
+
+		jerry_release_value(rejectionEvent);
+	}
+	jerry_release_value(rejectionEventListeners);
+	jerry_release_value(rejectionStr);
+	jerry_release_value(eventListeners);
+	jerry_release_value(global);
+
+	if (!rejectionHandled) {
+		jerry_value_t reason = jerry_get_promise_result(promise);
+		printf("Uncaught (in promise) ");
+		consolePrintLiteral(reason);
+		putchar('\n');
+		jerry_release_value(reason);
+		if (!inREPL) { // if not in the REPL, abort on uncaught error. Waits for START like normal.
+			while (true) {
+				swiWaitForVBlank();
+				scanKeys();
+				if (keysDown() & KEY_START) break;
+			}
+			exit(1);
+		}
+	}
+
 }
 
 void fireLoadEvent() {

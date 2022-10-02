@@ -93,6 +93,12 @@ inline jsClass extendClass(jerry_value_t object, const char *name, jerry_externa
 	return result;
 }
 
+// Releases both the constructor and prototype of a class.
+inline void releaseClass(jsClass cls) {
+	jerry_release_value(cls.constructor);
+	jerry_release_value(cls.prototype);
+}
+
 inline jerry_property_descriptor_t getterDesc = {
 	.is_get_defined = true,
 	.is_enumerable_defined = true,

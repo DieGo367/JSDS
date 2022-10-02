@@ -9,6 +9,7 @@
 #include "console.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
+#include "jerry/jerryscript-port-default.h"
 #include "keyboard.h"
 #include "timeouts.h"
 
@@ -88,6 +89,7 @@ int main(int argc, char **argv) {
 	keyboard->OnKeyPressed = onKeyboardKeyPress;
 	jerry_init(JERRY_INIT_EMPTY);
 	jerry_set_error_object_created_callback(onErrorCreated, NULL);
+	jerry_jsds_set_promise_rejection_op_callback(onPromiseRejectionOp);
 	ref_str_name = jerry_create_string((jerry_char_t *) "name");
 	ref_str_constructor = jerry_create_string((jerry_char_t *) "constructor");
 	ref_str_prototype = jerry_create_string((jerry_char_t *) "prototype");

@@ -30,6 +30,9 @@ extern "C"
  * @{
  */
 
+// Custom extension to the jerry port that allows a callback on promise rejections
+void jerry_jsds_set_promise_rejection_op_callback(void (*callback) (jerry_value_t, jerry_promise_rejection_operation_t));
+
 jerry_log_level_t jerry_port_default_get_log_level (void);
 void jerry_port_default_set_log_level (jerry_log_level_t level);
 

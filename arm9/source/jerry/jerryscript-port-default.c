@@ -20,27 +20,21 @@
 #include <nds/interrupts.h>
 
 
+// Custom extension to the jerry port that allows a callback on promise rejections
+void (*promiseRejectionOpCallback) (jerry_value_t, jerry_promise_rejection_operation_t);
+void jerry_jsds_set_promise_rejection_op_callback(void (*callback) (jerry_value_t, jerry_promise_rejection_operation_t)) {
+  promiseRejectionOpCallback = callback;
+}
+
 /**
- * Default implementation of jerry_port_track_promise_rejection.
- * Prints the reason of the unhandled rejections.
+ * Implementation of jerry_port_track_promise_rejection for JSDS.
+ * Calls the promiseRejectionOpCallback on rejected promises.
  */
 void
 jerry_port_track_promise_rejection (const jerry_value_t promise, /**< rejected promise */
                                     const jerry_promise_rejection_operation_t operation) /**< operation */
 {
-  (void) operation; /* unused */
-
-  jerry_value_t reason = jerry_get_promise_result (promise);
-  jerry_value_t reason_to_string = jerry_value_to_string (reason);
-  jerry_size_t req_sz = jerry_get_utf8_string_size (reason_to_string);
-  JERRY_VLA (jerry_char_t, str_buf_p, req_sz + 1);
-  jerry_string_to_utf8_char_buffer (reason_to_string, str_buf_p, req_sz);
-  str_buf_p[req_sz] = '\0';
-
-  jerry_release_value (reason_to_string);
-  jerry_release_value (reason);
-
-  jerry_port_log (JERRY_LOG_LEVEL_WARNING, "Uncaught (in promise) %s\n", str_buf_p);
+  promiseRejectionOpCallback(promise, operation);
 } /* jerry_port_track_promise_rejection */
 
 #if !defined (_WIN32)
@@ -328,9 +322,9 @@ jerry_port_print_char (char c) /**< the character to print */
 #include <stdlib.h>
 
 /**
- * Implementation of jerry_port_fatal for JSDS. Prints error message
- * and waits for START button before calling 'abort' if exit code is
- * non-zero, 'exit' otherwise.
+ * Implementation of jerry_port_fatal for JSDS.
+ * Waits for START button before calling 'abort' if code is
+ * non-zero, calls 'exit' otherwise.
  */
 void jerry_port_fatal (jerry_fatal_code_t code) /**< cause of error */
 {
