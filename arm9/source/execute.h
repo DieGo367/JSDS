@@ -14,6 +14,7 @@ struct Task {
 };
 
 extern bool inREPL;
+extern bool abortFlag;
 
 jerry_value_t execute(jerry_value_t parsedCode);
 void onPromiseRejectionOp(jerry_value_t promise, jerry_promise_rejection_operation_t operation);

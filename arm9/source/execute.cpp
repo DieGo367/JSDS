@@ -14,7 +14,8 @@
 
 
 
-bool inREPL = false;
+bool inREPL = true;
+bool abortFlag = false;
 
 std::unordered_set<jerry_value_t> rejectedPromises;
 
@@ -62,17 +63,14 @@ jerry_value_t execute(jerry_value_t parsedCode) {
 
 	jerry_value_t result = jerry_run(parsedCode);
 	jerry_release_value(parsedCode);
-	runMicrotasks();
-	if (!inREPL && jerry_value_is_error(result)) {
-		// if not in the REPL, abort on uncaught error. Waits for START like normal.
-		consolePrintLiteral(result);
-		putchar('\n');
-		while (true) {
-			swiWaitForVBlank();
-			scanKeys();
-			if (keysDown() & KEY_START) break;
+	if (!abortFlag) {
+		runMicrotasks();
+		if (!inREPL && jerry_value_is_error(result)) {
+			// if not in the REPL, abort on uncaught error. Waits for START like normal.
+			consolePrintLiteral(result);
+			putchar('\n');
+			abortFlag = true;
 		}
-		exit(1);
 	}
 	return result;
 }
@@ -90,17 +88,13 @@ void eventLoop() {
 		Task task = taskQueue.front();
 		taskQueue.pop();
 		jerry_value_t taskResult = jerry_call_function(task.function, task.thisValue, task.args, task.argCount);
-		runMicrotasks();
-		if (jerry_value_is_error(taskResult)) {
-			consolePrintLiteral(taskResult);
-			putchar('\n');
-			if (!inREPL) { // if not in the REPL, abort on uncaught error. Waits for START like normal.
-				while (true) {
-					swiWaitForVBlank();
-					scanKeys();
-					if (keysDown() & KEY_START) break;
-				}
-				exit(1);
+		if (abortFlag) size = 0;
+		else {
+			runMicrotasks();
+			if (jerry_value_is_error(taskResult)) {
+				consolePrintLiteral(taskResult);
+				putchar('\n');
+				if (!inREPL) abortFlag = true;
 			}
 		}
 		jerry_release_value(taskResult);
@@ -133,7 +127,7 @@ void clearTasks() {
 
 // Returns whether there are still tasks to run or timeouts in progress
 bool workExists() {
-	return taskQueue.size() > 0 || timeoutsExist();
+	return !abortFlag && (taskQueue.size() > 0 || timeoutsExist());
 }
 
 /* Attempts to handle an error by dispatching an ErrorEvent.

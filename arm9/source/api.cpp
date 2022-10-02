@@ -19,7 +19,8 @@
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
 
 static jerry_value_t closeHandler(CALL_INFO) {
-	exit(0);
+	abortFlag = true;
+	return jerry_create_abort_from_value(jerry_create_string((jerry_char_t *) "close() was called."), true);
 }
 
 static jerry_value_t alertHandler(CALL_INFO) {

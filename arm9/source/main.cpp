@@ -54,9 +54,9 @@ void tempLoadMain() {
 void repl() {
 	consoleSetWindow(NULL, 0, 0, 32, 14);
 	keyboardShow();
-	while (true) {
+	while (!abortFlag) {
 		keyboardClearBuffer();
-		while (true) {
+		while (!abortFlag) {
 			swiWaitForVBlank();
 			checkTimeouts();
 			eventLoop();
@@ -71,10 +71,11 @@ void repl() {
 			JERRY_PARSE_STRICT_MODE
 		);
 		jerry_value_t result = execute(parsedCode);
-
-		printf("-> ");
-		consolePrintLiteral(result);
-		putchar('\n');
+		if (!abortFlag) {
+			printf("-> ");
+			consolePrintLiteral(result);
+			putchar('\n');
+		}
 		jerry_release_value(result);
 	}
 }
