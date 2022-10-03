@@ -206,14 +206,7 @@ void handleError(jerry_value_t error) {
 	if (!errorHandled) {
 		consolePrintLiteral(error);
 		putchar('\n');
-		if (!inREPL) { // if not in the REPL, abort on uncaught error. Waits for START like normal.
-			while (true) {
-				swiWaitForVBlank();
-				scanKeys();
-				if (keysDown() & KEY_START) break;
-			}
-			exit(1);
-		}
+		if (!inREPL) abortFlag = true;
 	}
 }
 
@@ -261,14 +254,7 @@ void handleRejection(jerry_value_t promise) {
 		consolePrintLiteral(reason);
 		putchar('\n');
 		jerry_release_value(reason);
-		if (!inREPL) { // if not in the REPL, abort on uncaught error. Waits for START like normal.
-			while (true) {
-				swiWaitForVBlank();
-				scanKeys();
-				if (keysDown() & KEY_START) break;
-			}
-			exit(1);
-		}
+		if (!inREPL) abortFlag = true;
 	}
 
 }
