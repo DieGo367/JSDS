@@ -13,6 +13,7 @@
 
 std::map<int, Timeout> timeouts;
 int ids = 0;
+int internalIds = 0;
 int nestLevel = 0;
 bool timerOn = false;
 
@@ -22,9 +23,9 @@ void timerTick() {
 	}
 }
 
-jerry_value_t addTimeout(jerry_value_t handler, jerry_value_t timeoutVal, jerry_value_t *args, u32 argCount, bool repeat) {
+jerry_value_t addTimeout(jerry_value_t handler, jerry_value_t timeoutVal, jerry_value_t *args, u32 argCount, bool repeat, bool isInternal) {
 	Timeout t;
-	t.id = ++ids;
+	t.id = isInternal ? --internalIds : ++ids;
 	jerry_value_t timeoutNumVal = jerry_value_to_number(timeoutVal);
 	int ticks = jerry_value_as_int32(timeoutNumVal);
 	jerry_release_value(timeoutNumVal);

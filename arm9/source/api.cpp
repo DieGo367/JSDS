@@ -102,7 +102,7 @@ static jerry_value_t atobHandler(CALL_INFO) {
 		else if (*ch == '=') n = 64; // equal sign will be handled later
 		else { // (4) error on invalid character
 			free(data);
-			return createDOMExceptionError(errorMsg, errorName);
+			return throwDOMException(errorMsg, errorName);
 		}
 		*ch = n;
 		strippedSize++;
@@ -119,7 +119,7 @@ static jerry_value_t atobHandler(CALL_INFO) {
 	// (3) fail on %4==1
 	else if (strippedSize % 4 == 1) {
 		free(data);
-		return createDOMExceptionError(errorMsg, errorName);
+		return throwDOMException(errorMsg, errorName);
 	}
 
 	// (5-8) output, buffer, position and loop
@@ -129,7 +129,7 @@ static jerry_value_t atobHandler(CALL_INFO) {
 	for (char *ch = data; ch != dataEnd; ch++) {
 		if (*ch == 64) { // (4 again) fail on equal sign not at end of string
 			free(data);
-			return createDOMExceptionError(errorMsg, errorName);
+			return throwDOMException(errorMsg, errorName);
 		}
 		buffer = buffer << 6 | *ch; // (8.2) append 6 bits to buffer
 		bits += 6;
@@ -168,7 +168,7 @@ static jerry_value_t btoaHandler(CALL_INFO) {
 		if (*ch & BIT(7)) { // greater than U+007F
 			if (*ch & 0b00111100) { // greater than U+00FF, is out of range and therefore invalid
 				free(data);
-				return createDOMExceptionError("Failed to execute 'btoa': The string to be encoded contains characters outside of the Latin1 range.", "InvalidCharacterError");
+				return throwDOMException("Failed to execute 'btoa': The string to be encoded contains characters outside of the Latin1 range.", "InvalidCharacterError");
 			}
 			*ch = (*ch << 6 & 0b11000000) | (*ch & 0b00111111);
 			ch++;
@@ -627,6 +627,8 @@ static jerry_value_t EventTargetConstructor(CALL_INFO) {
 	return jerry_create_undefined();
 }
 
+void abortSignalAddAlgorithm(jerry_value_t signal, jerry_value_t handler, jerry_value_t thisValue, const jerry_value_t *args, u32 argCount);
+
 static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'addEventListener': 2 arguments required.");
 	if (jerry_value_is_null(args[1])) return jerry_create_undefined();
@@ -643,7 +645,7 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	bool capture = false;
 	bool once = false;
 	bool passive = false;
-	// TODO: signal
+	jerry_value_t signal = jerry_create_null();
 	if (argCount > 2) {
 		if (jerry_value_is_object(args[2])) {
 			jerry_value_t captureVal = jerry_get_property(args[2], captureStr);
@@ -658,7 +660,46 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 			passive = jerry_value_to_boolean(passiveVal);
 			jerry_release_value(passiveVal);
 			
-			// TODO: signal = AbortSignal | null
+			jerry_value_t signalVal = getProperty(args[2], "signal");
+			if (!jerry_value_is_undefined(signalVal)) {
+				jerry_release_value(signal);
+				jerry_value_t global = jerry_get_global_object();
+				jerry_value_t AbortSignal = getProperty(global, "AbortSignal");
+				jerry_value_t isAbortSignalVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, signalVal, AbortSignal);
+				bool isAbortSignal = jerry_get_boolean_value(isAbortSignalVal);
+				jerry_release_value(isAbortSignalVal);
+				jerry_release_value(AbortSignal);
+				jerry_release_value(global);
+				if (!isAbortSignal) {
+					jerry_release_value(signalVal);
+					jerry_release_value(typeVal);
+					jerry_release_value(passiveStr);
+					jerry_release_value(onceStr);
+					jerry_release_value(captureStr);
+					jerry_release_value(callbackStr);
+					jerry_release_value(typeStr);
+					jerry_release_value(target);
+					return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'addEventListener': signal was not an AbortSignal.");
+				}
+				else {
+					jerry_value_t abortedVal = getInternalProperty(signalVal, "aborted");
+					bool isAborted = jerry_get_boolean_value(abortedVal);
+					jerry_release_value(abortedVal);
+					if (isAborted) {
+						jerry_release_value(signalVal);
+						jerry_release_value(typeVal);
+						jerry_release_value(passiveStr);
+						jerry_release_value(onceStr);
+						jerry_release_value(captureStr);
+						jerry_release_value(callbackStr);
+						jerry_release_value(typeStr);
+						jerry_release_value(target);
+						return jerry_create_undefined();
+					}
+					else signal = signalVal;
+				}
+			}
+			else jerry_release_value(signalVal);
 		}
 		else capture = jerry_value_to_boolean(args[2]);
 	}
@@ -701,9 +742,12 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 		jerry_value_t passiveVal = jerry_create_boolean(passive);
 		jerry_release_value(jerry_set_property(listener, passiveStr, passiveVal));
 		jerry_release_value(passiveVal);
-		jerry_value_t null = jerry_create_null();
-		setProperty(listener, "signal", null);
-		jerry_release_value(null);
+		setProperty(listener, "signal", signal);
+		if (!jerry_value_is_null(signal)) {
+			jerry_value_t removeEventListener = getProperty(target, "removeEventListener");
+			abortSignalAddAlgorithm(signal, removeEventListener, target, args, argCount);
+			jerry_release_value(removeEventListener);
+		}
 		jerry_value_t False = jerry_create_boolean(false);
 		setProperty(listener, "removed", False);
 		jerry_release_value(False);
@@ -717,6 +761,7 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 
 	jerry_release_value(listenersOfType);
 	jerry_release_value(eventListeners);
+	jerry_release_value(signal);
 	jerry_release_value(typeVal);
 	jerry_release_value(passiveStr);
 	jerry_release_value(onceStr);
@@ -802,7 +847,7 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	jerry_release_value(dispatchVal);
 	if (dispatched) {
 		jerry_release_value(dispatchStr);
-		return createDOMExceptionError("Invalid event state", "InvalidStateError");
+		return throwDOMException("Invalid event state", "InvalidStateError");
 	}
 
 	jerry_value_t eventPhaseStr = jerry_create_string((jerry_char_t *) "eventPhase");
@@ -1045,7 +1090,194 @@ static jerry_value_t CustomEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
+jerry_value_t createAbortSignal(bool aborted) {
+	jerry_value_t signal = jerry_create_object();
+	jerry_value_t global = jerry_get_global_object();
+	jerry_value_t AbortSignal = getProperty(global, "AbortSignal");
+	jerry_value_t AbortSignalPrototype = jerry_get_property(AbortSignal, ref_str_prototype);
+	jerry_release_value(jerry_set_prototype(signal, AbortSignalPrototype));
+	jerry_release_value(AbortSignalPrototype);
+	jerry_release_value(AbortSignal);
+	jerry_release_value(global);
+
+	jerry_value_t eventListeners = jerry_create_object();
+	setInternalProperty(signal, "eventListeners", eventListeners);
+	jerry_release_value(eventListeners);
+	jerry_value_t abortAlgorithms = jerry_create_array(0);
+	setInternalProperty(signal, "abortAlgorithms", abortAlgorithms);
+	jerry_release_value(abortAlgorithms);
+	jerry_value_t abortedVal = jerry_create_boolean(aborted);
+	setReadonly(signal, "aborted", abortedVal);
+	jerry_release_value(abortedVal);
+	defEventAttribute(signal, "onabort");
+	return signal;
+}
+
+void abortSignalAddAlgorithm(jerry_value_t signal, jerry_value_t handler, jerry_value_t thisValue, const jerry_value_t *args, u32 argCount) {
+	jerry_value_t alg = jerry_create_object();
+	setProperty(alg, "handler", handler);
+	setProperty(alg, "thisValue", thisValue);
+	jerry_value_t argsArray = jerry_create_array(argCount);
+	for (u32 i = 0; i < argCount; i++) jerry_set_property_by_index(argsArray, i, args[i]);
+	setProperty(alg, "args", argsArray);
+	jerry_release_value(argsArray);
+	
+	jerry_value_t algs = getInternalProperty(signal, "abortAlgorithms");
+	jerry_value_t pushFunc = getProperty(algs, "push");
+	jerry_release_value(jerry_call_function(pushFunc, algs, &alg, 1));
+	jerry_release_value(pushFunc);
+	jerry_release_value(algs);
+	jerry_release_value(alg);
+}
+
+void abortSignalRunAlgorithms(jerry_value_t signal) {
+	jerry_value_t algs = getInternalProperty(signal, "abortAlgorithms");
+	u32 length = jerry_get_array_length(algs);
+	for (u32 i = 0; i < length; i++) {
+		jerry_value_t alg = jerry_get_property_by_index(algs, i);
+		jerry_value_t handler = getProperty(alg, "handler");
+		jerry_value_t thisValue = getProperty(alg, "thisValue");
+		jerry_value_t argArray = getProperty(alg, "args");
+		u32 argCount = jerry_get_array_length(argArray);
+		jerry_value_t args[argCount];
+		for (u32 j = 0; j < argCount; j++) {
+			args[j] = jerry_get_property_by_index(argArray, j);
+		}
+		jerry_release_value(jerry_call_function(handler, thisValue, args, argCount));
+		for (u32 j = 0; j < argCount; j++) jerry_release_value(args[j]);
+		jerry_release_value(argArray);
+		jerry_release_value(thisValue);
+		jerry_release_value(handler);
+		jerry_release_value(alg);
+	}
+	jerry_release_value(algs);
+
+	algs = jerry_create_array(0);
+	setInternalProperty(signal, "abortAlgorithms", algs);
+	jerry_release_value(algs);
+}
+
+static jerry_value_t AbortControllerConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor AbortController cannot be invoked without 'new'");
+
+	jerry_value_t signal = createAbortSignal(false);
+	setReadonly(thisValue, "signal", signal);
+	jerry_value_t undefined = jerry_create_undefined();
+	setReadonly(signal, "reason", undefined);
+	jerry_release_value(signal);
+
+	return undefined;
+}
+
+static jerry_value_t AbortControllerAbortHandler(CALL_INFO) {
+	jerry_value_t signal = getInternalProperty(thisValue, "signal");
+	jerry_value_t abortedStr = jerry_create_string((jerry_char_t *) "aborted");
+	jerry_value_t abortedVal = jerry_get_internal_property(signal, abortedStr);
+	if (!jerry_get_boolean_value(abortedVal)) {
+		abortSignalRunAlgorithms(signal);
+
+		if (argCount > 0 && !jerry_value_is_undefined(args[0])) setInternalProperty(signal, "reason", args[0]);
+		else {
+			jerry_value_t exception = createDOMException("signal is aborted without reason", "AbortError");
+			setInternalProperty(signal, "reason", exception);
+			jerry_release_value(exception);
+		}
+		jerry_value_t abortStr = jerry_create_string((jerry_char_t *) "abort");
+		jerry_value_t abortEvent = jerry_construct_object(ref_Event, &abortStr, 1);
+		jerry_release_value(abortStr);
+
+		jerry_value_t True = jerry_create_boolean(true);
+		setInternalProperty(abortEvent, "isTrusted", True);
+
+		queueTask(ref_task_dispatchEvent, signal, &abortEvent, 1);
+		jerry_release_value(abortEvent);
+
+		jerry_set_internal_property(signal, abortedStr, True);
+		jerry_release_value(True);
+	}
+	jerry_release_value(abortedVal);
+	jerry_release_value(abortedStr);
+	jerry_release_value(signal);
+	return jerry_create_undefined();
+}
+
+static jerry_value_t AbortSignalStaticAbortHandler(CALL_INFO) {
+	jerry_value_t signal = createAbortSignal(true);
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		setReadonly(signal, "reason", args[0]);
+	}
+	else {
+		jerry_value_t exception = createDOMException("signal is aborted without reason", "AbortError");
+		setReadonly(signal, "reason", exception);
+		jerry_release_value(exception);
+	}
+	return signal;
+}
+
+static jerry_value_t AbortSignalStaticTimeoutHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'timeout': 1 argument required.");
+	jerry_value_t signal = createAbortSignal(false);
+	jerry_value_t undefined = jerry_create_undefined();
+	setReadonly(signal, "reason", undefined);
+	jerry_release_value(undefined);
+	jerry_value_t ms = jerry_value_to_number(args[0]);
+	jerry_release_value(addTimeout(ref_task_abortSignalTimeout, ms, &signal, 1, false, true));
+	jerry_release_value(ms);
+	return signal;
+}
+
+static jerry_value_t abortSignalTimeoutTask(CALL_INFO) {
+	jerry_value_t abortedStr = jerry_create_string((jerry_char_t *) "aborted");
+	jerry_value_t abortedVal = jerry_get_internal_property(args[0], abortedStr);
+	if (!jerry_get_boolean_value(abortedVal)) {
+		abortSignalRunAlgorithms(args[0]);
+
+		jerry_value_t exception = createDOMException("signal timed out", "TimeoutError");
+		setInternalProperty(args[0], "reason", exception);
+		jerry_release_value(exception);
+
+		jerry_value_t abortStr = jerry_create_string((jerry_char_t *) "abort");
+		jerry_value_t abortEvent = jerry_construct_object(ref_Event, &abortStr, 1);
+		jerry_release_value(abortStr);
+
+		jerry_value_t True = jerry_create_boolean(true);
+		setInternalProperty(abortEvent, "isTrusted", True);
+
+		queueTask(ref_task_dispatchEvent, args[0], &abortEvent, 1);
+		jerry_release_value(abortEvent);
+
+		jerry_set_internal_property(args[0], abortedStr, True);
+		jerry_release_value(True);
+	}
+	jerry_release_value(abortedVal);
+	jerry_release_value(abortedStr);
+	return jerry_create_undefined();
+}
+
+static jerry_value_t AbortSignalThrowIfAbortedHandler(CALL_INFO) {
+	jerry_value_t abortedVal = getInternalProperty(thisValue, "aborted");
+	bool aborted = jerry_get_boolean_value(abortedVal);
+	jerry_release_value(abortedVal);
+	if (aborted) return jerry_create_error_from_value(getInternalProperty(thisValue, "reason"), true);
+	else return jerry_create_undefined();
+}
+
+static jerry_value_t IllegalConstructor(CALL_INFO) {
+	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Illegal constructor");
+}
+
 void exposeAPI() {
+	// hold some internal references
+	ref_str_name = jerry_create_string((jerry_char_t *) "name");
+	ref_str_constructor = jerry_create_string((jerry_char_t *) "constructor");
+	ref_str_prototype = jerry_create_string((jerry_char_t *) "prototype");
+	ref_str_backtrace = jerry_create_string((jerry_char_t *) "backtrace");
+	ref_task_runTimeout = jerry_create_external_function(runTimeoutTask);
+	ref_task_abortSignalTimeout = jerry_create_external_function(abortSignalTimeoutTask);
+
 	jerry_value_t global = jerry_get_global_object();
 	setProperty(global, "self", global);
 
@@ -1096,7 +1328,7 @@ void exposeAPI() {
 	jerry_value_t globalListeners = jerry_create_array(0);
 	setInternalProperty(global, "eventListeners", globalListeners);
 	jerry_release_value(globalListeners);
-	releaseClass(EventTarget);
+	jerry_release_value(EventTarget.constructor);
 
 	ref_Error = getProperty(global, "Error");
 	jerry_value_t ErrorPrototype = jerry_get_property(ref_Error, ref_str_prototype);
@@ -1121,10 +1353,35 @@ void exposeAPI() {
 	releaseClass(extendClass(global, "CustomEvent", CustomEventConstructor, Event.prototype));
 	jerry_release_value(Event.prototype);
 
+	jsClass AbortController = createClass(global, "AbortController", AbortControllerConstructor);
+	setMethod(AbortController.prototype, "abort", AbortControllerAbortHandler);
+	releaseClass(AbortController);
+
+	jsClass AbortSignal = extendClass(global, "AbortSignal", IllegalConstructor, EventTarget.prototype);
+	setMethod(AbortSignal.constructor, "abort", AbortSignalStaticAbortHandler);
+	setMethod(AbortSignal.constructor, "timeout", AbortSignalStaticTimeoutHandler);
+	setMethod(AbortSignal.prototype, "throwIfAborted", AbortSignalThrowIfAbortedHandler);
+	releaseClass(AbortSignal);
+	jerry_release_value(EventTarget.prototype);
+
 	defEventAttribute(global, "onerror");
 	defEventAttribute(global, "onload");
 	defEventAttribute(global, "onunhandledrejection");
 	defEventAttribute(global, "onunload");
 
 	jerry_release_value(global);
+}
+
+void releaseReferences() {
+	jerry_release_value(ref_Event);
+	jerry_release_value(ref_Error);
+	jerry_release_value(ref_DOMException);
+	jerry_release_value(ref_task_runTimeout);
+	jerry_release_value(ref_task_dispatchEvent);
+	jerry_release_value(ref_task_reportError);
+	jerry_release_value(ref_task_abortSignalTimeout);
+	jerry_release_value(ref_str_name);
+	jerry_release_value(ref_str_constructor);
+	jerry_release_value(ref_str_prototype);
+	jerry_release_value(ref_str_backtrace);
 }

@@ -6,5 +6,6 @@
 
 
 void exposeAPI();
+void releaseReferences();
 
 #endif /* JSDS_API_H */

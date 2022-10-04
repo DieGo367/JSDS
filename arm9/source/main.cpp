@@ -91,28 +91,14 @@ int main(int argc, char **argv) {
 	jerry_init(JERRY_INIT_EMPTY);
 	jerry_set_error_object_created_callback(onErrorCreated, NULL);
 	jerry_jsds_set_promise_rejection_op_callback(onPromiseRejectionOp);
-	ref_str_name = jerry_create_string((jerry_char_t *) "name");
-	ref_str_constructor = jerry_create_string((jerry_char_t *) "constructor");
-	ref_str_prototype = jerry_create_string((jerry_char_t *) "prototype");
-	ref_str_backtrace = jerry_create_string((jerry_char_t *) "backtrace");
-	ref_task_runTimeout = jerry_create_external_function(runTimeoutTask);
 	exposeAPI();
 
 	if (inREPL) repl();
 	else tempLoadMain();
 
-	jerry_release_value(ref_Event);
-	jerry_release_value(ref_Error);
-	jerry_release_value(ref_DOMException);
-	jerry_release_value(ref_task_runTimeout);
-	jerry_release_value(ref_task_dispatchEvent);
-	jerry_release_value(ref_task_reportError);
-	jerry_release_value(ref_str_name);
-	jerry_release_value(ref_str_constructor);
-	jerry_release_value(ref_str_prototype);
-	jerry_release_value(ref_str_backtrace);
 	clearTasks();
 	clearTimeouts();
+	releaseReferences();
 	jerry_cleanup();
 	if (!inREPL) while (true) {
 		swiWaitForVBlank();

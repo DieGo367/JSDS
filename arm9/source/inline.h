@@ -11,6 +11,7 @@ inline jerry_value_t ref_DOMException;
 inline jerry_value_t ref_task_runTimeout;
 inline jerry_value_t ref_task_dispatchEvent;
 inline jerry_value_t ref_task_reportError;
+inline jerry_value_t ref_task_abortSignalTimeout;
 inline jerry_value_t ref_str_name;
 inline jerry_value_t ref_str_constructor;
 inline jerry_value_t ref_str_prototype;
@@ -221,8 +222,8 @@ inline void defEventAttribute(jerry_value_t eventTarget, const char *attributeNa
 	jerry_release_value(nameDesc.value);
 }
 
-// helper to throw DOMExceptions in API methods
-inline jerry_value_t createDOMExceptionError(const char *message, const char *name) {
+// Creates a DOMException with the given message and name.
+inline jerry_value_t createDOMException(const char *message, const char *name) {
 	jerry_value_t args[2] = {jerry_create_string((jerry_char_t *) message), jerry_create_string((jerry_char_t *) name)};
 	jerry_value_t exception = jerry_construct_object(ref_DOMException, args, 2);
 	jerry_release_value(args[0]);
@@ -230,8 +231,12 @@ inline jerry_value_t createDOMExceptionError(const char *message, const char *na
 	jerry_value_t backtrace = jerry_get_backtrace(10);
 	jerry_set_internal_property(exception, ref_str_backtrace, backtrace);
 	jerry_release_value(backtrace);
-	jerry_value_t error = jerry_create_error_from_value(exception, true);
-	return error;
+	return exception;
+}
+
+// Creates a new DOMException and wraps it in a jerry error.
+inline jerry_value_t throwDOMException(const char *message, const char *name) {
+	return jerry_create_error_from_value(createDOMException(message, name), true);
 }
 
 /*
