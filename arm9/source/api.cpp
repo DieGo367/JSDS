@@ -4,6 +4,7 @@
 #include <nds/interrupts.h>
 #include <stdio.h>
 #include <string>
+#include <string.h>
 #include <time.h>
 #include <unordered_map>
 
@@ -1265,6 +1266,101 @@ static jerry_value_t AbortSignalThrowIfAbortedHandler(CALL_INFO) {
 	else return jerry_create_undefined();
 }
 
+jerry_value_t createStorage() {
+	jerry_value_t storage = jerry_create_object();
+	jerry_value_t global = jerry_get_global_object();
+	jerry_value_t Storage = getProperty(global, "Storage");
+	jerry_value_t StoragePrototype = jerry_get_property(Storage, ref_str_prototype);
+	jerry_release_value(jerry_set_prototype(storage, StoragePrototype));
+	jerry_release_value(StoragePrototype);
+	jerry_release_value(Storage);
+	jerry_release_value(global);
+	jerry_value_t proxy = jerry_create_proxy(storage, ref_proxyHandler_storage);
+	jerry_release_value(storage);
+	return proxy;
+}
+
+static jerry_value_t StorageLengthGetter(CALL_INFO) {
+	jerry_value_t propNames = jerry_get_object_keys(thisValue);
+	u32 length = jerry_get_array_length(propNames);
+	jerry_release_value(propNames);
+	return jerry_create_number(length);
+}
+
+static jerry_value_t StorageKeyHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'key': 1 argument required.");
+	jerry_value_t key = jerry_create_null();
+	jerry_value_t propNames = jerry_get_object_keys(thisValue);
+	jerry_value_t nVal = jerry_value_to_number(args[0]);
+	u32 n = jerry_value_as_uint32(nVal);
+	if (n < jerry_get_array_length(propNames)) {
+		jerry_value_t prop = jerry_get_property_by_index(propNames, n);
+		if (!jerry_value_is_undefined(prop)) {
+			jerry_release_value(key);
+			key = prop;
+		}
+		else jerry_release_value(prop);
+	}
+	jerry_release_value(nVal);
+	jerry_release_value(propNames);
+	return key;
+}
+
+static jerry_value_t StorageGetItemHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'getItem': 1 argument required.");
+	jerry_value_t hasOwnVal = jerry_has_own_property(thisValue, args[0]);
+	bool hasOwn = jerry_get_boolean_value(hasOwnVal);
+	jerry_release_value(hasOwnVal);
+	if (hasOwn) return jerry_get_property(thisValue, args[0]);
+	else return jerry_create_null();
+}
+
+static jerry_value_t StorageSetItemHandler(CALL_INFO) {
+	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'setItem': 2 arguments required.");
+	jerry_value_t valAsString = jerry_value_to_string(args[1]);
+	char *str = getString(args[0]);
+	if (strcmp(str, "length") == 0) {
+		jerry_property_descriptor_t lengthDesc = {
+			.is_value_defined = true,
+			.is_enumerable_defined = true,
+			.is_enumerable = true,
+			.is_configurable_defined = true,
+			.is_configurable = true,
+			.value = valAsString
+		};
+		jerry_release_value(jerry_define_own_property(thisValue, args[0], &lengthDesc));
+	}
+	else jerry_set_property(thisValue, args[0], valAsString);
+	free(str);
+	jerry_release_value(valAsString);
+	return jerry_create_undefined();
+}
+
+static jerry_value_t StorageRemoveItemHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'removeItem': 1 argument required.");
+	jerry_delete_property(thisValue, args[0]);
+	return jerry_create_undefined();
+}
+
+static jerry_value_t StorageClearHandler(CALL_INFO) {
+	jerry_value_t props = jerry_get_object_keys(thisValue);
+	u32 length = jerry_get_array_length(props);
+	for (u32 i = 0; i < length; i++) {
+		jerry_value_t prop = jerry_get_property_by_index(props, i);
+		jerry_delete_property(thisValue, prop);
+		jerry_release_value(prop);
+	}
+	jerry_release_value(props);
+	return jerry_create_undefined();
+}
+
+static jerry_value_t StorageProxySetHandler(CALL_INFO) {
+	jerry_value_t valAsString = jerry_value_to_string(args[2]);
+	jerry_set_property(args[0], args[1], valAsString);
+	jerry_release_value(valAsString);
+	return jerry_create_boolean(true);
+}
+
 static jerry_value_t IllegalConstructor(CALL_INFO) {
 	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Illegal constructor");
 }
@@ -1364,6 +1460,21 @@ void exposeAPI() {
 	releaseClass(AbortSignal);
 	jerry_release_value(EventTarget.prototype);
 
+	jsClass Storage = createClass(global, "Storage", IllegalConstructor);
+	defGetter(Storage.prototype, "length", StorageLengthGetter);
+	setMethod(Storage.prototype, "key", StorageKeyHandler);
+	setMethod(Storage.prototype, "getItem", StorageGetItemHandler);
+	setMethod(Storage.prototype, "setItem", StorageSetItemHandler);
+	setMethod(Storage.prototype, "removeItem", StorageRemoveItemHandler);
+	setMethod(Storage.prototype, "clear", StorageClearHandler);
+	releaseClass(Storage);
+	ref_proxyHandler_storage = jerry_create_object();
+	setMethod(ref_proxyHandler_storage, "set", StorageProxySetHandler);
+
+	jerry_value_t sessionStorage = createStorage();
+	setProperty(global, "sessionStorage", sessionStorage);
+	jerry_release_value(sessionStorage);
+
 	defEventAttribute(global, "onerror");
 	defEventAttribute(global, "onload");
 	defEventAttribute(global, "onunhandledrejection");
@@ -1384,4 +1495,5 @@ void releaseReferences() {
 	jerry_release_value(ref_str_constructor);
 	jerry_release_value(ref_str_prototype);
 	jerry_release_value(ref_str_backtrace);
+	jerry_release_value(ref_proxyHandler_storage);
 }

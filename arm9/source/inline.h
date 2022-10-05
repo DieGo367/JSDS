@@ -16,6 +16,7 @@ inline jerry_value_t ref_str_name;
 inline jerry_value_t ref_str_constructor;
 inline jerry_value_t ref_str_prototype;
 inline jerry_value_t ref_str_backtrace;
+inline jerry_value_t ref_proxyHandler_storage;
 
 // Get object property via c string. Return value must be released!
 inline jerry_value_t getProperty(jerry_value_t object, const char *property) {
