@@ -5,12 +5,12 @@
 #include <stdlib.h>
 
 #include "api.h"
-#include "execute.h"
 #include "console.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
 #include "jerry/jerryscript-port-default.h"
 #include "keyboard.h"
+#include "tasks.h"
 #include "timeouts.h"
 
 
@@ -41,7 +41,8 @@ void tempLoadMain() {
 			JERRY_PARSE_STRICT_MODE & JERRY_PARSE_MODULE
 		);
 		free(script);
-		jerry_release_value(execute(parsedCode));
+		queueTask(runParsedCodeTask, &parsedCode, 1);
+		jerry_release_value(parsedCode);
 		queueEventName("load");
 	}
 	while (workExists()) {
@@ -74,13 +75,8 @@ void repl() {
 			(const jerry_char_t *) keyboardBuffer(), keyboardBufferLen(),
 			JERRY_PARSE_STRICT_MODE
 		);
-		jerry_value_t result = execute(parsedCode);
-		if (!abortFlag) {
-			printf("-> ");
-			consolePrintLiteral(result);
-			putchar('\n');
-		}
-		jerry_release_value(result);
+		queueTask(runParsedCodeTask, &parsedCode, 1);
+		jerry_release_value(parsedCode);
 	}
 }
 

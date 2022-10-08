@@ -1,4 +1,4 @@
-#include "execute.h"
+#include "tasks.h"
 
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>
@@ -53,26 +53,6 @@ void runMicrotasks() {
 		jerry_release_value(promise);
 	}
 	rejectedPromises.clear();
-}
-
-/* Executes and releases parsed code. Returns the result of execution, which must be released!
- * Automatically releases parsedCode, unless it was an error value initially, in which case it is returned as is.
- */
-jerry_value_t execute(jerry_value_t parsedCode) {
-	if (jerry_value_is_error(parsedCode)) return parsedCode;
-
-	jerry_value_t result = jerry_run(parsedCode);
-	jerry_release_value(parsedCode);
-	if (!abortFlag) {
-		runMicrotasks();
-		if (!inREPL && jerry_value_is_error(result)) {
-			// if not in the REPL, abort on uncaught error. Waits for START like normal.
-			consolePrintLiteral(result);
-			putchar('\n');
-			abortFlag = true;
-		}
-	}
-	return result;
 }
 
 std::queue<Task> taskQueue;
@@ -233,6 +213,27 @@ void handleRejection(jerry_value_t promise) {
 		if (!inREPL) abortFlag = true;
 	}
 
+}
+
+// Task which runs some previously parsed code.
+void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
+	jerry_value_t result;
+	if (jerry_value_is_error(args[0])) result = jerry_acquire_value(args[0]);
+	else result = jerry_run(args[0]);
+	if (!abortFlag) {
+		runMicrotasks();
+		if (inREPL) {
+			printf("-> ");
+			consolePrintLiteral(result);
+			putchar('\n');
+		}
+		else if (jerry_value_is_error(result)) {
+			consolePrintLiteral(result);
+			putchar('\n');
+			abortFlag = true;
+		}
+	}
+	jerry_release_value(result);
 }
 
 /* Dispatches event onto target.
