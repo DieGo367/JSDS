@@ -3,6 +3,15 @@
 
 #include "jerry/jerryscript.h"
 
+// constant js values, these do not need to be freed and can be used without restraint
+// Values copied from Jerry internals, would need to be changed if Jerry changes them in the future
+enum {
+	True = 56,
+	False = 40,
+	null = 88,
+	undefined = 72
+};
+
 // global references that will be kept during the duration of the program
 
 inline jerry_value_t ref_Event;
@@ -15,6 +24,8 @@ inline jerry_value_t ref_str_constructor;
 inline jerry_value_t ref_str_prototype;
 inline jerry_value_t ref_str_backtrace;
 inline jerry_value_t ref_proxyHandler_storage;
+
+// helper inline functions
 
 // Get object property via c string. Return value must be released!
 inline jerry_value_t getProperty(jerry_value_t object, const char *property) {
@@ -188,15 +199,11 @@ static jerry_value_t eventAttributeSetter(const jerry_value_t function, const je
 		jerry_release_value(jerry_call_function(add, thisValue, addArgs, 2));
 		jerry_release_value(add);
 	}
-	else {
-		jerry_value_t null = jerry_create_null();
-		jerry_set_internal_property(thisValue, attrNameVal, null);
-		jerry_release_value(null);
-	}
+	else jerry_set_internal_property(thisValue, attrNameVal, null);
 
 	jerry_release_value(eventType);
 	jerry_release_value(attrNameVal);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 inline jerry_property_descriptor_t eventAttributeDesc = {
@@ -208,9 +215,7 @@ inline jerry_property_descriptor_t eventAttributeDesc = {
 // Shortcut for making event handlers on event targets.
 inline void defEventAttribute(jerry_value_t eventTarget, const char *attributeName) {
 	nameDesc.value = jerry_create_string((jerry_char_t *) attributeName);
-	jerry_value_t null = jerry_create_null();
 	jerry_set_internal_property(eventTarget, nameDesc.value, null);
-	jerry_release_value(null);
 	eventAttributeDesc.getter = jerry_create_external_function(internalGetter);
 	jerry_release_value(jerry_define_own_property(eventAttributeDesc.getter, ref_str_name, &nameDesc));
 	eventAttributeDesc.setter = jerry_create_external_function(eventAttributeSetter);

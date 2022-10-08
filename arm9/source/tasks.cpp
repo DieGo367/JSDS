@@ -15,7 +15,7 @@
 
 
 
-bool inREPL = true;
+bool inREPL = false;
 bool abortFlag = false;
 
 std::unordered_set<jerry_value_t> rejectedPromises;
@@ -129,7 +129,6 @@ void handleError(jerry_value_t error, bool sync) {
 
 		jerry_error_t errorCode = jerry_get_error_type(error);
 		jerry_value_t errorThrown = jerry_get_value_from_error(error, false);
-		jerry_value_t True = jerry_create_boolean(true);
 		setProperty(errorEventInit, "cancelable", True);
 		jerry_release_value(jerry_set_property(errorEventInit, errorStr, errorThrown));
 		if (errorCode == JERRY_ERROR_NONE) {
@@ -173,7 +172,6 @@ void handleError(jerry_value_t error, bool sync) {
 		jerry_release_value(errorEventInit);
 
 		setInternalProperty(errorEvent, "isTrusted", True);
-		jerry_release_value(True);
 
 		errorHandled = dispatchEvent(global, errorEvent, sync);
 
@@ -201,7 +199,6 @@ void handleRejection(jerry_value_t promise) {
 	if (jerry_value_is_array(rejectionEventListeners) && jerry_get_array_length(rejectionEventListeners) > 0) {
 		jerry_value_t rejectionEventInit = jerry_create_object();
 		
-		jerry_value_t True = jerry_create_boolean(true);
 		setProperty(rejectionEventInit, "cancelable", True);
 		setProperty(rejectionEventInit, "promise", promise);
 		jerry_value_t reason = jerry_get_promise_result(promise);
@@ -215,7 +212,6 @@ void handleRejection(jerry_value_t promise) {
 		jerry_release_value(rejectionEventInit);
 
 		setInternalProperty(rejectionEvent, "isTrusted", True);
-		jerry_release_value(True);
 
 		rejectionHandled = dispatchEvent(global, rejectionEvent, false);
 
@@ -267,8 +263,6 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_value_t eventPhaseStr = jerry_create_string((jerry_char_t *) "eventPhase");
 	jerry_value_t targetStr = jerry_create_string((jerry_char_t *) "target");
 	jerry_value_t currentTargetStr = jerry_create_string((jerry_char_t *) "currentTarget");
-	jerry_value_t True = jerry_create_boolean(true);
-	jerry_value_t False = jerry_create_boolean(false);
 
 	jerry_set_internal_property(event, dispatchStr, True);
 
@@ -362,16 +356,12 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_value_t NONE = jerry_create_number(0);
 	jerry_set_internal_property(event, eventPhaseStr, NONE);
 	jerry_release_value(NONE);
-	jerry_value_t null = jerry_create_null();
 	jerry_set_internal_property(event, targetStr, null);
 	jerry_set_internal_property(event, currentTargetStr, null);
-	jerry_release_value(null);
 	jerry_set_internal_property(event, dispatchStr, False);
 	setInternalProperty(event, "stopPropagation", False);
 	setInternalProperty(event, "stopImmediatePropagation", False);
 	
-	jerry_release_value(False);
-	jerry_release_value(True);
 	jerry_release_value(currentTargetStr);
 	jerry_release_value(targetStr);
 	jerry_release_value(eventPhaseStr);
@@ -402,9 +392,7 @@ void queueEventName(const char *eventName) {
 	jerry_value_t event = jerry_construct_object(ref_Event, &eventNameVal, 1);
 	jerry_release_value(eventNameVal);
 
-	jerry_value_t True = jerry_create_boolean(true);
 	setInternalProperty(event, "isTrusted", True);
-	jerry_release_value(True);
 
 	queueEvent(global, event);
 

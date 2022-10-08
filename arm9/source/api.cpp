@@ -35,7 +35,7 @@ static jerry_value_t alertHandler(CALL_INFO) {
 		if (keysDown() & KEY_A) break;
 	}
 	consoleClear();
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t confirmHandler(CALL_INFO) {
@@ -47,8 +47,8 @@ static jerry_value_t confirmHandler(CALL_INFO) {
 		swiWaitForVBlank();
 		scanKeys();
 		u32 keys = keysDown();
-		if (keys & KEY_A) return consoleClear(), jerry_create_boolean(true);
-		else if (keys & KEY_B) return consoleClear(), jerry_create_boolean(false);
+		if (keys & KEY_A) return consoleClear(), True;
+		else if (keys & KEY_B) return consoleClear(), False;
 	}
 }
 
@@ -77,7 +77,7 @@ static jerry_value_t promptHandler(CALL_INFO) {
 
 	consoleSetWindow(NULL, 0, 0, 32, 24);
 	consoleClear();
-	if (canceled) return jerry_create_undefined();
+	if (canceled) return undefined;
 	else return jerry_create_string_from_utf8((jerry_char_t *) keyboardBuffer());
 }
 
@@ -217,11 +217,9 @@ static jerry_value_t btoaHandler(CALL_INFO) {
 static jerry_value_t setTimeoutHandler(CALL_INFO) {
 	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, false);
 	else {
-		jerry_value_t undefined = jerry_create_undefined();
 		jerry_value_t zero = jerry_create_number(0);
 		jerry_value_t result = addTimeout(argCount > 0 ? args[0] : undefined, zero, NULL, 0, false);
 		jerry_release_value(zero);
-		jerry_release_value(undefined);
 		return result;
 	}
 }
@@ -229,23 +227,17 @@ static jerry_value_t setTimeoutHandler(CALL_INFO) {
 static jerry_value_t setIntervalHandler(CALL_INFO) {
 	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, true);
 	else {
-		jerry_value_t undefined = jerry_create_undefined();
 		jerry_value_t zero = jerry_create_number(0);
 		jerry_value_t result = addTimeout(argCount > 0 ? args[0] : undefined, zero, NULL, 0, true);
 		jerry_release_value(zero);
-		jerry_release_value(undefined);
 		return result;
 	}
 }
 
 static jerry_value_t clearTimeoutHandler(CALL_INFO) {
 	if (argCount > 0) clearTimeout(args[0]);
-	else {
-		jerry_value_t undefined = jerry_create_undefined();
-		clearTimeout(undefined);
-		jerry_release_value(undefined);
-	}
-	return jerry_create_undefined();
+	else clearTimeout(undefined);
+	return undefined;
 }
 
 static jerry_value_t reportErrorHandler(CALL_INFO) {
@@ -253,7 +245,7 @@ static jerry_value_t reportErrorHandler(CALL_INFO) {
 	jerry_value_t error = jerry_create_error_from_value(args[0], false);
 	handleError(error, true);
 	jerry_release_value(error);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t queueMicrotaskHandler(CALL_INFO) {
@@ -269,7 +261,6 @@ static jerry_value_t queueMicrotaskHandler(CALL_INFO) {
 	jerry_release_value(thenPromise);
 	jerry_release_value(thenFunc);
 
-	jerry_value_t undefined = jerry_create_undefined();
 	jerry_release_value(jerry_resolve_or_reject_promise(promise, undefined, true));
 	jerry_release_value(promise);
 	return undefined;
@@ -282,7 +273,7 @@ static jerry_value_t consoleLogHandler(CALL_INFO) {
 		for (int i = 0; i < consoleGroups; i++) putchar(' ');
 		consolePrint(args, argCount);
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleInfoHandler(CALL_INFO) {
@@ -293,7 +284,7 @@ static jerry_value_t consoleInfoHandler(CALL_INFO) {
 		consolePrint(args, argCount);
 		mainConsole->fontCurPal = pal;
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleWarnHandler(CALL_INFO) {
@@ -304,7 +295,7 @@ static jerry_value_t consoleWarnHandler(CALL_INFO) {
 		consolePrint(args, argCount);
 		mainConsole->fontCurPal = pal;
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleErrorHandler(CALL_INFO) {
@@ -315,7 +306,7 @@ static jerry_value_t consoleErrorHandler(CALL_INFO) {
 		consolePrint(args, argCount);
 		mainConsole->fontCurPal = pal;
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleAssertHandler(CALL_INFO) {
@@ -327,7 +318,7 @@ static jerry_value_t consoleAssertHandler(CALL_INFO) {
 		consolePrint(args + 1, argCount - 1);
 		mainConsole->fontCurPal = pal;
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleDebugHandler(CALL_INFO) {
@@ -338,7 +329,7 @@ static jerry_value_t consoleDebugHandler(CALL_INFO) {
 		consolePrint(args, argCount);
 		mainConsole->fontCurPal = pal;
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleTraceHandler(CALL_INFO) {
@@ -356,7 +347,7 @@ static jerry_value_t consoleTraceHandler(CALL_INFO) {
 		jerry_release_value(traceLine);
 	}
 	jerry_release_value(backtrace);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleDirHandler(CALL_INFO) {
@@ -366,7 +357,7 @@ static jerry_value_t consoleDirHandler(CALL_INFO) {
 		else consolePrintLiteral(args[0]);
 		putchar('\n');
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleDirxmlHandler(CALL_INFO) {
@@ -378,22 +369,22 @@ static jerry_value_t consoleDirxmlHandler(CALL_INFO) {
 		}
 		putchar('\n');
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleTableHandler(CALL_INFO) {
 	if (argCount > 0) consolePrintTable(args, argCount, consoleGroups);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleGroupHandler(CALL_INFO) {
 	consoleGroups++;
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleGroupEndHandler(CALL_INFO) {
 	if (--consoleGroups < 0) consoleGroups = 0;
-	return jerry_create_undefined();
+	return undefined;
 }
 
 std::unordered_map<std::string, int> consoleCounters;
@@ -413,7 +404,7 @@ static jerry_value_t consoleCountHandler(CALL_INFO) {
 	else {
 		printf("%s: %i\n", label.c_str(), ++consoleCounters[label]);
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleCountResetHandler(CALL_INFO) {
@@ -431,7 +422,7 @@ static jerry_value_t consoleCountResetHandler(CALL_INFO) {
 	else {
 		consoleCounters[label] = 0;
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 std::unordered_map<std::string, time_t> consoleTimers;
@@ -450,7 +441,7 @@ static jerry_value_t consoleTimeHandler(CALL_INFO) {
 		for (int i = 0; i < consoleGroups; i++) putchar(' ');
 		printf("Timer '%s' already exists\n", label.c_str());
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleTimeLogHandler(CALL_INFO) {
@@ -469,7 +460,7 @@ static jerry_value_t consoleTimeLogHandler(CALL_INFO) {
 		double elapsed = difftime(time(NULL), consoleTimers[label]);
 		printf("%s: %lg s\n", label.c_str(), elapsed);
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
@@ -489,12 +480,12 @@ static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
 		consoleTimers.erase(label);
 		printf("%s: %lg s\n", label.c_str(), elapsed);
 	}
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t consoleClearHandler(CALL_INFO) {
 	consoleClear();
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t DOMExceptionConstructor(CALL_INFO) {
@@ -510,7 +501,7 @@ static jerry_value_t DOMExceptionConstructor(CALL_INFO) {
 	setReadonly(thisValue, "name", nameVal);
 	jerry_release_value(nameVal);
 	
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t EventConstructor(CALL_INFO) {
@@ -520,9 +511,6 @@ static jerry_value_t EventConstructor(CALL_INFO) {
 	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor Event cannot be invoked without 'new'");
 	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'Event': 1 argument required.");
 
-	jerry_value_t True = jerry_create_boolean(true);
-	jerry_value_t False = jerry_create_boolean(false);
-	jerry_value_t null = jerry_create_null();
 	jerry_value_t zero = jerry_create_number(0);
 	setInternalProperty(thisValue, "initialized", True);               // initialized flag
 	setInternalProperty(thisValue, "dispatch", False);                 // dispatch flag
@@ -541,9 +529,6 @@ static jerry_value_t EventConstructor(CALL_INFO) {
 	setReadonly(thisValue, "timeStamp", currentTime);
 	jerry_release_value(currentTime);
 	jerry_release_value(zero);
-	jerry_release_value(null);
-	jerry_release_value(False);
-	jerry_release_value(True);
 
 	jerry_value_t typeAsString = jerry_value_to_string(args[0]);	
 	setReadonly(thisValue, "type", typeAsString);
@@ -567,7 +552,7 @@ static jerry_value_t EventConstructor(CALL_INFO) {
 		jerry_release_value(composedVal);
 	}
 
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t EventNONEGetter(CALL_INFO)            { return jerry_create_number(0); }
@@ -588,31 +573,25 @@ static jerry_value_t EventComposedPathHandler(CALL_INFO) {
 }
 
 static jerry_value_t EventStopPropagationHandler(CALL_INFO) {
-	jerry_value_t True = jerry_create_boolean(true);
 	setInternalProperty(thisValue, "stopPropagation", True);
-	jerry_release_value(True);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t EventStopImmediatePropagationHandler(CALL_INFO) {
-	jerry_value_t True = jerry_create_boolean(true);
 	setInternalProperty(thisValue, "stopPropagation", True);
 	setInternalProperty(thisValue, "stopImmediatePropagation", True);
-	jerry_release_value(True);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t EventPreventDefaultHandler(CALL_INFO) {
 	jerry_value_t cancelable = getInternalProperty(thisValue, "cancelable");
 	jerry_value_t inPassiveListener = getInternalProperty(thisValue, "inPassiveListener");
 	if (jerry_value_to_boolean(cancelable) && !jerry_value_to_boolean(inPassiveListener)) {
-		jerry_value_t True = jerry_create_boolean(true);
 		setInternalProperty(thisValue, "defaultPrevented", True);
-		jerry_release_value(True);
 	}
 	jerry_release_value(inPassiveListener);
 	jerry_release_value(cancelable);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t EventTargetConstructor(CALL_INFO) {
@@ -625,14 +604,14 @@ static jerry_value_t EventTargetConstructor(CALL_INFO) {
 	setInternalProperty(thisValue, "eventListeners", eventListenerList);
 	jerry_release_value(eventListenerList);
 
-	return jerry_create_undefined();
+	return undefined;
 }
 
 void abortSignalAddAlgorithm(jerry_value_t signal, jerry_value_t handler, jerry_value_t thisValue, const jerry_value_t *args, u32 argCount);
 
 static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'addEventListener': 2 arguments required.");
-	if (jerry_value_is_null(args[1])) return jerry_create_undefined();
+	if (jerry_value_is_null(args[1])) return undefined;
 	jerry_value_t target = jerry_value_is_undefined(thisValue) ? jerry_get_global_object() : jerry_acquire_value(thisValue);
 	
 	jerry_value_t typeStr = jerry_create_string((jerry_char_t *) "type");
@@ -646,7 +625,7 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	bool capture = false;
 	bool once = false;
 	bool passive = false;
-	jerry_value_t signal = jerry_create_null();
+	jerry_value_t signal = null;
 	if (argCount > 2) {
 		if (jerry_value_is_object(args[2])) {
 			jerry_value_t captureVal = jerry_get_property(args[2], captureStr);
@@ -663,7 +642,6 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 			
 			jerry_value_t signalVal = getProperty(args[2], "signal");
 			if (!jerry_value_is_undefined(signalVal)) {
-				jerry_release_value(signal);
 				jerry_value_t global = jerry_get_global_object();
 				jerry_value_t AbortSignal = getProperty(global, "AbortSignal");
 				jerry_value_t isAbortSignalVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, signalVal, AbortSignal);
@@ -695,7 +673,7 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 						jerry_release_value(callbackStr);
 						jerry_release_value(typeStr);
 						jerry_release_value(target);
-						return jerry_create_undefined();
+						return undefined;
 					}
 					else signal = signalVal;
 				}
@@ -749,9 +727,7 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 			abortSignalAddAlgorithm(signal, removeEventListener, target, args, argCount);
 			jerry_release_value(removeEventListener);
 		}
-		jerry_value_t False = jerry_create_boolean(false);
 		setProperty(listener, "removed", False);
-		jerry_release_value(False);
 
 		jerry_value_t pushFunc = getProperty(listenersOfType, "push");
 		jerry_release_value(jerry_call_function(pushFunc, listenersOfType, &listener, 1));
@@ -771,7 +747,7 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	jerry_release_value(typeStr);
 	jerry_release_value(target);
 
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
@@ -812,9 +788,7 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 				jerry_release_value(spliceArgs[1]);
 				jerry_release_value(spliceArgs[0]);
 				jerry_release_value(spliceFunc);
-				jerry_value_t True = jerry_create_boolean(true);
 				setProperty(storedListener, "removed", True);
-				jerry_release_value(True);
 				removed = true;
 			}
 			jerry_release_value(callbackEquality);
@@ -831,7 +805,7 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 	jerry_release_value(typeStr);
 	jerry_release_value(target);
 
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
@@ -858,7 +832,7 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 	jerry_release_value(newTarget);
 	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor ErrorEvent cannot be invoked without 'new'");
 	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'ErrorEvent': 1 argument required.");
-	jerry_value_t undefined = EventConstructor(function, thisValue, args, argCount);
+	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t messageProp = jerry_create_string((jerry_char_t *) "message");
 	jerry_value_t filenameProp = jerry_create_string((jerry_char_t *) "filename");
@@ -933,7 +907,7 @@ static jerry_value_t PromiseRejectionEventConstructor(CALL_INFO) {
 		jerry_release_value(promiseVal);
 		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'PromiseRejectionEvent': Failed to read the 'promise' property from options.");
 	}
-	jerry_value_t undefined = EventConstructor(function, thisValue, args, argCount);
+	EventConstructor(function, thisValue, args, argCount);
 
 	if (jerry_value_is_promise(promiseVal)) {
 		setReadonlyJV(thisValue, promiseStr, promiseVal);
@@ -961,12 +935,10 @@ static jerry_value_t CustomEventConstructor(CALL_INFO) {
 	jerry_release_value(newTarget);
 	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor CustomEvent cannot be invoked without 'new'");
 	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'CustomEvent': 1 argument required.");
-	jerry_value_t undefined = EventConstructor(function, thisValue, args, argCount);
+	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t detailProp = jerry_create_string((jerry_char_t *) "detail");
-	jerry_value_t null = jerry_create_null();
 	setReadonlyJV(thisValue, detailProp, null);
-	jerry_release_value(null);
 	if (argCount > 1 && jerry_value_is_object(args[1])) {
 		jerry_value_t detailVal = jerry_get_property(args[1], detailProp);
 		if (!jerry_value_is_undefined(detailVal)) {
@@ -1054,7 +1026,6 @@ static jerry_value_t AbortControllerConstructor(CALL_INFO) {
 
 	jerry_value_t signal = createAbortSignal(false);
 	setReadonly(thisValue, "signal", signal);
-	jerry_value_t undefined = jerry_create_undefined();
 	setReadonly(signal, "reason", undefined);
 	jerry_release_value(signal);
 
@@ -1078,19 +1049,17 @@ static jerry_value_t AbortControllerAbortHandler(CALL_INFO) {
 		jerry_value_t abortEvent = jerry_construct_object(ref_Event, &abortStr, 1);
 		jerry_release_value(abortStr);
 
-		jerry_value_t True = jerry_create_boolean(true);
 		setInternalProperty(abortEvent, "isTrusted", True);
 
 		dispatchEvent(signal, abortEvent, true);
 		jerry_release_value(abortEvent);
 
 		jerry_set_internal_property(signal, abortedStr, True);
-		jerry_release_value(True);
 	}
 	jerry_release_value(abortedVal);
 	jerry_release_value(abortedStr);
 	jerry_release_value(signal);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t AbortSignalStaticAbortHandler(CALL_INFO) {
@@ -1109,9 +1078,7 @@ static jerry_value_t AbortSignalStaticAbortHandler(CALL_INFO) {
 static jerry_value_t AbortSignalStaticTimeoutHandler(CALL_INFO) {
 	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'timeout': 1 argument required.");
 	jerry_value_t signal = createAbortSignal(false);
-	jerry_value_t undefined = jerry_create_undefined();
 	setReadonly(signal, "reason", undefined);
-	jerry_release_value(undefined);
 	jerry_value_t ms = jerry_value_to_number(args[0]);
 	jerry_release_value(addTimeout(ref_task_abortSignalTimeout, ms, &signal, 1, false, true));
 	jerry_release_value(ms);
@@ -1132,18 +1099,16 @@ static jerry_value_t abortSignalTimeoutTask(CALL_INFO) {
 		jerry_value_t abortEvent = jerry_construct_object(ref_Event, &abortStr, 1);
 		jerry_release_value(abortStr);
 
-		jerry_value_t True = jerry_create_boolean(true);
 		setInternalProperty(abortEvent, "isTrusted", True);
 
 		dispatchEvent(args[0], abortEvent, true);
 		jerry_release_value(abortEvent);
 
 		jerry_set_internal_property(args[0], abortedStr, True);
-		jerry_release_value(True);
 	}
 	jerry_release_value(abortedVal);
 	jerry_release_value(abortedStr);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t AbortSignalThrowIfAbortedHandler(CALL_INFO) {
@@ -1151,7 +1116,7 @@ static jerry_value_t AbortSignalThrowIfAbortedHandler(CALL_INFO) {
 	bool aborted = jerry_get_boolean_value(abortedVal);
 	jerry_release_value(abortedVal);
 	if (aborted) return jerry_create_error_from_value(getInternalProperty(thisValue, "reason"), true);
-	else return jerry_create_undefined();
+	else return undefined;
 }
 
 jerry_value_t createStorage() {
@@ -1177,16 +1142,13 @@ static jerry_value_t StorageLengthGetter(CALL_INFO) {
 
 static jerry_value_t StorageKeyHandler(CALL_INFO) {
 	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'key': 1 argument required.");
-	jerry_value_t key = jerry_create_null();
+	jerry_value_t key = null;
 	jerry_value_t propNames = jerry_get_object_keys(thisValue);
 	jerry_value_t nVal = jerry_value_to_number(args[0]);
 	u32 n = jerry_value_as_uint32(nVal);
 	if (n < jerry_get_array_length(propNames)) {
 		jerry_value_t prop = jerry_get_property_by_index(propNames, n);
-		if (!jerry_value_is_undefined(prop)) {
-			jerry_release_value(key);
-			key = prop;
-		}
+		if (!jerry_value_is_undefined(prop)) key = prop;
 		else jerry_release_value(prop);
 	}
 	jerry_release_value(nVal);
@@ -1200,7 +1162,7 @@ static jerry_value_t StorageGetItemHandler(CALL_INFO) {
 	bool hasOwn = jerry_get_boolean_value(hasOwnVal);
 	jerry_release_value(hasOwnVal);
 	if (hasOwn) return jerry_get_property(thisValue, args[0]);
-	else return jerry_create_null();
+	else return null;
 }
 
 static jerry_value_t StorageSetItemHandler(CALL_INFO) {
@@ -1221,13 +1183,13 @@ static jerry_value_t StorageSetItemHandler(CALL_INFO) {
 	else jerry_set_property(thisValue, args[0], valAsString);
 	free(str);
 	jerry_release_value(valAsString);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t StorageRemoveItemHandler(CALL_INFO) {
 	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'removeItem': 1 argument required.");
 	jerry_delete_property(thisValue, args[0]);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t StorageClearHandler(CALL_INFO) {
@@ -1239,14 +1201,14 @@ static jerry_value_t StorageClearHandler(CALL_INFO) {
 		jerry_release_value(prop);
 	}
 	jerry_release_value(props);
-	return jerry_create_undefined();
+	return undefined;
 }
 
 static jerry_value_t StorageProxySetHandler(CALL_INFO) {
 	jerry_value_t valAsString = jerry_value_to_string(args[2]);
 	jerry_set_property(args[0], args[1], valAsString);
 	jerry_release_value(valAsString);
-	return jerry_create_boolean(true);
+	return True;
 }
 
 static jerry_value_t IllegalConstructor(CALL_INFO) {
