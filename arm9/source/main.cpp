@@ -82,10 +82,6 @@ void repl() {
 		}
 		jerry_release_value(result);
 	}
-	if (!abortFlag) {
-		queueEventName("unload");
-		runTasks();
-	}
 }
 
 int main(int argc, char **argv) {
