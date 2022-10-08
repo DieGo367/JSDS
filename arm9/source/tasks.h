@@ -21,7 +21,7 @@ void runMicrotasks();
 void runTasks();
 void queueTask(void (*run) (const jerry_value_t *, u32), const jerry_value_t *args, u32 argCount);
 void clearTasks();
-bool workExists();
+void eventLoop();
 
 void runParsedCodeTask(const jerry_value_t *args, u32 argCount);
 

@@ -10,11 +10,12 @@
 #include "console.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
+#include "keyboard.h"
 #include "timeouts.h"
 
 
 
-bool inREPL = false;
+bool inREPL = true;
 bool abortFlag = false;
 
 std::unordered_set<jerry_value_t> rejectedPromises;
@@ -86,9 +87,30 @@ void clearTasks() {
 	}
 }
 
-// Returns whether there are still tasks to run or timeouts in progress
-bool workExists() {
-	return !abortFlag && (taskQueue.size() > 0 || timeoutsExist());
+/* The Event Loop™
+ * On every vblank, run necessary operations before then executing the current task queue.
+ * Returns when there is no work left to do (not in the REPL and no tasks/timeouts left to execute) or when abortFlag is set.
+ */
+void eventLoop() {
+	while (!abortFlag && (inREPL || taskQueue.size() > 0 || timeoutsExist())) {
+		swiWaitForVBlank();
+		timeoutUpdate();
+		runTasks();
+		if (inREPL) {
+			if (keyboardEnterPressed) {
+				putchar('\n');
+				jerry_value_t parsedCode = jerry_parse(
+					(const jerry_char_t *) "<REPL>", 6,
+					(const jerry_char_t *) keyboardBuffer(), keyboardBufferLen(),
+					JERRY_PARSE_STRICT_MODE
+				);
+				queueTask(runParsedCodeTask, &parsedCode, 1);
+				jerry_release_value(parsedCode);
+				keyboardClearBuffer();
+			}
+			keyboardUpdate();
+		}
+	}
 }
 
 /* Attempts to handle an error by dispatching an ErrorEvent.

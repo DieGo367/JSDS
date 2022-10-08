@@ -27,29 +27,25 @@ void tempLoadMain() {
 	if (file == NULL) {
 		BG_PALETTE_SUB[0] = 0x001F;
 		printf("\n\n\tFile read error!\n\nCouldn't open \"/main.js\".");
+		return;
 	}
-	else {
-		fseek(file, 0, SEEK_END);
-		long size = ftell(file);
-		rewind(file);
-		char *script = (char *) malloc(size);
-		fread(script, 1, size, file);
-		fclose(file);
-		jerry_value_t parsedCode = jerry_parse(
-			(const jerry_char_t *) "/main.js", 8,
-			(const jerry_char_t *) script, size,
-			JERRY_PARSE_STRICT_MODE & JERRY_PARSE_MODULE
-		);
-		free(script);
-		queueTask(runParsedCodeTask, &parsedCode, 1);
-		jerry_release_value(parsedCode);
-		queueEventName("load");
-	}
-	while (workExists()) {
-		swiWaitForVBlank();
-		timeoutUpdate();
-		runTasks();
-	}
+	
+	fseek(file, 0, SEEK_END);
+	long size = ftell(file);
+	rewind(file);
+	char *script = (char *) malloc(size);
+	fread(script, 1, size, file);
+	fclose(file);
+	jerry_value_t parsedCode = jerry_parse(
+		(const jerry_char_t *) "/main.js", 8,
+		(const jerry_char_t *) script, size,
+		JERRY_PARSE_STRICT_MODE & JERRY_PARSE_MODULE
+	);
+	free(script);
+	queueTask(runParsedCodeTask, &parsedCode, 1);
+	jerry_release_value(parsedCode);
+	queueEventName("load");
+	eventLoop();
 	if (!abortFlag) {
 		queueEventName("unload");
 		runTasks();
@@ -59,25 +55,7 @@ void tempLoadMain() {
 void repl() {
 	consoleSetWindow(NULL, 0, 0, 32, 14);
 	keyboardShow();
-	while (!abortFlag) {
-		keyboardClearBuffer();
-		while (!abortFlag) {
-			swiWaitForVBlank();
-			timeoutUpdate();
-			runTasks();
-			if (keyboardEnterPressed) break;
-			keyboardUpdate();
-		}
-		putchar('\n');
-
-		jerry_value_t parsedCode = jerry_parse(
-			(const jerry_char_t *) "<REPL>", 6,
-			(const jerry_char_t *) keyboardBuffer(), keyboardBufferLen(),
-			JERRY_PARSE_STRICT_MODE
-		);
-		queueTask(runParsedCodeTask, &parsedCode, 1);
-		jerry_release_value(parsedCode);
-	}
+	eventLoop();
 }
 
 int main(int argc, char **argv) {
@@ -91,13 +69,17 @@ int main(int argc, char **argv) {
 	jerry_jsds_set_promise_rejection_op_callback(onPromiseRejectionOp);
 	exposeAPI();
 
+	// run
 	if (inREPL) repl();
 	else tempLoadMain();
 
+	// cleanup
 	clearTasks();
 	clearTimeouts();
 	releaseReferences();
 	jerry_cleanup();
+
+	// exit
 	if (!inREPL) while (true) {
 		swiWaitForVBlank();
 		scanKeys();
