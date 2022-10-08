@@ -42,14 +42,17 @@ void tempLoadMain() {
 		);
 		free(script);
 		jerry_release_value(execute(parsedCode));
-		fireEvent("load");
+		queueEventName("load");
 	}
 	while (workExists()) {
 		swiWaitForVBlank();
-		checkTimeouts();
-		eventLoop();
+		timeoutUpdate();
+		runTasks();
 	}
-	if (!abortFlag) dispatchUnloadEvent();
+	if (!abortFlag) {
+		queueEventName("unload");
+		runTasks();
+	}
 }
 
 void repl() {
@@ -59,8 +62,8 @@ void repl() {
 		keyboardClearBuffer();
 		while (!abortFlag) {
 			swiWaitForVBlank();
-			checkTimeouts();
-			eventLoop();
+			timeoutUpdate();
+			runTasks();
 			if (keyboardEnterPressed) break;
 			keyboardUpdate();
 		}
@@ -79,7 +82,10 @@ void repl() {
 		}
 		jerry_release_value(result);
 	}
-	if (!abortFlag) dispatchUnloadEvent();
+	if (!abortFlag) {
+		queueEventName("unload");
+		runTasks();
+	}
 }
 
 int main(int argc, char **argv) {

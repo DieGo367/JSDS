@@ -251,7 +251,7 @@ static jerry_value_t clearTimeoutHandler(CALL_INFO) {
 static jerry_value_t reportErrorHandler(CALL_INFO) {
 	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'reportError': 1 argument required.");
 	jerry_value_t error = jerry_create_error_from_value(args[0], false);
-	handleError(error);
+	handleError(error, true);
 	jerry_release_value(error);
 	return jerry_create_undefined();
 }
@@ -842,125 +842,13 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	jerry_release_value(isInstanceVal);
 	if (!isInstance) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Not an instance of Event.");
 
-	jerry_value_t dispatchStr = jerry_create_string((jerry_char_t *) "dispatch");
-	jerry_value_t dispatchVal = jerry_get_internal_property(args[0], dispatchStr);
+	jerry_value_t dispatchVal = getProperty(args[0], "dispatch");
 	bool dispatched = jerry_get_boolean_value(dispatchVal);
 	jerry_release_value(dispatchVal);
-	if (dispatched) {
-		jerry_release_value(dispatchStr);
-		return throwDOMException("Invalid event state", "InvalidStateError");
-	}
+	if (dispatched) return throwDOMException("Invalid event state", "InvalidStateError");
 
-	jerry_value_t eventPhaseStr = jerry_create_string((jerry_char_t *) "eventPhase");
-	jerry_value_t targetStr = jerry_create_string((jerry_char_t *) "target");
-	jerry_value_t currentTargetStr = jerry_create_string((jerry_char_t *) "currentTarget");
-	jerry_value_t True = jerry_create_boolean(true);
-	jerry_value_t False = jerry_create_boolean(false);
-
-	jerry_set_internal_property(args[0], dispatchStr, True);
-
-	jerry_value_t AT_TARGET = jerry_create_number(2);
-	jerry_set_internal_property(args[0], eventPhaseStr, AT_TARGET);
-	jerry_release_value(AT_TARGET);
-
-	jerry_set_internal_property(args[0], targetStr, target);
-	jerry_set_internal_property(args[0], currentTargetStr, target);
-
-	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
-	jerry_value_t eventType = getInternalProperty(args[0], "type");
-	jerry_value_t listenersOfType = jerry_get_property(eventListeners, eventType);
-	if (jerry_value_is_array(listenersOfType)) {
-		jerry_value_t sliceFunc = getProperty(listenersOfType, "slice");
-		jerry_value_t listenersCopy = jerry_call_function(sliceFunc, listenersOfType, NULL, 0);
-		jerry_release_value(sliceFunc);
-
-		u32 length = jerry_get_array_length(listenersCopy);
-		jerry_value_t removedStr = jerry_create_string((jerry_char_t *) "removed");
-		jerry_value_t onceStr = jerry_create_string((jerry_char_t *) "once");
-		jerry_value_t passiveStr = jerry_create_string((jerry_char_t *) "passive");
-		jerry_value_t callbackStr = jerry_create_string((jerry_char_t *) "callback");
-		jerry_value_t spliceFunc = getProperty(listenersOfType, "splice");
-		jerry_value_t inPassiveListenerStr = jerry_create_string((jerry_char_t *) "inPassiveListener");
-		jerry_value_t handleEventStr = jerry_create_string((jerry_char_t *) "handleEvent");
-
-		for (u32 i = 0; i < length; i++) {
-			jerry_value_t listener = jerry_get_property_by_index(listenersCopy, i);
-			jerry_value_t removedVal = jerry_get_property(listener, removedStr);
-			bool removed = jerry_get_boolean_value(removedVal);
-			jerry_release_value(removedVal);
-			if (!removed) {
-				jerry_value_t onceVal = jerry_get_property(listener, onceStr);
-				bool once = jerry_get_boolean_value(onceVal);
-				jerry_release_value(onceVal);
-				if (once) {
-					jerry_value_t spliceArgs[2] = {jerry_create_number(i), jerry_create_number(1)};
-					jerry_release_value(jerry_call_function(spliceFunc, listenersOfType, spliceArgs, 2));
-					jerry_release_value(spliceArgs[1]);
-					jerry_release_value(spliceArgs[0]);
-					jerry_release_value(jerry_set_property(listener, removedStr, True));
-				}
-				jerry_value_t passiveVal = jerry_get_property(listener, passiveStr);
-				bool passive = jerry_get_boolean_value(passiveVal);
-				jerry_release_value(passiveVal);
-				if (passive) jerry_set_internal_property(args[0], inPassiveListenerStr, True);
-				
-				jerry_value_t callbackVal = jerry_get_property(listener, callbackStr);
-				if (jerry_value_is_function(callbackVal)) {
-					jerry_value_t result = jerry_call_function(callbackVal, target, args, 1);
-					if (jerry_value_is_error(result)) handleError(result);
-					jerry_release_value(result);
-				}
-				else if (jerry_value_is_object(callbackVal)) {
-					jerry_value_t handler = jerry_get_property(callbackVal, handleEventStr);
-					if (jerry_value_is_function(handler)) {
-						jerry_value_t result = jerry_call_function(handler, target, args, 1);
-						if (jerry_value_is_error(result)) handleError(result);
-						jerry_release_value(result);
-					}
-					else jerry_release_value(handler);
-				}
-				jerry_release_value(callbackVal);
-
-				jerry_set_internal_property(args[0], inPassiveListenerStr, False);
-			}
-			jerry_release_value(listener);
-		}
-
-		jerry_release_value(handleEventStr);
-		jerry_release_value(inPassiveListenerStr);
-		jerry_release_value(spliceFunc);
-		jerry_release_value(callbackStr);
-		jerry_release_value(passiveStr);
-		jerry_release_value(onceStr);
-		jerry_release_value(removedStr);
-		jerry_release_value(listenersCopy);
-	}
-	jerry_release_value(listenersOfType);
-	jerry_release_value(eventType);
-	jerry_release_value(eventListeners);
-
-	jerry_value_t NONE = jerry_create_number(0);
-	jerry_set_internal_property(args[0], eventPhaseStr, NONE);
-	jerry_release_value(NONE);
-	jerry_value_t null = jerry_create_null();
-	jerry_set_internal_property(args[0], targetStr, null);
-	jerry_set_internal_property(args[0], currentTargetStr, null);
-	jerry_release_value(null);
-	jerry_set_internal_property(args[0], dispatchStr, False);
-	setInternalProperty(args[0], "stopPropagation", False);
-	setInternalProperty(args[0], "stopImmediatePropagation", False);
-	
-	jerry_release_value(False);
-	jerry_release_value(True);
-	jerry_release_value(currentTargetStr);
-	jerry_release_value(targetStr);
-	jerry_release_value(eventPhaseStr);
-	jerry_release_value(dispatchStr);
+	bool canceled = dispatchEvent(target, args[0], true);
 	jerry_release_value(target);
-	
-	jerry_value_t canceledVal = getInternalProperty(args[0], "defaultPrevented");
-	bool canceled = jerry_get_boolean_value(canceledVal);
-	jerry_release_value(canceledVal);
 	return jerry_create_boolean(!canceled);
 }
 
@@ -1193,7 +1081,7 @@ static jerry_value_t AbortControllerAbortHandler(CALL_INFO) {
 		jerry_value_t True = jerry_create_boolean(true);
 		setInternalProperty(abortEvent, "isTrusted", True);
 
-		queueTask(ref_task_dispatchEvent, signal, &abortEvent, 1);
+		dispatchEvent(signal, abortEvent, true);
 		jerry_release_value(abortEvent);
 
 		jerry_set_internal_property(signal, abortedStr, True);
@@ -1247,7 +1135,7 @@ static jerry_value_t abortSignalTimeoutTask(CALL_INFO) {
 		jerry_value_t True = jerry_create_boolean(true);
 		setInternalProperty(abortEvent, "isTrusted", True);
 
-		queueTask(ref_task_dispatchEvent, args[0], &abortEvent, 1);
+		dispatchEvent(args[0], abortEvent, true);
 		jerry_release_value(abortEvent);
 
 		jerry_set_internal_property(args[0], abortedStr, True);
@@ -1371,7 +1259,6 @@ void exposeAPI() {
 	ref_str_constructor = jerry_create_string((jerry_char_t *) "constructor");
 	ref_str_prototype = jerry_create_string((jerry_char_t *) "prototype");
 	ref_str_backtrace = jerry_create_string((jerry_char_t *) "backtrace");
-	ref_task_runTimeout = jerry_create_external_function(runTimeoutTask);
 	ref_task_abortSignalTimeout = jerry_create_external_function(abortSignalTimeoutTask);
 
 	jerry_value_t global = jerry_get_global_object();
@@ -1418,7 +1305,6 @@ void exposeAPI() {
 	setMethod(EventTarget.prototype, "addEventListener", EventTargetAddEventListenerHandler);
 	setMethod(EventTarget.prototype, "removeEventListener", EventTargetRemoveEventListenerHandler);
 	setMethod(EventTarget.prototype, "dispatchEvent", EventTargetDispatchEventHandler);
-	ref_task_dispatchEvent = getProperty(EventTarget.prototype, "dispatchEvent");
 	// turn global into an EventTarget
 	jerry_release_value(jerry_set_prototype(global, EventTarget.prototype));
 	jerry_value_t globalListeners = jerry_create_array(0);
@@ -1487,8 +1373,6 @@ void releaseReferences() {
 	jerry_release_value(ref_Event);
 	jerry_release_value(ref_Error);
 	jerry_release_value(ref_DOMException);
-	jerry_release_value(ref_task_runTimeout);
-	jerry_release_value(ref_task_dispatchEvent);
 	jerry_release_value(ref_task_reportError);
 	jerry_release_value(ref_task_abortSignalTimeout);
 	jerry_release_value(ref_str_name);

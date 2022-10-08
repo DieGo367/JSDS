@@ -42,7 +42,7 @@ void runMicrotasks() {
 	while (true) {
 		microtaskResult = jerry_run_all_enqueued_jobs();
 		if (jerry_value_is_error(microtaskResult)) {
-			handleError(microtaskResult);
+			handleError(microtaskResult, false);
 			jerry_release_value(microtaskResult);
 		}
 		else break;
@@ -77,37 +77,20 @@ jerry_value_t execute(jerry_value_t parsedCode) {
 
 std::queue<Task> taskQueue;
 
-/* The Event Loop™
- * This runs just a single iteration, so it must be used in a loop to fully live up to its name.
- * Executes all tasks currently in the task queue (newly enqueued tasks are not run).
- * After each task, microtasks are executed until the microtask queue is empty.
- */
-void eventLoop() {
+// Executes all tasks currently in the task queue (newly enqueued tasks are not run).
+void runTasks() {
 	u32 size = taskQueue.size();
-	while (size--) {
+	while (size-- && !abortFlag) {
 		Task task = taskQueue.front();
 		taskQueue.pop();
-		jerry_value_t taskResult = jerry_call_function(task.function, task.thisValue, task.args, task.argCount);
-		if (abortFlag) size = 0;
-		else {
-			runMicrotasks();
-			if (jerry_value_is_error(taskResult)) {
-				consolePrintLiteral(taskResult);
-				putchar('\n');
-				if (!inREPL) abortFlag = true;
-			}
-		}
-		jerry_release_value(taskResult);
-		jerry_release_value(task.function);
-		jerry_release_value(task.thisValue);
+		task.run(task.args, task.argCount);
 		for (u32 i = 0; i < task.argCount; i++) jerry_release_value(task.args[i]);
 	}
 }
 
-void queueTask(jerry_value_t function, jerry_value_t thisValue, jerry_value_t *args, jerry_length_t argCount) {
+void queueTask(void (*run) (const jerry_value_t *, u32), const jerry_value_t *args, u32 argCount) {
 	Task task;
-	task.function = jerry_acquire_value(function);
-	task.thisValue = jerry_acquire_value(thisValue);
+	task.run = run;
 	task.args = (jerry_value_t *) malloc(argCount * sizeof(jerry_value_t));
 	for (u32 i = 0; i < argCount; i++) task.args[i] = jerry_acquire_value(args[i]);
 	task.argCount = argCount;
@@ -119,8 +102,6 @@ void clearTasks() {
 	while (size--) {
 		Task task = taskQueue.front();
 		taskQueue.pop();
-		jerry_release_value(task.function);
-		jerry_release_value(task.thisValue);
 		for (u32 i = 0; i < task.argCount; i++) jerry_release_value(task.args[i]);
 	}
 }
@@ -132,8 +113,9 @@ bool workExists() {
 
 /* Attempts to handle an error by dispatching an ErrorEvent.
  * If left unhandled, the error will be printed and (unless in the REPL) the program will exit.
+ * Not for use within JS functions.
  */
-void handleError(jerry_value_t error) {
+void handleError(jerry_value_t error, bool sync) {
 	bool errorHandled = false;
 
 	jerry_value_t global = jerry_get_global_object();
@@ -191,10 +173,7 @@ void handleError(jerry_value_t error) {
 		setInternalProperty(errorEvent, "isTrusted", True);
 		jerry_release_value(True);
 
-		jerry_value_t result = jerry_call_function(ref_task_dispatchEvent, global, &errorEvent, 1);
-		if (jerry_value_is_error(result)) handleError(result); // lol
-		else if (jerry_get_boolean_value(result) == false) errorHandled = true;
-		jerry_release_value(result);
+		errorHandled = dispatchEvent(global, errorEvent, sync);
 
 		jerry_release_value(errorEvent);
 	}
@@ -236,10 +215,7 @@ void handleRejection(jerry_value_t promise) {
 		setInternalProperty(rejectionEvent, "isTrusted", True);
 		jerry_release_value(True);
 
-		jerry_value_t result = jerry_call_function(ref_task_dispatchEvent, global, &rejectionEvent, 1);
-		if (jerry_value_is_error(result)) handleError(result);
-		else if (jerry_get_boolean_value(result) == false) rejectionHandled = true;
-		jerry_release_value(result);
+		rejectionHandled = dispatchEvent(global, rejectionEvent, false);
 
 		jerry_release_value(rejectionEvent);
 	}
@@ -259,7 +235,144 @@ void handleRejection(jerry_value_t promise) {
 
 }
 
-void fireEvent(const char *eventName) {
+/* Dispatches event onto target.
+ * If sync is true, runs "synchronously" (no microtasks are run). JS functions should set it to true.
+ * Returns true if the event was canceled, false otherwise.
+ */
+bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
+	jerry_value_t dispatchStr = jerry_create_string((jerry_char_t *) "dispatch");
+	jerry_value_t eventPhaseStr = jerry_create_string((jerry_char_t *) "eventPhase");
+	jerry_value_t targetStr = jerry_create_string((jerry_char_t *) "target");
+	jerry_value_t currentTargetStr = jerry_create_string((jerry_char_t *) "currentTarget");
+	jerry_value_t True = jerry_create_boolean(true);
+	jerry_value_t False = jerry_create_boolean(false);
+
+	jerry_set_internal_property(event, dispatchStr, True);
+
+	jerry_value_t AT_TARGET = jerry_create_number(2);
+	jerry_set_internal_property(event, eventPhaseStr, AT_TARGET);
+	jerry_release_value(AT_TARGET);
+
+	jerry_set_internal_property(event, targetStr, target);
+	jerry_set_internal_property(event, currentTargetStr, target);
+
+	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
+	jerry_value_t eventType = getInternalProperty(event, "type");
+	jerry_value_t listenersOfType = jerry_get_property(eventListeners, eventType);
+	if (jerry_value_is_array(listenersOfType)) {
+		jerry_value_t sliceFunc = getProperty(listenersOfType, "slice");
+		jerry_value_t listenersCopy = jerry_call_function(sliceFunc, listenersOfType, NULL, 0);
+		jerry_release_value(sliceFunc);
+
+		u32 length = jerry_get_array_length(listenersCopy);
+		jerry_value_t removedStr = jerry_create_string((jerry_char_t *) "removed");
+		jerry_value_t onceStr = jerry_create_string((jerry_char_t *) "once");
+		jerry_value_t passiveStr = jerry_create_string((jerry_char_t *) "passive");
+		jerry_value_t callbackStr = jerry_create_string((jerry_char_t *) "callback");
+		jerry_value_t spliceFunc = getProperty(listenersOfType, "splice");
+		jerry_value_t inPassiveListenerStr = jerry_create_string((jerry_char_t *) "inPassiveListener");
+		jerry_value_t handleEventStr = jerry_create_string((jerry_char_t *) "handleEvent");
+
+		for (u32 i = 0; i < length && !abortFlag; i++) {
+			jerry_value_t listener = jerry_get_property_by_index(listenersCopy, i);
+			jerry_value_t removedVal = jerry_get_property(listener, removedStr);
+			bool removed = jerry_get_boolean_value(removedVal);
+			jerry_release_value(removedVal);
+			if (!removed) {
+				jerry_value_t onceVal = jerry_get_property(listener, onceStr);
+				bool once = jerry_get_boolean_value(onceVal);
+				jerry_release_value(onceVal);
+				if (once) {
+					jerry_value_t spliceArgs[2] = {jerry_create_number(i), jerry_create_number(1)};
+					jerry_release_value(jerry_call_function(spliceFunc, listenersOfType, spliceArgs, 2));
+					jerry_release_value(spliceArgs[1]);
+					jerry_release_value(spliceArgs[0]);
+					jerry_release_value(jerry_set_property(listener, removedStr, True));
+				}
+				jerry_value_t passiveVal = jerry_get_property(listener, passiveStr);
+				bool passive = jerry_get_boolean_value(passiveVal);
+				jerry_release_value(passiveVal);
+				if (passive) jerry_set_internal_property(event, inPassiveListenerStr, True);
+				
+				jerry_value_t callbackVal = jerry_get_property(listener, callbackStr);
+				jerry_value_t result;
+				bool ran = false;
+				if (jerry_value_is_function(callbackVal)) {
+					result = jerry_call_function(callbackVal, target, &event, 1);
+					ran = true;
+				}
+				else if (jerry_value_is_object(callbackVal)) {
+					jerry_value_t handler = jerry_get_property(callbackVal, handleEventStr);
+					if (jerry_value_is_function(handler)) {
+						result = jerry_call_function(handler, target, &event, 1);
+						ran = true;
+					}
+					jerry_release_value(handler);
+				}
+				if (ran) {
+					if (!abortFlag) {
+						if (!sync) runMicrotasks();
+						if (jerry_value_is_error(result)) handleError(result, sync);
+					}
+					jerry_release_value(result);
+				}
+				jerry_release_value(callbackVal);
+
+				jerry_set_internal_property(event, inPassiveListenerStr, False);
+			}
+			jerry_release_value(listener);
+		}
+
+		jerry_release_value(handleEventStr);
+		jerry_release_value(inPassiveListenerStr);
+		jerry_release_value(spliceFunc);
+		jerry_release_value(callbackStr);
+		jerry_release_value(passiveStr);
+		jerry_release_value(onceStr);
+		jerry_release_value(removedStr);
+		jerry_release_value(listenersCopy);
+	}
+	jerry_release_value(listenersOfType);
+	jerry_release_value(eventType);
+	jerry_release_value(eventListeners);
+
+	jerry_value_t NONE = jerry_create_number(0);
+	jerry_set_internal_property(event, eventPhaseStr, NONE);
+	jerry_release_value(NONE);
+	jerry_value_t null = jerry_create_null();
+	jerry_set_internal_property(event, targetStr, null);
+	jerry_set_internal_property(event, currentTargetStr, null);
+	jerry_release_value(null);
+	jerry_set_internal_property(event, dispatchStr, False);
+	setInternalProperty(event, "stopPropagation", False);
+	setInternalProperty(event, "stopImmediatePropagation", False);
+	
+	jerry_release_value(False);
+	jerry_release_value(True);
+	jerry_release_value(currentTargetStr);
+	jerry_release_value(targetStr);
+	jerry_release_value(eventPhaseStr);
+	jerry_release_value(dispatchStr);
+	
+	jerry_value_t canceledVal = getInternalProperty(event, "defaultPrevented");
+	bool canceled = jerry_get_boolean_value(canceledVal);
+	jerry_release_value(canceledVal);
+	return canceled;
+}
+
+// Task which dispatches an event. Args: EventTarget, Event
+void dispatchEventTask(const jerry_value_t *args, u32 argCount) {
+	dispatchEvent(args[0], args[1], false);
+}
+
+// Queues a task to dispatch event onto target.
+void queueEvent(jerry_value_t target, jerry_value_t event) {
+	jerry_value_t args[2] = {target, event};
+	queueTask(dispatchEventTask, args, 2);
+}
+
+// Queues a task that fires a simple, uncancelable event on the global context.
+void queueEventName(const char *eventName) {
 	jerry_value_t global = jerry_get_global_object();
 
 	jerry_value_t eventNameVal = jerry_create_string((jerry_char_t *) eventName);
@@ -270,25 +383,8 @@ void fireEvent(const char *eventName) {
 	setInternalProperty(event, "isTrusted", True);
 	jerry_release_value(True);
 
-	queueTask(ref_task_dispatchEvent, global, &event, 1);
+	queueEvent(global, event);
 
 	jerry_release_value(event);
-	jerry_release_value(global);
-}
-
-void dispatchUnloadEvent() {
-	jerry_value_t global = jerry_get_global_object();
-
-	jerry_value_t unloadStr = jerry_create_string((jerry_char_t *) "unload");
-	jerry_value_t unloadEvent = jerry_construct_object(ref_Event, &unloadStr, 1);
-	jerry_release_value(unloadStr);
-
-	jerry_value_t True = jerry_create_boolean(true);
-	setInternalProperty(unloadEvent, "isTrusted", True);
-	jerry_release_value(True);
-
-	jerry_release_value(jerry_call_function(ref_task_dispatchEvent, global, &unloadEvent, 1));
-
-	jerry_release_value(unloadEvent);
 	jerry_release_value(global);
 }
