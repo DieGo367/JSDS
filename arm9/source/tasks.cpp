@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unordered_set>
 
+#include "api.h"
 #include "console.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
@@ -120,9 +121,8 @@ void eventLoop() {
 void handleError(jerry_value_t error, bool sync) {
 	bool errorHandled = false;
 
-	jerry_value_t global = jerry_get_global_object();
 	jerry_value_t errorStr = createString("error");
-	jerry_value_t eventListeners = getInternalProperty(global, "eventListeners");
+	jerry_value_t eventListeners = getInternalProperty(ref_global, "eventListeners");
 	jerry_value_t errorEventListeners = jerry_get_property(eventListeners, errorStr);
 	if (jerry_value_is_array(errorEventListeners) && jerry_get_array_length(errorEventListeners) > 0) {
 		jerry_value_t errorEventInit = jerry_create_object();
@@ -165,7 +165,7 @@ void handleError(jerry_value_t error, bool sync) {
 		}
 		jerry_release_value(errorThrown);
 
-		jerry_value_t ErrorEvent = getProperty(global, "ErrorEvent");
+		jerry_value_t ErrorEvent = getProperty(ref_global, "ErrorEvent");
 		jerry_value_t args[2] = {errorStr, errorEventInit};
 		jerry_value_t errorEvent = jerry_construct_object(ErrorEvent, args, 2);
 		jerry_release_value(ErrorEvent);
@@ -173,14 +173,13 @@ void handleError(jerry_value_t error, bool sync) {
 
 		setInternalProperty(errorEvent, "isTrusted", True);
 
-		errorHandled = dispatchEvent(global, errorEvent, sync);
+		errorHandled = dispatchEvent(ref_global, errorEvent, sync);
 
 		jerry_release_value(errorEvent);
 	}
 	jerry_release_value(errorEventListeners);
 	jerry_release_value(eventListeners);
 	jerry_release_value(errorStr);
-	jerry_release_value(global);
 
 	if (!errorHandled) {
 		consolePrintLiteral(error);
@@ -192,8 +191,7 @@ void handleError(jerry_value_t error, bool sync) {
 void handleRejection(jerry_value_t promise) {
 	bool rejectionHandled = false;
 	
-	jerry_value_t global = jerry_get_global_object();
-	jerry_value_t eventListeners = getInternalProperty(global, "eventListeners");
+	jerry_value_t eventListeners = getInternalProperty(ref_global, "eventListeners");
 	jerry_value_t rejectionStr = createString("unhandledrejection");
 	jerry_value_t rejectionEventListeners = jerry_get_property(eventListeners, rejectionStr);
 	if (jerry_value_is_array(rejectionEventListeners) && jerry_get_array_length(rejectionEventListeners) > 0) {
@@ -205,7 +203,7 @@ void handleRejection(jerry_value_t promise) {
 		setProperty(rejectionEventInit, "reason", reason);
 		jerry_release_value(reason);
 
-		jerry_value_t PromiseRejectionEvent = getProperty(global, "PromiseRejectionEvent");
+		jerry_value_t PromiseRejectionEvent = getProperty(ref_global, "PromiseRejectionEvent");
 		jerry_value_t args[2] = {rejectionStr, rejectionEventInit};
 		jerry_value_t rejectionEvent = jerry_construct_object(PromiseRejectionEvent, args, 2);
 		jerry_release_value(PromiseRejectionEvent);
@@ -213,14 +211,13 @@ void handleRejection(jerry_value_t promise) {
 
 		setInternalProperty(rejectionEvent, "isTrusted", True);
 
-		rejectionHandled = dispatchEvent(global, rejectionEvent, false);
+		rejectionHandled = dispatchEvent(ref_global, rejectionEvent, false);
 
 		jerry_release_value(rejectionEvent);
 	}
 	jerry_release_value(rejectionEventListeners);
 	jerry_release_value(rejectionStr);
 	jerry_release_value(eventListeners);
-	jerry_release_value(global);
 
 	if (!rejectionHandled) {
 		jerry_value_t reason = jerry_get_promise_result(promise);
@@ -386,16 +383,10 @@ void queueEvent(jerry_value_t target, jerry_value_t event) {
 
 // Queues a task that fires a simple, uncancelable event on the global context.
 void queueEventName(const char *eventName) {
-	jerry_value_t global = jerry_get_global_object();
-
 	jerry_value_t eventNameVal = createString(eventName);
 	jerry_value_t event = jerry_construct_object(ref_Event, &eventNameVal, 1);
 	jerry_release_value(eventNameVal);
-
 	setInternalProperty(event, "isTrusted", True);
-
-	queueEvent(global, event);
-
+	queueEvent(ref_global, event);
 	jerry_release_value(event);
-	jerry_release_value(global);
 }

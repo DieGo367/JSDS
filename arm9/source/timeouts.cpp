@@ -4,6 +4,7 @@
 #include <nds/timers.h>
 #include <stdlib.h>
 
+#include "api.h"
 #include "console.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
@@ -75,13 +76,12 @@ void runTimeoutTask(const jerry_value_t args[], u32 argCount) {
 	int id = jerry_get_number_value(args[0]);
 	if (timeouts.count(id) == 0) return;
 	Timeout t = timeouts[id];
-	jerry_value_t global = jerry_get_global_object();
 	int prevNestLevel = nestLevel;
 
 	// execute handler
 	jerry_value_t result;
 	if (jerry_value_is_function(t.handler)) {
-		result = jerry_call_function(t.handler, global, t.args, t.argCount);
+		result = jerry_call_function(t.handler, ref_global, t.args, t.argCount);
 	}
 	else {
 		jerry_length_t handlerSize;
@@ -96,7 +96,6 @@ void runTimeoutTask(const jerry_value_t args[], u32 argCount) {
 	jerry_release_value(result);
 
 	nestLevel = prevNestLevel;
-	jerry_release_value(global);
 	if (timeouts.count(t.id) > 0) {
 		if (t.repeat) { // continue interval
 			timeouts[t.id].remaining = t.timeout;

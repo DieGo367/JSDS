@@ -17,6 +17,18 @@
 
 
 
+jerry_value_t ref_global;
+jerry_value_t ref_Event;
+jerry_value_t ref_Error;
+jerry_value_t ref_DOMException;
+jerry_value_t ref_task_reportError;
+jerry_value_t ref_task_abortSignalTimeout;
+jerry_value_t ref_str_name;
+jerry_value_t ref_str_constructor;
+jerry_value_t ref_str_prototype;
+jerry_value_t ref_str_backtrace;
+jerry_value_t ref_proxyHandler_storage;
+
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
 
 static jerry_value_t closeHandler(CALL_INFO) {
@@ -612,7 +624,7 @@ void abortSignalAddAlgorithm(jerry_value_t signal, jerry_value_t handler, jerry_
 static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'addEventListener': 2 arguments required.");
 	if (jerry_value_is_null(args[1])) return undefined;
-	jerry_value_t target = jerry_value_is_undefined(thisValue) ? jerry_get_global_object() : jerry_acquire_value(thisValue);
+	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 	
 	jerry_value_t typeStr = createString("type");
 	jerry_value_t callbackStr = createString("callback");
@@ -642,13 +654,11 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 			
 			jerry_value_t signalVal = getProperty(args[2], "signal");
 			if (!jerry_value_is_undefined(signalVal)) {
-				jerry_value_t global = jerry_get_global_object();
-				jerry_value_t AbortSignal = getProperty(global, "AbortSignal");
+				jerry_value_t AbortSignal = getProperty(ref_global, "AbortSignal");
 				jerry_value_t isAbortSignalVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, signalVal, AbortSignal);
 				bool isAbortSignal = jerry_get_boolean_value(isAbortSignalVal);
 				jerry_release_value(isAbortSignalVal);
 				jerry_release_value(AbortSignal);
-				jerry_release_value(global);
 				if (!isAbortSignal) {
 					jerry_release_value(signalVal);
 					jerry_release_value(typeVal);
@@ -745,14 +755,13 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	jerry_release_value(captureStr);
 	jerry_release_value(callbackStr);
 	jerry_release_value(typeStr);
-	jerry_release_value(target);
 
 	return undefined;
 }
 
 static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'removeEventListener': 2 arguments required.");
-	jerry_value_t target = jerry_value_is_undefined(thisValue) ? jerry_get_global_object() : jerry_acquire_value(thisValue);
+	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 	
 	jerry_value_t typeStr = createString("type");
 	jerry_value_t callbackStr = createString("callback");
@@ -803,14 +812,13 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 	jerry_release_value(captureStr);
 	jerry_release_value(callbackStr);
 	jerry_release_value(typeStr);
-	jerry_release_value(target);
 
 	return undefined;
 }
 
 static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	if (argCount < 1) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'dispatchEvent': 1 argument required.");
-	jerry_value_t target = jerry_value_is_undefined(thisValue) ? jerry_get_global_object() : jerry_acquire_value(thisValue);
+	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 	jerry_value_t isInstanceVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, args[0], ref_Event);
 	bool isInstance = jerry_get_boolean_value(isInstanceVal);
 	jerry_release_value(isInstanceVal);
@@ -822,7 +830,6 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	if (dispatched) return throwDOMException("Invalid event state", "InvalidStateError");
 
 	bool canceled = dispatchEvent(target, args[0], true);
-	jerry_release_value(target);
 	return jerry_create_boolean(!canceled);
 }
 
@@ -953,13 +960,11 @@ static jerry_value_t CustomEventConstructor(CALL_INFO) {
 
 jerry_value_t createAbortSignal(bool aborted) {
 	jerry_value_t signal = jerry_create_object();
-	jerry_value_t global = jerry_get_global_object();
-	jerry_value_t AbortSignal = getProperty(global, "AbortSignal");
+	jerry_value_t AbortSignal = getProperty(ref_global, "AbortSignal");
 	jerry_value_t AbortSignalPrototype = jerry_get_property(AbortSignal, ref_str_prototype);
 	jerry_release_value(jerry_set_prototype(signal, AbortSignalPrototype));
 	jerry_release_value(AbortSignalPrototype);
 	jerry_release_value(AbortSignal);
-	jerry_release_value(global);
 
 	jerry_value_t eventListeners = jerry_create_object();
 	setInternalProperty(signal, "eventListeners", eventListeners);
@@ -1121,13 +1126,11 @@ static jerry_value_t AbortSignalThrowIfAbortedHandler(CALL_INFO) {
 
 jerry_value_t createStorage() {
 	jerry_value_t storage = jerry_create_object();
-	jerry_value_t global = jerry_get_global_object();
-	jerry_value_t Storage = getProperty(global, "Storage");
+	jerry_value_t Storage = getProperty(ref_global, "Storage");
 	jerry_value_t StoragePrototype = jerry_get_property(Storage, ref_str_prototype);
 	jerry_release_value(jerry_set_prototype(storage, StoragePrototype));
 	jerry_release_value(StoragePrototype);
 	jerry_release_value(Storage);
-	jerry_release_value(global);
 	jerry_value_t proxy = jerry_create_proxy(storage, ref_proxyHandler_storage);
 	jerry_release_value(storage);
 	return proxy;
@@ -1223,24 +1226,24 @@ void exposeAPI() {
 	ref_str_backtrace = createString("backtrace");
 	ref_task_abortSignalTimeout = jerry_create_external_function(abortSignalTimeoutTask);
 
-	jerry_value_t global = jerry_get_global_object();
-	setProperty(global, "self", global);
+	ref_global = jerry_get_global_object();
+	setProperty(ref_global, "self", ref_global);
 
-	setMethod(global, "alert", alertHandler);
-	setMethod(global, "atob", atobHandler);
-	setMethod(global, "btoa", btoaHandler);
-	setMethod(global, "clearInterval", clearTimeoutHandler);
-	setMethod(global, "clearTimeout", clearTimeoutHandler);
-	setMethod(global, "close", closeHandler);
-	setMethod(global, "confirm", confirmHandler);
-	setMethod(global, "prompt", promptHandler);
-	setMethod(global, "queueMicrotask", queueMicrotaskHandler);
-	ref_task_reportError = createMethod(global, "reportError", reportErrorHandler);
-	setMethod(global, "setInterval", setIntervalHandler);
-	setMethod(global, "setTimeout", setTimeoutHandler);
+	setMethod(ref_global, "alert", alertHandler);
+	setMethod(ref_global, "atob", atobHandler);
+	setMethod(ref_global, "btoa", btoaHandler);
+	setMethod(ref_global, "clearInterval", clearTimeoutHandler);
+	setMethod(ref_global, "clearTimeout", clearTimeoutHandler);
+	setMethod(ref_global, "close", closeHandler);
+	setMethod(ref_global, "confirm", confirmHandler);
+	setMethod(ref_global, "prompt", promptHandler);
+	setMethod(ref_global, "queueMicrotask", queueMicrotaskHandler);
+	ref_task_reportError = createMethod(ref_global, "reportError", reportErrorHandler);
+	setMethod(ref_global, "setInterval", setIntervalHandler);
+	setMethod(ref_global, "setTimeout", setTimeoutHandler);
 	
 	jerry_value_t console = jerry_create_object();
-	setProperty(global, "console", console);
+	setProperty(ref_global, "console", console);
 	setMethod(console, "assert", consoleAssertHandler);
 	setMethod(console, "clear", consoleClearHandler);
 	setMethod(console, "count", consoleCountHandler);
@@ -1262,25 +1265,25 @@ void exposeAPI() {
 	setMethod(console, "warn", consoleWarnHandler);
 	jerry_release_value(console);
 
-	jsClass EventTarget = createClass(global, "EventTarget", EventTargetConstructor);
+	jsClass EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
 	setMethod(EventTarget.prototype, "addEventListener", EventTargetAddEventListenerHandler);
 	setMethod(EventTarget.prototype, "removeEventListener", EventTargetRemoveEventListenerHandler);
 	setMethod(EventTarget.prototype, "dispatchEvent", EventTargetDispatchEventHandler);
 	// turn global into an EventTarget
-	jerry_release_value(jerry_set_prototype(global, EventTarget.prototype));
+	jerry_release_value(jerry_set_prototype(ref_global, EventTarget.prototype));
 	jerry_value_t globalListeners = jerry_create_array(0);
-	setInternalProperty(global, "eventListeners", globalListeners);
+	setInternalProperty(ref_global, "eventListeners", globalListeners);
 	jerry_release_value(globalListeners);
 	jerry_release_value(EventTarget.constructor);
 
-	ref_Error = getProperty(global, "Error");
+	ref_Error = getProperty(ref_global, "Error");
 	jerry_value_t ErrorPrototype = jerry_get_property(ref_Error, ref_str_prototype);
-	jsClass DOMException = extendClass(global, "DOMException", DOMExceptionConstructor, ErrorPrototype);
+	jsClass DOMException = extendClass(ref_global, "DOMException", DOMExceptionConstructor, ErrorPrototype);
 	ref_DOMException = DOMException.constructor;
 	jerry_release_value(DOMException.prototype);
 	jerry_release_value(ErrorPrototype);
 
-	jsClass Event = createClass(global, "Event", EventConstructor);
+	jsClass Event = createClass(ref_global, "Event", EventConstructor);
 	classDefGetter(Event, "NONE",            EventNONEGetter);
 	classDefGetter(Event, "CAPTURING_PHASE", EventCAPTURING_PHASEGetter);
 	classDefGetter(Event, "AT_TARGET",       EventAT_TARGETGetter);
@@ -1291,23 +1294,23 @@ void exposeAPI() {
 	setMethod(Event.prototype, "preventDefault", EventPreventDefaultHandler);
 	ref_Event = Event.constructor;
 
-	releaseClass(extendClass(global, "ErrorEvent", ErrorEventConstructor, Event.prototype));
-	releaseClass(extendClass(global, "PromiseRejectionEvent", PromiseRejectionEventConstructor, Event.prototype));
-	releaseClass(extendClass(global, "CustomEvent", CustomEventConstructor, Event.prototype));
+	releaseClass(extendClass(ref_global, "ErrorEvent", ErrorEventConstructor, Event.prototype));
+	releaseClass(extendClass(ref_global, "PromiseRejectionEvent", PromiseRejectionEventConstructor, Event.prototype));
+	releaseClass(extendClass(ref_global, "CustomEvent", CustomEventConstructor, Event.prototype));
 	jerry_release_value(Event.prototype);
 
-	jsClass AbortController = createClass(global, "AbortController", AbortControllerConstructor);
+	jsClass AbortController = createClass(ref_global, "AbortController", AbortControllerConstructor);
 	setMethod(AbortController.prototype, "abort", AbortControllerAbortHandler);
 	releaseClass(AbortController);
 
-	jsClass AbortSignal = extendClass(global, "AbortSignal", IllegalConstructor, EventTarget.prototype);
+	jsClass AbortSignal = extendClass(ref_global, "AbortSignal", IllegalConstructor, EventTarget.prototype);
 	setMethod(AbortSignal.constructor, "abort", AbortSignalStaticAbortHandler);
 	setMethod(AbortSignal.constructor, "timeout", AbortSignalStaticTimeoutHandler);
 	setMethod(AbortSignal.prototype, "throwIfAborted", AbortSignalThrowIfAbortedHandler);
 	releaseClass(AbortSignal);
 	jerry_release_value(EventTarget.prototype);
 
-	jsClass Storage = createClass(global, "Storage", IllegalConstructor);
+	jsClass Storage = createClass(ref_global, "Storage", IllegalConstructor);
 	defGetter(Storage.prototype, "length", StorageLengthGetter);
 	setMethod(Storage.prototype, "key", StorageKeyHandler);
 	setMethod(Storage.prototype, "getItem", StorageGetItemHandler);
@@ -1319,18 +1322,17 @@ void exposeAPI() {
 	setMethod(ref_proxyHandler_storage, "set", StorageProxySetHandler);
 
 	jerry_value_t sessionStorage = createStorage();
-	setProperty(global, "sessionStorage", sessionStorage);
+	setProperty(ref_global, "sessionStorage", sessionStorage);
 	jerry_release_value(sessionStorage);
 
-	defEventAttribute(global, "onerror");
-	defEventAttribute(global, "onload");
-	defEventAttribute(global, "onunhandledrejection");
-	defEventAttribute(global, "onunload");
-
-	jerry_release_value(global);
+	defEventAttribute(ref_global, "onerror");
+	defEventAttribute(ref_global, "onload");
+	defEventAttribute(ref_global, "onunhandledrejection");
+	defEventAttribute(ref_global, "onunload");
 }
 
 void releaseReferences() {
+	jerry_release_value(ref_global);
 	jerry_release_value(ref_Event);
 	jerry_release_value(ref_Error);
 	jerry_release_value(ref_DOMException);

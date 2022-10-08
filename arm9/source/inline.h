@@ -1,6 +1,7 @@
 #ifndef JSDS_INLINE_H
 #define JSDS_INLINE_H
 
+#include "api.h"
 #include "jerry/jerryscript.h"
 
 // constant js values, these do not need to be freed and can be used without restraint
@@ -11,19 +12,6 @@ enum {
 	null = 88,
 	undefined = 72
 };
-
-// global references that will be kept during the duration of the program
-
-inline jerry_value_t ref_Event;
-inline jerry_value_t ref_Error;
-inline jerry_value_t ref_DOMException;
-inline jerry_value_t ref_task_reportError;
-inline jerry_value_t ref_task_abortSignalTimeout;
-inline jerry_value_t ref_str_name;
-inline jerry_value_t ref_str_constructor;
-inline jerry_value_t ref_str_prototype;
-inline jerry_value_t ref_str_backtrace;
-inline jerry_value_t ref_proxyHandler_storage;
 
 // helper inline functions
 
