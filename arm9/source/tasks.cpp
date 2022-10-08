@@ -121,7 +121,7 @@ void handleError(jerry_value_t error, bool sync) {
 	bool errorHandled = false;
 
 	jerry_value_t global = jerry_get_global_object();
-	jerry_value_t errorStr = jerry_create_string((jerry_char_t *) "error");
+	jerry_value_t errorStr = createString("error");
 	jerry_value_t eventListeners = getInternalProperty(global, "eventListeners");
 	jerry_value_t errorEventListeners = jerry_get_property(eventListeners, errorStr);
 	if (jerry_value_is_array(errorEventListeners) && jerry_get_array_length(errorEventListeners) > 0) {
@@ -133,7 +133,7 @@ void handleError(jerry_value_t error, bool sync) {
 		jerry_release_value(jerry_set_property(errorEventInit, errorStr, errorThrown));
 		if (errorCode == JERRY_ERROR_NONE) {
 			jerry_value_t strVal = jerry_value_to_string(errorThrown);
-			jerry_value_t uncaughtStr = jerry_create_string((jerry_char_t *) "Uncaught ");
+			jerry_value_t uncaughtStr = createString("Uncaught ");
 			jerry_value_t concatenated = jerry_binary_operation(JERRY_BIN_OP_ADD, uncaughtStr, strVal);
 			setProperty(errorEventInit, "message", concatenated);
 			jerry_release_value(concatenated);
@@ -194,7 +194,7 @@ void handleRejection(jerry_value_t promise) {
 	
 	jerry_value_t global = jerry_get_global_object();
 	jerry_value_t eventListeners = getInternalProperty(global, "eventListeners");
-	jerry_value_t rejectionStr = jerry_create_string((jerry_char_t *) "unhandledrejection");
+	jerry_value_t rejectionStr = createString("unhandledrejection");
 	jerry_value_t rejectionEventListeners = jerry_get_property(eventListeners, rejectionStr);
 	if (jerry_value_is_array(rejectionEventListeners) && jerry_get_array_length(rejectionEventListeners) > 0) {
 		jerry_value_t rejectionEventInit = jerry_create_object();
@@ -259,10 +259,10 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
  * Returns true if the event was canceled, false otherwise.
  */
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
-	jerry_value_t dispatchStr = jerry_create_string((jerry_char_t *) "dispatch");
-	jerry_value_t eventPhaseStr = jerry_create_string((jerry_char_t *) "eventPhase");
-	jerry_value_t targetStr = jerry_create_string((jerry_char_t *) "target");
-	jerry_value_t currentTargetStr = jerry_create_string((jerry_char_t *) "currentTarget");
+	jerry_value_t dispatchStr = createString("dispatch");
+	jerry_value_t eventPhaseStr = createString("eventPhase");
+	jerry_value_t targetStr = createString("target");
+	jerry_value_t currentTargetStr = createString("currentTarget");
 
 	jerry_set_internal_property(event, dispatchStr, True);
 
@@ -282,13 +282,13 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 		jerry_release_value(sliceFunc);
 
 		u32 length = jerry_get_array_length(listenersCopy);
-		jerry_value_t removedStr = jerry_create_string((jerry_char_t *) "removed");
-		jerry_value_t onceStr = jerry_create_string((jerry_char_t *) "once");
-		jerry_value_t passiveStr = jerry_create_string((jerry_char_t *) "passive");
-		jerry_value_t callbackStr = jerry_create_string((jerry_char_t *) "callback");
+		jerry_value_t removedStr = createString("removed");
+		jerry_value_t onceStr = createString("once");
+		jerry_value_t passiveStr = createString("passive");
+		jerry_value_t callbackStr = createString("callback");
 		jerry_value_t spliceFunc = getProperty(listenersOfType, "splice");
-		jerry_value_t inPassiveListenerStr = jerry_create_string((jerry_char_t *) "inPassiveListener");
-		jerry_value_t handleEventStr = jerry_create_string((jerry_char_t *) "handleEvent");
+		jerry_value_t inPassiveListenerStr = createString("inPassiveListener");
+		jerry_value_t handleEventStr = createString("handleEvent");
 
 		for (u32 i = 0; i < length && !abortFlag; i++) {
 			jerry_value_t listener = jerry_get_property_by_index(listenersCopy, i);
@@ -388,7 +388,7 @@ void queueEvent(jerry_value_t target, jerry_value_t event) {
 void queueEventName(const char *eventName) {
 	jerry_value_t global = jerry_get_global_object();
 
-	jerry_value_t eventNameVal = jerry_create_string((jerry_char_t *) eventName);
+	jerry_value_t eventNameVal = createString(eventName);
 	jerry_value_t event = jerry_construct_object(ref_Event, &eventNameVal, 1);
 	jerry_release_value(eventNameVal);
 

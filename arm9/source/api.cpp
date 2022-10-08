@@ -21,7 +21,7 @@
 
 static jerry_value_t closeHandler(CALL_INFO) {
 	abortFlag = true;
-	return jerry_create_abort_from_value(jerry_create_string((jerry_char_t *) "close() was called."), true);
+	return jerry_create_abort_from_value(createString("close() was called."), true);
 }
 
 static jerry_value_t alertHandler(CALL_INFO) {
@@ -209,7 +209,7 @@ static jerry_value_t btoaHandler(CALL_INFO) {
 	*out = '\0';
 	free(data);
 
-	jerry_value_t result = jerry_create_string((jerry_char_t *) output);
+	jerry_value_t result = createString(output);
 	free(output);
 	return result;
 }
@@ -494,10 +494,10 @@ static jerry_value_t DOMExceptionConstructor(CALL_INFO) {
 	jerry_release_value(newTarget);
 	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor DOMException cannot be invoked without 'new'");
 
-	jerry_value_t messageVal = argCount > 0 ? jerry_value_to_string(args[0]) : jerry_create_string((jerry_char_t *) "");
+	jerry_value_t messageVal = argCount > 0 ? jerry_value_to_string(args[0]) : createString("");
 	setReadonly(thisValue, "message", messageVal);
 	jerry_release_value(messageVal);
-	jerry_value_t nameVal = argCount > 1 ? jerry_value_to_string(args[1]) : jerry_create_string((jerry_char_t *) "Error");
+	jerry_value_t nameVal = argCount > 1 ? jerry_value_to_string(args[1]) : createString("Error");
 	setReadonly(thisValue, "name", nameVal);
 	jerry_release_value(nameVal);
 	
@@ -614,11 +614,11 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	if (jerry_value_is_null(args[1])) return undefined;
 	jerry_value_t target = jerry_value_is_undefined(thisValue) ? jerry_get_global_object() : jerry_acquire_value(thisValue);
 	
-	jerry_value_t typeStr = jerry_create_string((jerry_char_t *) "type");
-	jerry_value_t callbackStr = jerry_create_string((jerry_char_t *) "callback");
-	jerry_value_t captureStr = jerry_create_string((jerry_char_t *) "capture");
-	jerry_value_t onceStr = jerry_create_string((jerry_char_t *) "once");
-	jerry_value_t passiveStr = jerry_create_string((jerry_char_t *) "passive");
+	jerry_value_t typeStr = createString("type");
+	jerry_value_t callbackStr = createString("callback");
+	jerry_value_t captureStr = createString("capture");
+	jerry_value_t onceStr = createString("once");
+	jerry_value_t passiveStr = createString("passive");
 
 	jerry_value_t typeVal = jerry_value_to_string(args[0]);
 	jerry_value_t callbackVal = args[1];
@@ -754,9 +754,9 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'removeEventListener': 2 arguments required.");
 	jerry_value_t target = jerry_value_is_undefined(thisValue) ? jerry_get_global_object() : jerry_acquire_value(thisValue);
 	
-	jerry_value_t typeStr = jerry_create_string((jerry_char_t *) "type");
-	jerry_value_t callbackStr = jerry_create_string((jerry_char_t *) "callback");
-	jerry_value_t captureStr = jerry_create_string((jerry_char_t *) "capture");
+	jerry_value_t typeStr = createString("type");
+	jerry_value_t callbackStr = createString("callback");
+	jerry_value_t captureStr = createString("capture");
 
 	jerry_value_t typeVal = jerry_value_to_string(args[0]);
 	jerry_value_t callbackVal = args[1];
@@ -834,11 +834,11 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'ErrorEvent': 1 argument required.");
 	EventConstructor(function, thisValue, args, argCount);
 
-	jerry_value_t messageProp = jerry_create_string((jerry_char_t *) "message");
-	jerry_value_t filenameProp = jerry_create_string((jerry_char_t *) "filename");
-	jerry_value_t linenoProp = jerry_create_string((jerry_char_t *) "lineno");
-	jerry_value_t colnoProp = jerry_create_string((jerry_char_t *) "colno");
-	jerry_value_t emptyStr = jerry_create_string((jerry_char_t *) "");
+	jerry_value_t messageProp = createString("message");
+	jerry_value_t filenameProp = createString("filename");
+	jerry_value_t linenoProp = createString("lineno");
+	jerry_value_t colnoProp = createString("colno");
+	jerry_value_t emptyStr = createString("");
 	jerry_value_t zero = jerry_create_number(0);
 	setReadonly(thisValue, "error", undefined);
 	setReadonlyJV(thisValue, messageProp, emptyStr);
@@ -877,7 +877,7 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 			jerry_release_value(colnoNum);
 		}
 		jerry_release_value(colnoVal);
-		jerry_value_t errorProp = jerry_create_string((jerry_char_t *) "error");
+		jerry_value_t errorProp = createString("error");
 		jerry_value_t errorVal = jerry_get_property(args[1], errorProp);
 		jerry_set_internal_property(thisValue, errorProp, errorVal);
 		jerry_release_value(errorVal);
@@ -900,7 +900,7 @@ static jerry_value_t PromiseRejectionEventConstructor(CALL_INFO) {
 	else if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'PromiseRejectionEvent': 2 arguments required.");
 	else if (!jerry_value_is_object(args[1])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'PromiseRejectionEvent': The provided value is not of type 'PromiseRejectionEventInit'");
 
-	jerry_value_t promiseStr = jerry_create_string((jerry_char_t *) "promise");
+	jerry_value_t promiseStr = createString("promise");
 	jerry_value_t promiseVal = jerry_get_property(args[1], promiseStr);
 	if (jerry_value_is_undefined(promiseVal)) {
 		jerry_release_value(promiseStr);
@@ -937,7 +937,7 @@ static jerry_value_t CustomEventConstructor(CALL_INFO) {
 	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'CustomEvent': 1 argument required.");
 	EventConstructor(function, thisValue, args, argCount);
 
-	jerry_value_t detailProp = jerry_create_string((jerry_char_t *) "detail");
+	jerry_value_t detailProp = createString("detail");
 	setReadonlyJV(thisValue, detailProp, null);
 	if (argCount > 1 && jerry_value_is_object(args[1])) {
 		jerry_value_t detailVal = jerry_get_property(args[1], detailProp);
@@ -1034,7 +1034,7 @@ static jerry_value_t AbortControllerConstructor(CALL_INFO) {
 
 static jerry_value_t AbortControllerAbortHandler(CALL_INFO) {
 	jerry_value_t signal = getInternalProperty(thisValue, "signal");
-	jerry_value_t abortedStr = jerry_create_string((jerry_char_t *) "aborted");
+	jerry_value_t abortedStr = createString("aborted");
 	jerry_value_t abortedVal = jerry_get_internal_property(signal, abortedStr);
 	if (!jerry_get_boolean_value(abortedVal)) {
 		abortSignalRunAlgorithms(signal);
@@ -1045,7 +1045,7 @@ static jerry_value_t AbortControllerAbortHandler(CALL_INFO) {
 			setInternalProperty(signal, "reason", exception);
 			jerry_release_value(exception);
 		}
-		jerry_value_t abortStr = jerry_create_string((jerry_char_t *) "abort");
+		jerry_value_t abortStr = createString("abort");
 		jerry_value_t abortEvent = jerry_construct_object(ref_Event, &abortStr, 1);
 		jerry_release_value(abortStr);
 
@@ -1086,7 +1086,7 @@ static jerry_value_t AbortSignalStaticTimeoutHandler(CALL_INFO) {
 }
 
 static jerry_value_t abortSignalTimeoutTask(CALL_INFO) {
-	jerry_value_t abortedStr = jerry_create_string((jerry_char_t *) "aborted");
+	jerry_value_t abortedStr = createString("aborted");
 	jerry_value_t abortedVal = jerry_get_internal_property(args[0], abortedStr);
 	if (!jerry_get_boolean_value(abortedVal)) {
 		abortSignalRunAlgorithms(args[0]);
@@ -1095,7 +1095,7 @@ static jerry_value_t abortSignalTimeoutTask(CALL_INFO) {
 		setInternalProperty(args[0], "reason", exception);
 		jerry_release_value(exception);
 
-		jerry_value_t abortStr = jerry_create_string((jerry_char_t *) "abort");
+		jerry_value_t abortStr = createString("abort");
 		jerry_value_t abortEvent = jerry_construct_object(ref_Event, &abortStr, 1);
 		jerry_release_value(abortStr);
 
@@ -1217,10 +1217,10 @@ static jerry_value_t IllegalConstructor(CALL_INFO) {
 
 void exposeAPI() {
 	// hold some internal references
-	ref_str_name = jerry_create_string((jerry_char_t *) "name");
-	ref_str_constructor = jerry_create_string((jerry_char_t *) "constructor");
-	ref_str_prototype = jerry_create_string((jerry_char_t *) "prototype");
-	ref_str_backtrace = jerry_create_string((jerry_char_t *) "backtrace");
+	ref_str_name = createString("name");
+	ref_str_constructor = createString("constructor");
+	ref_str_prototype = createString("prototype");
+	ref_str_backtrace = createString("backtrace");
 	ref_task_abortSignalTimeout = jerry_create_external_function(abortSignalTimeoutTask);
 
 	jerry_value_t global = jerry_get_global_object();
@@ -1235,8 +1235,7 @@ void exposeAPI() {
 	setMethod(global, "confirm", confirmHandler);
 	setMethod(global, "prompt", promptHandler);
 	setMethod(global, "queueMicrotask", queueMicrotaskHandler);
-	setMethod(global, "reportError", reportErrorHandler);
-	ref_task_reportError = getProperty(global, "reportError");
+	ref_task_reportError = createMethod(global, "reportError", reportErrorHandler);
 	setMethod(global, "setInterval", setIntervalHandler);
 	setMethod(global, "setTimeout", setTimeoutHandler);
 	
