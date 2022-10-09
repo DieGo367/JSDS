@@ -3,6 +3,7 @@
 #include <nds/interrupts.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "api.h"
 #include "console.h"
@@ -60,6 +61,7 @@ void repl() {
 
 int main(int argc, char **argv) {
 	// startup
+	srand(time(NULL));
 	mainConsole = consoleDemoInit();
 	fatInitDefault();
 	keyboard = keyboardDemoInit();
