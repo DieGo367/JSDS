@@ -29,6 +29,8 @@ jerry_value_t ref_str_prototype;
 jerry_value_t ref_str_backtrace;
 jerry_value_t ref_proxyHandler_storage;
 
+const u32 STORAGE_API_MAX_CAPACITY = 4096; // 4 KiB
+
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
 
 static jerry_value_t closeHandler(CALL_INFO) {
@@ -1132,7 +1134,11 @@ jerry_value_t createStorage() {
 	jerry_release_value(StoragePrototype);
 	jerry_release_value(Storage);
 	jerry_value_t proxy = jerry_create_proxy(storage, ref_proxyHandler_storage);
+	setInternalProperty(storage, "proxy", proxy);
 	jerry_release_value(storage);
+	jerry_value_t zero = jerry_create_number(0);
+	setInternalProperty(proxy, "size", zero);
+	jerry_release_value(zero);
 	return proxy;
 }
 
@@ -1140,6 +1146,9 @@ static jerry_value_t StorageLengthGetter(CALL_INFO) {
 	jerry_value_t propNames = jerry_get_object_keys(thisValue);
 	u32 length = jerry_get_array_length(propNames);
 	jerry_release_value(propNames);
+	jerry_value_t size = getInternalProperty(thisValue, "size");
+	printf("stored: %lu\n", jerry_value_as_uint32(size));
+	jerry_release_value(size);
 	return jerry_create_number(length);
 }
 
@@ -1170,28 +1179,74 @@ static jerry_value_t StorageGetItemHandler(CALL_INFO) {
 
 static jerry_value_t StorageSetItemHandler(CALL_INFO) {
 	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'setItem': 2 arguments required.");
+
+	jerry_value_t storageSizeVal = getInternalProperty(thisValue, "size");
+	u32 storageFilled = jerry_value_as_uint32(storageSizeVal);
+	jerry_release_value(storageSizeVal);
+
+	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
 	jerry_value_t valAsString = jerry_value_to_string(args[1]);
-	char *str = getString(args[0]);
-	if (strcmp(str, "length") == 0) {
-		jerry_property_descriptor_t lengthDesc = {
-			.is_value_defined = true,
-			.is_enumerable_defined = true,
-			.is_enumerable = true,
-			.is_configurable_defined = true,
-			.is_configurable = true,
-			.value = valAsString
-		};
-		jerry_release_value(jerry_define_own_property(thisValue, args[0], &lengthDesc));
+	u32 propertyNameSize;
+	char *propertyName = getString(propertyAsString, &propertyNameSize);
+
+	jerry_value_t hasOwn = jerry_has_own_property(thisValue, propertyAsString);
+	if (jerry_get_boolean_value(hasOwn)) {
+		jerry_value_t currentValue = jerry_get_property(thisValue, propertyAsString);
+		storageFilled -= propertyNameSize + jerry_get_string_size(currentValue) + 2;
+		jerry_release_value(currentValue);
 	}
-	else jerry_set_property(thisValue, args[0], valAsString);
-	free(str);
+	jerry_release_value(hasOwn);
+	storageFilled += propertyNameSize + jerry_get_string_size(valAsString) + 2;
+
+	jerry_value_t result = undefined;
+	if (storageFilled > STORAGE_API_MAX_CAPACITY) {
+		result = throwDOMException("Failed to execute 'setItem': Exceeded the quota.", "QuotaExceededError");
+	}
+	else {
+		if (strcmp(propertyName, "length") == 0) {
+			jerry_property_descriptor_t lengthDesc = {
+				.is_value_defined = true,
+				.is_enumerable_defined = true,
+				.is_enumerable = true,
+				.is_configurable_defined = true,
+				.is_configurable = true,
+				.value = valAsString
+			};
+			jerry_release_value(jerry_define_own_property(thisValue, propertyAsString, &lengthDesc));
+		}
+		else jerry_set_property(thisValue, propertyAsString, valAsString);
+
+		jerry_value_t newSize = jerry_create_number(storageFilled);
+		setInternalProperty(thisValue, "size", newSize);
+		jerry_release_value(newSize);
+	}
+
+	free(propertyName);
 	jerry_release_value(valAsString);
-	return undefined;
+	jerry_release_value(propertyAsString);
+	return result;
 }
 
 static jerry_value_t StorageRemoveItemHandler(CALL_INFO) {
 	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'removeItem': 1 argument required.");
-	jerry_delete_property(thisValue, args[0]);
+	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
+	jerry_value_t hasOwn = jerry_has_own_property(thisValue, propertyAsString);
+	if (jerry_get_boolean_value(hasOwn)) {
+		jerry_value_t storageSizeVal = getInternalProperty(thisValue, "size");
+		u32 storageFilled = jerry_value_as_uint32(storageSizeVal);
+		jerry_release_value(storageSizeVal);
+
+		jerry_value_t currentValue = jerry_get_property(thisValue, propertyAsString);
+		if (jerry_delete_property(thisValue, propertyAsString)) {
+			storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + 2;
+			jerry_value_t newSize = jerry_create_number(storageFilled);
+			setInternalProperty(thisValue, "size", newSize);
+			jerry_release_value(newSize);
+		}
+		jerry_release_value(currentValue);
+	}
+	jerry_release_value(hasOwn);
+	jerry_release_value(propertyAsString);
 	return undefined;
 }
 
@@ -1204,14 +1259,74 @@ static jerry_value_t StorageClearHandler(CALL_INFO) {
 		jerry_release_value(prop);
 	}
 	jerry_release_value(props);
+	jerry_value_t zero = jerry_create_number(0);
+	setInternalProperty(thisValue, "size", zero);
+	jerry_release_value(zero);
 	return undefined;
 }
 
 static jerry_value_t StorageProxySetHandler(CALL_INFO) {
+	jerry_value_t storageSizeVal = getInternalProperty(args[3], "size");
+	u32 storageFilled = jerry_value_as_uint32(storageSizeVal);
+	jerry_release_value(storageSizeVal);
+
+	jerry_value_t propertyAsString = jerry_value_to_string(args[1]);
 	jerry_value_t valAsString = jerry_value_to_string(args[2]);
-	jerry_set_property(args[0], args[1], valAsString);
+
+	jerry_value_t hasOwn = jerry_has_own_property(args[0], propertyAsString);
+	if (jerry_get_boolean_value(hasOwn)) {
+		jerry_value_t currentValue = jerry_get_property(args[0], propertyAsString);
+		storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + 2;
+		jerry_release_value(currentValue);
+	}
+	jerry_release_value(hasOwn);
+	storageFilled += jerry_get_string_size(propertyAsString) + jerry_get_string_size(valAsString) + 2;
+
+	jerry_value_t result;
+	if (storageFilled > STORAGE_API_MAX_CAPACITY) {
+		result = throwDOMException("Failed to execute 'setItem': Exceeded the quota.", "QuotaExceededError");
+	}
+	else {
+		jerry_value_t assignment = jerry_set_property(args[0], propertyAsString, valAsString);
+		if (jerry_value_is_error(assignment)) result = assignment;
+		else {
+			result = True;
+			jerry_release_value(assignment);
+			jerry_value_t newSize = jerry_create_number(storageFilled);
+			setInternalProperty(args[3], "size", newSize);
+			jerry_release_value(newSize);
+		}
+	}
+
+	jerry_release_value(propertyAsString);
 	jerry_release_value(valAsString);
-	return True;
+	return result;
+}
+
+static jerry_value_t StorageProxyDeletePropertyHandler(CALL_INFO) {
+	jerry_value_t result = True;
+	jerry_value_t propertyAsString = jerry_value_to_string(args[1]);
+	jerry_value_t hasOwn = jerry_has_own_property(args[0], propertyAsString);
+	if (jerry_get_boolean_value(hasOwn)) {
+		jerry_value_t proxy = getInternalProperty(args[0], "proxy");
+		jerry_value_t storageSizeVal = getInternalProperty(proxy, "size");
+		u32 storageFilled = jerry_value_as_uint32(storageSizeVal);
+		jerry_release_value(storageSizeVal);
+		
+		jerry_value_t currentValue = jerry_get_property(args[0], propertyAsString);
+		if (jerry_delete_property(args[0], propertyAsString)) {
+			storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + 2;
+			jerry_value_t newSize = jerry_create_number(storageFilled);
+			setInternalProperty(proxy, "size", newSize);
+			jerry_release_value(newSize);
+		}
+		else result = False;
+		jerry_release_value(currentValue);
+		jerry_release_value(proxy);
+	}
+	jerry_release_value(hasOwn);
+	jerry_release_value(propertyAsString);
+	return result;
 }
 
 static jerry_value_t IllegalConstructor(CALL_INFO) {
@@ -1320,6 +1435,7 @@ void exposeAPI() {
 	releaseClass(Storage);
 	ref_proxyHandler_storage = jerry_create_object();
 	setMethod(ref_proxyHandler_storage, "set", StorageProxySetHandler);
+	setMethod(ref_proxyHandler_storage, "deleteProperty", StorageProxyDeletePropertyHandler);
 
 	jerry_value_t sessionStorage = createStorage();
 	setProperty(ref_global, "sessionStorage", sessionStorage);
