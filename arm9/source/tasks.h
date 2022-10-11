@@ -14,6 +14,7 @@ struct Task {
 
 extern bool inREPL;
 extern bool abortFlag;
+extern bool localStorageShouldSave;
 
 void onPromiseRejectionOp(jerry_value_t promise, jerry_promise_rejection_operation_t operation);
 void runMicrotasks();
@@ -22,6 +23,9 @@ void runTasks();
 void queueTask(void (*run) (const jerry_value_t *, u32), const jerry_value_t *args, u32 argCount);
 void clearTasks();
 void eventLoop();
+
+void loadStorage(const char *resourceName);
+void saveStorage();
 
 void runParsedCodeTask(const jerry_value_t *args, u32 argCount);
 

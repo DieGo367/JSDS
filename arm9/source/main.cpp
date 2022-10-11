@@ -46,6 +46,7 @@ void tempLoadMain() {
 	queueTask(runParsedCodeTask, &parsedCode, 1);
 	jerry_release_value(parsedCode);
 	queueEventName("load");
+	loadStorage("/main.js");
 	eventLoop();
 	if (!abortFlag) {
 		queueEventName("unload");
@@ -56,6 +57,7 @@ void tempLoadMain() {
 void repl() {
 	consoleSetWindow(NULL, 0, 0, 32, 14);
 	keyboardShow();
+	loadStorage("/REPL");
 	eventLoop();
 }
 

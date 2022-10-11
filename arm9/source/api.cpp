@@ -18,6 +18,7 @@
 
 
 jerry_value_t ref_global;
+jerry_value_t ref_localStorage;
 jerry_value_t ref_Event;
 jerry_value_t ref_Error;
 jerry_value_t ref_DOMException;
@@ -30,6 +31,7 @@ jerry_value_t ref_str_backtrace;
 jerry_value_t ref_proxyHandler_storage;
 
 const u32 STORAGE_API_MAX_CAPACITY = 4096; // 4 KiB
+const u32 STORAGE_API_LENGTH_BYTES = 8;
 
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
 
@@ -1146,9 +1148,6 @@ static jerry_value_t StorageLengthGetter(CALL_INFO) {
 	jerry_value_t propNames = jerry_get_object_keys(thisValue);
 	u32 length = jerry_get_array_length(propNames);
 	jerry_release_value(propNames);
-	jerry_value_t size = getInternalProperty(thisValue, "size");
-	printf("stored: %lu\n", jerry_value_as_uint32(size));
-	jerry_release_value(size);
 	return jerry_create_number(length);
 }
 
@@ -1192,11 +1191,11 @@ static jerry_value_t StorageSetItemHandler(CALL_INFO) {
 	jerry_value_t hasOwn = jerry_has_own_property(thisValue, propertyAsString);
 	if (jerry_get_boolean_value(hasOwn)) {
 		jerry_value_t currentValue = jerry_get_property(thisValue, propertyAsString);
-		storageFilled -= propertyNameSize + jerry_get_string_size(currentValue) + 2;
+		storageFilled -= propertyNameSize + jerry_get_string_size(currentValue) + STORAGE_API_LENGTH_BYTES;
 		jerry_release_value(currentValue);
 	}
 	jerry_release_value(hasOwn);
-	storageFilled += propertyNameSize + jerry_get_string_size(valAsString) + 2;
+	storageFilled += propertyNameSize + jerry_get_string_size(valAsString) + STORAGE_API_LENGTH_BYTES;
 
 	jerry_value_t result = undefined;
 	if (storageFilled > STORAGE_API_MAX_CAPACITY) {
@@ -1219,6 +1218,9 @@ static jerry_value_t StorageSetItemHandler(CALL_INFO) {
 		jerry_value_t newSize = jerry_create_number(storageFilled);
 		setInternalProperty(thisValue, "size", newSize);
 		jerry_release_value(newSize);
+		jerry_value_t isLocal = getInternalProperty(thisValue, "isLocal");
+		if (jerry_get_boolean_value(isLocal)) localStorageShouldSave = true;
+		jerry_release_value(isLocal);
 	}
 
 	free(propertyName);
@@ -1238,10 +1240,13 @@ static jerry_value_t StorageRemoveItemHandler(CALL_INFO) {
 
 		jerry_value_t currentValue = jerry_get_property(thisValue, propertyAsString);
 		if (jerry_delete_property(thisValue, propertyAsString)) {
-			storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + 2;
+			storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + STORAGE_API_LENGTH_BYTES;
 			jerry_value_t newSize = jerry_create_number(storageFilled);
 			setInternalProperty(thisValue, "size", newSize);
 			jerry_release_value(newSize);
+			jerry_value_t isLocal = getInternalProperty(thisValue, "isLocal");
+			if (jerry_get_boolean_value(isLocal)) localStorageShouldSave = true;
+			jerry_release_value(isLocal);
 		}
 		jerry_release_value(currentValue);
 	}
@@ -1262,6 +1267,9 @@ static jerry_value_t StorageClearHandler(CALL_INFO) {
 	jerry_value_t zero = jerry_create_number(0);
 	setInternalProperty(thisValue, "size", zero);
 	jerry_release_value(zero);
+	jerry_value_t isLocal = getInternalProperty(thisValue, "isLocal");
+	if (jerry_get_boolean_value(isLocal)) localStorageShouldSave = true;
+	jerry_release_value(isLocal);
 	return undefined;
 }
 
@@ -1276,11 +1284,11 @@ static jerry_value_t StorageProxySetHandler(CALL_INFO) {
 	jerry_value_t hasOwn = jerry_has_own_property(args[0], propertyAsString);
 	if (jerry_get_boolean_value(hasOwn)) {
 		jerry_value_t currentValue = jerry_get_property(args[0], propertyAsString);
-		storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + 2;
+		storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + STORAGE_API_LENGTH_BYTES;
 		jerry_release_value(currentValue);
 	}
 	jerry_release_value(hasOwn);
-	storageFilled += jerry_get_string_size(propertyAsString) + jerry_get_string_size(valAsString) + 2;
+	storageFilled += jerry_get_string_size(propertyAsString) + jerry_get_string_size(valAsString) + STORAGE_API_LENGTH_BYTES;
 
 	jerry_value_t result;
 	if (storageFilled > STORAGE_API_MAX_CAPACITY) {
@@ -1295,6 +1303,9 @@ static jerry_value_t StorageProxySetHandler(CALL_INFO) {
 			jerry_value_t newSize = jerry_create_number(storageFilled);
 			setInternalProperty(args[3], "size", newSize);
 			jerry_release_value(newSize);
+			jerry_value_t isLocal = getInternalProperty(args[3], "isLocal");
+			if (jerry_get_boolean_value(isLocal)) localStorageShouldSave = true;
+			jerry_release_value(isLocal);
 		}
 	}
 
@@ -1315,10 +1326,13 @@ static jerry_value_t StorageProxyDeletePropertyHandler(CALL_INFO) {
 		
 		jerry_value_t currentValue = jerry_get_property(args[0], propertyAsString);
 		if (jerry_delete_property(args[0], propertyAsString)) {
-			storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + 2;
+			storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + STORAGE_API_LENGTH_BYTES;
 			jerry_value_t newSize = jerry_create_number(storageFilled);
 			setInternalProperty(proxy, "size", newSize);
 			jerry_release_value(newSize);
+			jerry_value_t isLocal = getInternalProperty(proxy, "isLocal");
+			if (jerry_get_boolean_value(isLocal)) localStorageShouldSave = true;
+			jerry_release_value(isLocal);
 		}
 		else result = False;
 		jerry_release_value(currentValue);
@@ -1440,6 +1454,9 @@ void exposeAPI() {
 	jerry_value_t sessionStorage = createStorage();
 	setProperty(ref_global, "sessionStorage", sessionStorage);
 	jerry_release_value(sessionStorage);
+	ref_localStorage = createStorage();
+	setProperty(ref_global, "localStorage", ref_localStorage);
+	setInternalProperty(ref_localStorage, "isLocal", True);
 
 	defEventAttribute(ref_global, "onerror");
 	defEventAttribute(ref_global, "onload");
@@ -1449,6 +1466,7 @@ void exposeAPI() {
 
 void releaseReferences() {
 	jerry_release_value(ref_global);
+	jerry_release_value(ref_localStorage);
 	jerry_release_value(ref_Event);
 	jerry_release_value(ref_Error);
 	jerry_release_value(ref_DOMException);

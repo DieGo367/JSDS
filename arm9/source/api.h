@@ -7,6 +7,7 @@
 
 
 extern jerry_value_t ref_global;
+extern jerry_value_t ref_localStorage;
 extern jerry_value_t ref_Event;
 extern jerry_value_t ref_Error;
 extern jerry_value_t ref_DOMException;
