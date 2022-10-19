@@ -7,6 +7,7 @@
 #include <string.h>
 #include <time.h>
 #include <unordered_map>
+#include <vector>
 
 #include "console.h"
 #include "keyboard.h"
@@ -1343,6 +1344,254 @@ static jerry_value_t StorageProxyDeletePropertyHandler(CALL_INFO) {
 	return result;
 }
 
+static jerry_value_t TextDecoderConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor TextDecoder cannot be invoked without 'new'");
+
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		char *str = getAsString(args[0]);
+		if (strcmp(str, "utf-8") != 0 && strcmp(str, "utf8") != 0) {
+			free(str);
+			return jerry_create_error(JERRY_ERROR_RANGE, (jerry_char_t *) "Failed to construct 'TextDecoder': The encoding label provided is invalid.");
+		}
+		free(str);
+	}
+
+	jerry_value_t encoding = createString("utf-8");
+	setReadonly(thisValue, "encoding", encoding);
+	jerry_release_value(encoding);
+
+	jerry_value_t fatalStr = createString("fatal");
+	jerry_value_t ignoreBOMStr = createString("ignoreBOM");
+	setReadonlyJV(thisValue, fatalStr, False);
+	setReadonlyJV(thisValue, ignoreBOMStr, False);
+
+	setInternalProperty(thisValue, "BOMSeen", False);
+	setInternalProperty(thisValue, "doNotFlush", False);
+
+	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
+		if (!jerry_value_is_object(args[1])) {
+			jerry_release_value(fatalStr);
+			jerry_release_value(ignoreBOMStr);
+			return jerry_create_error(JERRY_ERROR_RANGE, (jerry_char_t *) "Failed to construct 'TextDecoder': The provided value is not of type 'TextDecoderOptions'.");
+		}
+		jerry_value_t fatalVal = jerry_get_property(args[1], fatalStr);
+		jerry_set_internal_property(thisValue, fatalStr, jerry_value_to_boolean(fatalVal) ? True : False);
+		jerry_release_value(fatalVal);
+		jerry_value_t ignoreBOMVal = jerry_get_property(args[1], ignoreBOMStr);
+		jerry_set_internal_property(thisValue, ignoreBOMStr, jerry_value_to_boolean(ignoreBOMVal) ? True : False);
+		jerry_release_value(ignoreBOMVal);
+	}
+
+	jerry_release_value(fatalStr);
+	jerry_release_value(ignoreBOMStr);
+
+	return undefined;
+}
+
+static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
+	jerry_value_t doNotFlushStr = createString("doNotFlush");
+	jerry_value_t doNotFlushVal = jerry_get_internal_property(thisValue, doNotFlushStr);
+	if (jerry_get_boolean_value(doNotFlushVal) == false) {
+		setInternalProperty(thisValue, "hasPrevIO", False);
+		setInternalProperty(thisValue, "BOMSeen", False);
+	}
+	jerry_release_value(doNotFlushVal);
+
+	bool doNotFlush = false;
+	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
+		if (jerry_value_is_object(args[1])) {
+			jerry_value_t streamVal = getProperty(args[1], "stream");
+			doNotFlush = jerry_get_boolean_value(streamVal);
+			jerry_set_internal_property(thisValue, doNotFlushStr, doNotFlush ? True : False);
+			jerry_release_value(streamVal);
+		}
+		else {
+			jerry_release_value(doNotFlushStr);
+			return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'decode': The provided value is not of type 'TextDecodeOptions'.");
+		}
+	}
+	jerry_release_value(doNotFlushStr);
+
+	u8 *source = NULL;
+	u32 sourceLen = 0;
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		if (jerry_value_is_typedarray(args[0])) {
+			u32 byteOffset = 0;
+			jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &sourceLen);
+			source = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
+			jerry_release_value(arrayBuffer);
+		}
+		else if (jerry_value_is_arraybuffer(args[0])) {
+			source = jerry_get_arraybuffer_pointer(args[0]);
+			sourceLen = jerry_get_arraybuffer_byte_length(args[0]);
+		}
+		else return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'decode': The provided value is not of type '(ArrayBuffer or ArrayBufferView)'.");
+	}
+
+	jerry_value_t fatal = getInternalProperty(thisValue, "fatal");
+	bool isFatal = jerry_get_boolean_value(fatal);
+	jerry_release_value(fatal);
+
+	/*
+	Time to decode UTF-8 into... UTF-8.
+	Reason for this is that the methods for creating strings provided by
+	JerryScript accept two formats: CESU-8 and UTF-8. There's no reason to
+	convert to raw Unicode when I'd just have to convert it to one of those
+	two anyway. I believe JerryScript is using CESU-8 internally. I have
+	the option to either convert to CESU-8 myself or just let JerryScript's
+	internal function do it for me. In any case, I still have to do my own
+	"decode" to handle error behavior to match the spec (and since Jerry
+	does its own string validation, this unfortunately means that they are
+	being checked twice).
+	*/
+	
+	u32 i = 0;
+	u32 sequence = 0;
+	u8 bytesNeeded = 0;
+	u8 bytesSeen = 0;
+	u32 lowerBound = 0x80;
+	u32 upperBound = 0xBF;
+
+	jerry_value_t hasPrevIO = getInternalProperty(thisValue, "hasPrevIO");
+	if (jerry_get_boolean_value(hasPrevIO)) {
+		jerry_value_t sequenceNum = getInternalProperty(thisValue, "seq");
+		sequence = jerry_value_as_uint32(sequenceNum);
+		jerry_release_value(sequenceNum);
+		jerry_value_t needed_seen = getInternalProperty(thisValue, "ns");
+		u32 needed_seen_u32 = jerry_value_as_uint32(needed_seen);
+		bytesNeeded = needed_seen_u32 >> 8;
+		bytesSeen = needed_seen_u32 & 0xFF;
+		jerry_release_value(needed_seen);
+		jerry_value_t lowerBoundNum = getInternalProperty(thisValue, "lb");
+		lowerBound = jerry_value_as_uint32(lowerBoundNum);
+		jerry_release_value(lowerBoundNum);
+		jerry_value_t upperBoundNum = getInternalProperty(thisValue, "ub");
+		upperBound = jerry_value_as_uint32(upperBoundNum);
+		jerry_release_value(upperBoundNum);
+	}
+	jerry_release_value(hasPrevIO);
+
+	std::vector<u8> out;
+	char errorMsg[31] = "The encoded data is not valid.";
+
+	while (true) {
+		if (i >= sourceLen) {
+			if (bytesNeeded > 0 && !doNotFlush) {
+				bytesNeeded = 0;
+				if (isFatal) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) errorMsg);
+				else {
+					out.emplace_back(0xEF);
+					out.emplace_back(0xBF);
+					out.emplace_back(0xBD);
+				}
+			}
+			break;
+		}
+		u8 byte = source[i];
+		if (bytesNeeded == 0) {
+			if (byte <= 0x7F) {
+				out.emplace_back(byte);
+			}
+			else if (byte >= 0xC2 && byte <= 0xDF) {
+				bytesNeeded = 1;
+				// codepoint = byte & 0x1F;
+				sequence = sequence << 8 | byte;
+			}
+			else if (byte >= 0xE0 && byte <= 0xEF) {
+				if (byte == 0xE0) lowerBound = 0xA0;
+				if (byte == 0xED) upperBound = 0x9F;
+				bytesNeeded = 2;
+				// codepoint = byte & 0xF;
+				sequence = sequence << 8 | byte;
+			}
+			else if (byte >= 0xF0 && byte <= 0xF4) {
+				if (byte == 0xF0) lowerBound = 0x90;
+				if (byte == 0xF4) upperBound = 0x8F;
+				bytesNeeded = 3;
+				// codepoint = byte & 0x7;
+				sequence = sequence << 8 | byte;
+			}
+			else {
+				if (isFatal) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) errorMsg);
+				else {
+					out.emplace_back(0xEF);
+					out.emplace_back(0xBF);
+					out.emplace_back(0xBD);
+				}
+			}
+		}
+		else if (byte < lowerBound || byte > upperBound) {
+			// codepoint = 
+			bytesNeeded = bytesSeen = 0;
+			lowerBound = 0x80;
+			upperBound = 0xBF;
+			if (isFatal) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) errorMsg);
+			else {
+				out.emplace_back(0xEF);
+				out.emplace_back(0xBF);
+				out.emplace_back(0xBD);
+			}
+		}
+		else {
+			lowerBound = 0x80;
+			upperBound = 0xBF;
+			// codepoint = codepoint << 6 | (byte & 0x3F);
+			sequence = sequence << 8 | byte;
+			if (++bytesSeen == bytesNeeded) {
+				// out.emplace_back(codepoint);
+				if (bytesNeeded == 3) out.emplace_back(sequence >> 24);
+				if (bytesNeeded >= 2) out.emplace_back(sequence >> 16 & 0xFF);
+				out.emplace_back(sequence >> 8 & 0xFF);
+				out.emplace_back(sequence & 0xFF);
+				sequence = 0;
+				// codepoint = 
+				bytesNeeded = bytesSeen = 0;
+			}
+		}
+		i++;
+	}
+
+	if (doNotFlush) {
+		jerry_value_t sequenceNum = jerry_create_number(sequence);
+		jerry_value_t needed_seen = jerry_create_number(bytesNeeded << 8 | bytesSeen);
+		jerry_value_t lowerBoundNum = jerry_create_number(lowerBound);
+		jerry_value_t upperBoundNum = jerry_create_number(upperBound);
+		setInternalProperty(thisValue, "seq", sequenceNum);
+		setInternalProperty(thisValue, "ns", needed_seen);
+		setInternalProperty(thisValue, "lb", lowerBoundNum);
+		setInternalProperty(thisValue, "ub", upperBoundNum);
+		setInternalProperty(thisValue, "hasPrevIO", True);
+		jerry_release_value(sequenceNum);
+		jerry_release_value(needed_seen);
+		jerry_release_value(lowerBoundNum);
+		jerry_release_value(upperBoundNum);
+	}
+
+	u8 *data = out.data();
+	u32 size = out.size();
+
+	if (size > 2) {
+		jerry_value_t ignoreBOM = getInternalProperty(thisValue, "ignoreBOM");
+		if (jerry_get_boolean_value(ignoreBOM) == false) {
+			jerry_value_t BOMSeen = getInternalProperty(thisValue, "BOMSeen");
+			if (jerry_get_boolean_value(BOMSeen) == false) {
+				if (data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
+					data += 3;
+					size -= 3;
+					setInternalProperty(thisValue, "BOMSeen", True);
+				}
+			}
+			jerry_release_value(BOMSeen);
+		}
+		jerry_release_value(ignoreBOM);
+	}
+
+	return jerry_create_string_sz_from_utf8(data, size);
+}
+
 static jerry_value_t IllegalConstructor(CALL_INFO) {
 	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Illegal constructor");
 }
@@ -1457,6 +1706,10 @@ void exposeAPI() {
 	ref_localStorage = createStorage();
 	setProperty(ref_global, "localStorage", ref_localStorage);
 	setInternalProperty(ref_localStorage, "isLocal", True);
+
+	jsClass TextDecoder = createClass(ref_global, "TextDecoder", TextDecoderConstructor);
+	setMethod(TextDecoder.prototype, "decode", TextDecoderDecodeHandler);
+	releaseClass(TextDecoder);
 
 	defEventAttribute(ref_global, "onerror");
 	defEventAttribute(ref_global, "onload");
