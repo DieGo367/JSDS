@@ -3,10 +3,9 @@
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>
 #include <stdio.h>
-#include <string>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unordered_map>
 #include <vector>
 
 #include "console.h"
@@ -30,6 +29,8 @@ jerry_value_t ref_str_constructor;
 jerry_value_t ref_str_prototype;
 jerry_value_t ref_str_backtrace;
 jerry_value_t ref_proxyHandler_storage;
+jerry_value_t ref_consoleCounters;
+jerry_value_t ref_consoleTimers;
 
 const u32 STORAGE_API_MAX_CAPACITY = 4096; // 4 KiB
 const u32 STORAGE_API_LENGTH_BYTES = 8;
@@ -402,99 +403,129 @@ static jerry_value_t consoleGroupEndHandler(CALL_INFO) {
 	return undefined;
 }
 
-std::unordered_map<std::string, int> consoleCounters;
 static jerry_value_t consoleCountHandler(CALL_INFO) {
-	consoleIndent();
-	std::string label;
+	jerry_value_t label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getAsString(args[0]);
-		label = std::string(lbl);
-		free(lbl);
+		label = jerry_value_to_string(args[0]);
 	}
-	else label = "default";
-	if (consoleCounters.count(label) == 0) {
-		printf("%s: %i\n", label.c_str(), 1);
-		consoleCounters[label] = 1;
-	}
-	else {
-		printf("%s: %i\n", label.c_str(), ++consoleCounters[label]);
-	}
+	else label = createString("default");
+	
+	jerry_value_t countVal = jerry_get_property(ref_consoleCounters, label);
+	u32 count;
+	if (jerry_value_is_undefined(label)) count = 1;
+	else count = jerry_value_as_uint32(countVal) + 1;
+	jerry_release_value(countVal);
+
+	consoleIndent();
+	printString(label);
+	printf(": %lu\n", count);
+	
+	countVal = jerry_create_number(count);
+	jerry_release_value(jerry_set_property(ref_consoleCounters, label, countVal));
+	jerry_release_value(countVal);
+
+	jerry_release_value(label);
 	return undefined;
 }
 
 static jerry_value_t consoleCountResetHandler(CALL_INFO) {
-	std::string label;
+	jerry_value_t label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getAsString(args[0]);
-		label = std::string(lbl);
-		free(lbl);
+		label = jerry_value_to_string(args[0]);
 	}
-	else label = "default";
-	if (consoleCounters.count(label) == 0) {
-		consoleIndent();
-		printf("Count for '%s' does not exist\n", label.c_str());
+	else label = createString("default");
+
+	jerry_value_t hasLabel = jerry_has_own_property(ref_consoleCounters, label);
+	if (jerry_get_boolean_value(hasLabel)) {
+		jerry_value_t zero = jerry_create_number(0);
+		jerry_set_property(ref_consoleCounters, label, zero);
+		jerry_release_value(zero);
 	}
 	else {
-		consoleCounters[label] = 0;
+		consoleIndent();
+		printf("Count for '");
+		printString(label);
+		printf("' does not exist\n");
 	}
+	jerry_release_value(hasLabel);
+
+	jerry_release_value(label);
 	return undefined;
 }
 
-std::unordered_map<std::string, time_t> consoleTimers;
 static jerry_value_t consoleTimeHandler(CALL_INFO) {
-	std::string label;
+	jerry_value_t label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getAsString(args[0]);
-		label = std::string(lbl);
-		free(lbl);
+		label = jerry_value_to_string(args[0]);
 	}
-	else label = "default";
-	if (consoleTimers.count(label) == 0) {
-		consoleTimers[label] = time(NULL);
+	else label = createString("default");
+
+	jerry_value_t hasLabel = jerry_has_own_property(ref_consoleTimers, label);
+	if (jerry_get_boolean_value(hasLabel)) {
+		consoleIndent();
+		printf("Timer '");
+		printString(label);
+		printf("' already exists\n");
 	}
 	else {
-		consoleIndent();
-		printf("Timer '%s' already exists\n", label.c_str());
+		jerry_value_t timeVal = jerry_create_number(time(NULL));
+		jerry_release_value(jerry_set_property(ref_consoleTimers, label, timeVal));
+		jerry_release_value(timeVal);
 	}
+	jerry_release_value(hasLabel);
+	
+	jerry_release_value(label);
 	return undefined;
 }
 
 static jerry_value_t consoleTimeLogHandler(CALL_INFO) {
-	consoleIndent();
-	std::string label;
+	jerry_value_t label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getAsString(args[0]);
-		label = std::string(lbl);
-		free(lbl);
+		label = jerry_value_to_string(args[0]);
 	}
-	else label = "default";
-	if (consoleTimers.count(label) == 0) {
-		printf("Timer '%s' does not exist\n", label.c_str());
+	else label = createString("default");
+
+	consoleIndent();
+	jerry_value_t start = jerry_get_property(ref_consoleTimers, label);
+	if (jerry_value_is_undefined(start)) {
+		printf("Timer '");
+		printString(label);
+		printf("' does not exist\n");
 	}
 	else {
-		double elapsed = difftime(time(NULL), consoleTimers[label]);
-		printf("%s: %lg s\n", label.c_str(), elapsed);
+		double elapsed = difftime(time(NULL), jerry_value_as_uint32(start));
+		printString(label);
+		printf(": %lg s\n", elapsed);
 	}
+	jerry_release_value(start);
+
+	jerry_release_value(label);
 	return undefined;
 }
 
 static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
-	consoleIndent();
-	std::string label;
+	jerry_value_t label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *lbl = getAsString(args[0]);
-		label = std::string(lbl);
-		free(lbl);
+		label = jerry_value_to_string(args[0]);
 	}
-	else label = "default";
-	if (consoleTimers.count(label) == 0) {
-		printf("Timer '%s' does not exist\n", label.c_str());
+	else label = createString("default");
+
+	consoleIndent();
+	jerry_value_t start = jerry_get_property(ref_consoleTimers, label);
+	if (jerry_value_is_undefined(start)) {
+		printf("Timer '");
+		printString(label);
+		printf("' does not exist\n");
 	}
 	else {
-		double elapsed = difftime(time(NULL), consoleTimers[label]);
-		consoleTimers.erase(label);
-		printf("%s: %lg s\n", label.c_str(), elapsed);
+		double elapsed = difftime(time(NULL), jerry_value_as_uint32(start));
+		printString(label);
+		printf(": %lg s\n", elapsed);
 	}
+	jerry_release_value(start);
+
+	jerry_delete_property(ref_consoleTimers, label);
+	jerry_release_value(label);
 	return undefined;
 }
 
@@ -1698,6 +1729,8 @@ void exposeAPI() {
 	ref_str_prototype = createString("prototype");
 	ref_str_backtrace = createString("backtrace");
 	ref_task_abortSignalTimeout = jerry_create_external_function(abortSignalTimeoutTask);
+	ref_consoleCounters = jerry_create_object();
+	ref_consoleTimers = jerry_create_object();
 
 	ref_global = jerry_get_global_object();
 	setProperty(ref_global, "self", ref_global);
@@ -1830,4 +1863,6 @@ void releaseReferences() {
 	jerry_release_value(ref_str_prototype);
 	jerry_release_value(ref_str_backtrace);
 	jerry_release_value(ref_proxyHandler_storage);
+	jerry_release_value(ref_consoleCounters);
+	jerry_release_value(ref_consoleTimers);
 }
