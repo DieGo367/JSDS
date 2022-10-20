@@ -1497,21 +1497,18 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 			}
 			else if (byte >= 0xC2 && byte <= 0xDF) {
 				bytesNeeded = 1;
-				// codepoint = byte & 0x1F;
 				sequence = sequence << 8 | byte;
 			}
 			else if (byte >= 0xE0 && byte <= 0xEF) {
 				if (byte == 0xE0) lowerBound = 0xA0;
 				if (byte == 0xED) upperBound = 0x9F;
 				bytesNeeded = 2;
-				// codepoint = byte & 0xF;
 				sequence = sequence << 8 | byte;
 			}
 			else if (byte >= 0xF0 && byte <= 0xF4) {
 				if (byte == 0xF0) lowerBound = 0x90;
 				if (byte == 0xF4) upperBound = 0x8F;
 				bytesNeeded = 3;
-				// codepoint = byte & 0x7;
 				sequence = sequence << 8 | byte;
 			}
 			else {
@@ -1524,8 +1521,7 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 			}
 		}
 		else if (byte < lowerBound || byte > upperBound) {
-			// codepoint = 
-			bytesNeeded = bytesSeen = 0;
+			sequence = bytesNeeded = bytesSeen = 0;
 			lowerBound = 0x80;
 			upperBound = 0xBF;
 			if (isFatal) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) errorMsg);
@@ -1538,17 +1534,13 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 		else {
 			lowerBound = 0x80;
 			upperBound = 0xBF;
-			// codepoint = codepoint << 6 | (byte & 0x3F);
 			sequence = sequence << 8 | byte;
 			if (++bytesSeen == bytesNeeded) {
-				// out.emplace_back(codepoint);
 				if (bytesNeeded == 3) out.emplace_back(sequence >> 24);
 				if (bytesNeeded >= 2) out.emplace_back(sequence >> 16 & 0xFF);
 				out.emplace_back(sequence >> 8 & 0xFF);
 				out.emplace_back(sequence & 0xFF);
-				sequence = 0;
-				// codepoint = 
-				bytesNeeded = bytesSeen = 0;
+				sequence = bytesNeeded = bytesSeen = 0;
 			}
 		}
 		i++;
@@ -1590,6 +1582,111 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 	}
 
 	return jerry_create_string_sz_from_utf8(data, size);
+}
+
+static jerry_value_t TextEncoderConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor TextEncoder cannot be invoked without 'new'");
+
+	jerry_value_t encoding = createString("utf-8");
+	setReadonly(thisValue, "encoding", encoding);
+	jerry_release_value(encoding);
+
+	return undefined;
+}
+
+static jerry_value_t TextEncoderEncodeHandler(CALL_INFO) {
+	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
+		jerry_value_t stringVal = jerry_value_to_string(args[0]);
+		jerry_length_t size = jerry_get_string_size(stringVal);
+		jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
+		u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer);
+		jerry_string_to_utf8_char_buffer(stringVal, data, size);
+		jerry_value_t typedArray = jerry_create_typedarray_for_arraybuffer(JERRY_TYPEDARRAY_UINT8, arrayBuffer);
+		jerry_release_value(stringVal);
+		jerry_release_value(arrayBuffer);
+		return typedArray;
+	}
+	else return jerry_create_typedarray(JERRY_TYPEDARRAY_UINT8, 0);
+}
+
+static jerry_value_t TextEncoderEncodeIntoHandler(CALL_INFO) {
+	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'encodeInto': 2 arguments required.");
+	if (jerry_value_is_object(args[1]) == false || jerry_value_is_typedarray(args[1]) == false || jerry_get_typedarray_type(args[1]) != JERRY_TYPEDARRAY_UINT8) {
+		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'encodeInto': parameter 2 is not of type 'Uint8Array'.");
+	}
+	jerry_value_t stringVal = jerry_value_to_string(args[0]);
+	u32 stringSize = jerry_get_utf8_string_size(stringVal);
+	u32 stringLen = jerry_get_string_length(stringVal);
+	u32 offset = 0, bufferSize = 0;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &offset, &bufferSize);
+	u8 *dest = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
+	u32 written = jerry_string_to_utf8_char_buffer(stringVal, dest, bufferSize);
+	jerry_release_value(arrayBuffer);
+
+	u8 *copy = NULL;
+	// If the destination buffer was too small, the first string copy will fail.
+	// In that case, dump a copy of the string to perform the writes manually
+	if (written == 0 && stringLen > 0) {
+		copy = (u8 *) malloc(stringSize);
+		jerry_string_to_utf8_char_buffer(stringVal, copy, stringSize);
+	}
+	jerry_release_value(stringVal);
+
+	u32 read = 0;
+	u32 i = 0;
+	u32 validSize = stringSize < bufferSize ? stringSize : bufferSize;
+	u8 byte;
+	u8 *source = copy == NULL ? dest : copy;
+	while (i < validSize && read < stringLen) {
+		byte = source[i];
+
+		u8 byteCt = 0; // byte size of the incoming codepoint
+		u8 lenCt = 0;  // number of UTF-16 codepoints used by incoming codepoint (1 or 2)
+
+		if (byte >= 0xF0 && byte <= 0xF4) { // greater than U+FFFF
+			lenCt = 2;
+			byteCt = 4;
+		}
+		else {
+			lenCt = 1;
+			if (byte <= 0x7F) byteCt = 1;
+			else if (byte >= 0xC2 && byte <= 0xDF) byteCt = 2;
+			else if (byte >= 0xE0 && byte <= 0xEF) {
+				byteCt = 3;
+				// replace surrogates with the replacement char
+				u16 codepoint = (byte & 0xF) << 12 | (source[i+1] & 0b111111) << 6 | (source[i+2] & 0b111111);
+				if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
+					source[i] = 0xEF;
+					source[i+1] = 0xBF;
+					source[i+2] = 0xBD;
+				}
+			}
+			else break;
+		}
+
+		if (i + byteCt <= validSize && read + lenCt <= stringLen) {
+			read += lenCt;
+			if (copy != NULL) written += byteCt;
+		}
+		i += byteCt;
+	}
+
+	if (copy != NULL) {
+		memcpy(dest, copy, written);
+		free(copy);
+	}
+
+	jerry_value_t returnVal = jerry_create_object();
+	jerry_value_t readVal = jerry_create_number(read);
+	setProperty(returnVal, "read", readVal);
+	jerry_release_value(readVal);
+	jerry_value_t writtenVal = jerry_create_number(written);
+	setProperty(returnVal, "written", writtenVal);
+	jerry_release_value(writtenVal);
+	return returnVal;
 }
 
 static jerry_value_t IllegalConstructor(CALL_INFO) {
@@ -1710,6 +1807,11 @@ void exposeAPI() {
 	jsClass TextDecoder = createClass(ref_global, "TextDecoder", TextDecoderConstructor);
 	setMethod(TextDecoder.prototype, "decode", TextDecoderDecodeHandler);
 	releaseClass(TextDecoder);
+
+	jsClass TextEncoder = createClass(ref_global, "TextEncoder", TextEncoderConstructor);
+	setMethod(TextEncoder.prototype, "encode", TextEncoderEncodeHandler);
+	setMethod(TextEncoder.prototype, "encodeInto", TextEncoderEncodeIntoHandler);
+	releaseClass(TextEncoder);
 
 	defEventAttribute(ref_global, "onerror");
 	defEventAttribute(ref_global, "onload");
