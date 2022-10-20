@@ -27,9 +27,13 @@ enum ConsolePalette {
 	WHITE = 15 << 12,
 };
 
+void consoleIndentAdd();
+void consoleIndentRemove();
+void consoleIndent();
+
 void consolePrint(const jerry_value_t args[], jerry_value_t argCount);
 void consolePrintLiteral(jerry_value_t value, u8 level = 0);
 void consolePrintObject(jerry_value_t value, u8 level = 0);
-void consolePrintTable(const jerry_value_t args[], jerry_value_t argCount, int indent);
+void consolePrintTable(const jerry_value_t args[], jerry_value_t argCount);
 
 #endif /* JSDS_CONSOLE_H */

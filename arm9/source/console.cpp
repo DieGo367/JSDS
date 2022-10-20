@@ -12,6 +12,11 @@ PrintConsole *mainConsole;
 
 const u8 MAX_PRINT_RECURSION = 10;
 
+int indent = 0;
+void consoleIndentAdd() { indent++; }
+void consoleIndentRemove() { indent = indent > 0 ? indent - 1 : 0; }
+void consoleIndent() { for (int i = 0; i < indent; i++) putchar(' '); }
+
 void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 	u32 i = 0;
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
@@ -393,7 +398,7 @@ static void tableValuePrint(jerry_value_t value, u8 width) {
 	mainConsole->fontCurPal = pal;
 }
 
-void consolePrintTable(const jerry_value_t args[], jerry_value_t argCount, int indent) {
+void consolePrintTable(const jerry_value_t args[], jerry_value_t argCount) {
 	if (!jerry_value_is_object(args[0])) {
 		printf("%*s", indent, "");
 		consolePrintLiteral(args[0]);
