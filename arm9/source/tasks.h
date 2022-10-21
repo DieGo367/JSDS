@@ -14,8 +14,14 @@ struct Task {
 
 extern bool inREPL;
 extern bool abortFlag;
-extern bool vblankEvents;
+extern u8 dependentEvents;
 extern bool localStorageShouldSave;
+
+enum DependentEvent {
+	vblank = 0b1,
+	buttondown = 0b10,
+	buttonup = 0b100
+};
 
 void onPromiseRejectionOp(jerry_value_t promise, jerry_promise_rejection_operation_t operation);
 void runMicrotasks();
@@ -36,5 +42,7 @@ void handleRejection(jerry_value_t promise);
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync);
 void queueEvent(jerry_value_t target, jerry_value_t event);
 void queueEventName(const char *eventName);
+
+void buttonEvents(bool down);
 
 #endif /* JSDS_TASKS_H */

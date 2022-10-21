@@ -782,7 +782,9 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 		jerry_value_t isGlobal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, target, ref_global);
 		if (jerry_get_boolean_value(isGlobal)) {
 			char *type = getString(typeVal);
-			if (strcmp(type, "vblank") == 0) vblankEvents = true;
+			if (strcmp(type, "vblank") == 0) dependentEvents |= DependentEvent::vblank;
+			else if (strcmp(type, "buttondown") == 0) dependentEvents |= DependentEvent::buttondown;
+			else if (strcmp(type, "buttonup") == 0) dependentEvents |= DependentEvent::buttonup;
 			free(type);
 		}
 		jerry_release_value(isGlobal);
@@ -847,7 +849,9 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 					jerry_value_t isGlobal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, target, ref_global);
 					if (jerry_get_boolean_value(isGlobal)) {
 						char *type = getString(typeVal);
-						if (strcmp(type, "vblank") == 0) vblankEvents = false;
+						if (strcmp(type, "vblank") == 0) dependentEvents &= ~(DependentEvent::vblank);
+						else if (strcmp(type, "buttondown") == 0) dependentEvents &= ~(DependentEvent::buttondown);
+						else if (strcmp(type, "buttonup") == 0) dependentEvents &= ~(DependentEvent::buttonup);
 						free(type);
 					}
 					jerry_release_value(isGlobal);
@@ -1007,6 +1011,32 @@ static jerry_value_t CustomEventConstructor(CALL_INFO) {
 		jerry_release_value(detailVal);
 	}
 	jerry_release_value(detailProp);
+
+	return undefined;
+}
+
+static jerry_value_t ButtonEventConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor ButtonEvent cannot be invoked without 'new'");
+	else if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'ButtonEvent': 2 arguments required.");
+	else if (!jerry_value_is_object(args[1])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'ButtonEvent': The provided value is not of type 'ButtonEventInit'");
+
+	jerry_value_t buttonStr = createString("button");
+	jerry_value_t buttonVal = jerry_get_property(args[1], buttonStr);
+	if (jerry_value_is_undefined(buttonVal)) {
+		jerry_release_value(buttonStr);
+		jerry_release_value(buttonVal);
+		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'ButtonEvent': Failed to read the 'button' property from options.");
+	}
+	EventConstructor(function, thisValue, args, argCount);
+
+	jerry_value_t buttonAsStr = jerry_value_to_string(buttonVal);
+	setReadonlyJV(thisValue, buttonStr, buttonAsStr);
+	jerry_release_value(buttonAsStr);
+	jerry_release_value(buttonVal);
+	jerry_release_value(buttonStr);
 
 	return undefined;
 }
@@ -1823,6 +1853,8 @@ void exposeAPI() {
 	releaseClass(extendClass(ref_global, "ErrorEvent", ErrorEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "PromiseRejectionEvent", PromiseRejectionEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "CustomEvent", CustomEventConstructor, Event.prototype));
+	// new DS-related event constructors
+	releaseClass(extendClass(ref_global, "ButtonEvent", ButtonEventConstructor, Event.prototype));
 	jerry_release_value(Event.prototype);
 
 	jsClass AbortController = createClass(ref_global, "AbortController", AbortControllerConstructor);
@@ -1865,8 +1897,10 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onload");
 	defEventAttribute(ref_global, "onunhandledrejection");
 	defEventAttribute(ref_global, "onunload");
-	// custom DS-related events
+	// new DS-related events
 	defEventAttribute(ref_global, "onvblank");
+	defEventAttribute(ref_global, "onbuttonup");
+	defEventAttribute(ref_global, "onbuttondown");
 }
 
 void releaseReferences() {

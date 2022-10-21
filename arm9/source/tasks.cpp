@@ -21,7 +21,7 @@
 
 bool inREPL = false;
 bool abortFlag = false;
-bool vblankEvents = false;
+u8 dependentEvents = 0;
 bool localStorageShouldSave = false;
 
 std::unordered_set<jerry_value_t> rejectedPromises;
@@ -98,9 +98,12 @@ void clearTasks() {
  * Returns when there is no work left to do (not in the REPL and no tasks/timeouts left to execute) or when abortFlag is set.
  */
 void eventLoop() {
-	while (!abortFlag && (inREPL || vblankEvents || taskQueue.size() > 0 || timeoutsExist())) {
+	while (!abortFlag && (inREPL || dependentEvents || taskQueue.size() > 0 || timeoutsExist())) {
 		swiWaitForVBlank();
-		if (vblankEvents) queueEventName("vblank");
+		if (dependentEvents & DependentEvent::vblank) queueEventName("vblank");
+		scanKeys();
+		if (dependentEvents & (DependentEvent::buttondown)) buttonEvents(true);
+		if (dependentEvents & (DependentEvent::buttonup)) buttonEvents(false);
 		timeoutUpdate();
 		runTasks();
 		if (inREPL) {
@@ -519,4 +522,92 @@ void queueEventName(const char *eventName) {
 	setInternalProperty(event, "isTrusted", True);
 	queueEvent(ref_global, event);
 	jerry_release_value(event);
+}
+
+void buttonEvents(bool down) {
+	u32 set = down ? keysDown() : keysUp();
+	if (set) {
+		jerry_value_t buttonEventConstructor = getProperty(ref_global, "ButtonEvent");
+		jerry_value_t buttonStr = createString("button");
+		jerry_value_t args[2] = {createString(down ? "buttondown" : "buttonup"), jerry_create_object()};
+		jerry_release_value(jerry_set_property(args[1], buttonStr, null));
+		jerry_value_t event = jerry_construct_object(buttonEventConstructor, args, 2);
+		if (set & KEY_A) {
+			jerry_value_t value = createString("A");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_B) {
+			jerry_value_t value = createString("B");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_X) {
+			jerry_value_t value = createString("X");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_Y) {
+			jerry_value_t value = createString("Y");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_L) {
+			jerry_value_t value = createString("L");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_R) {
+			jerry_value_t value = createString("R");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_UP) {
+			jerry_value_t value = createString("Up");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_DOWN) {
+			jerry_value_t value = createString("Down");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_LEFT) {
+			jerry_value_t value = createString("Left");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_RIGHT) {
+			jerry_value_t value = createString("Right");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_START) {
+			jerry_value_t value = createString("START");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		else if (set & KEY_SELECT) {
+			jerry_value_t value = createString("SELECT");
+			jerry_set_internal_property(event, buttonStr, value);
+			jerry_release_value(value);
+			queueEvent(ref_global, event);
+		}
+		jerry_release_value(event);
+		jerry_release_value(args[0]);
+		jerry_release_value(args[1]);
+		jerry_release_value(buttonStr);
+		jerry_release_value(buttonEventConstructor);
+	}
 }
