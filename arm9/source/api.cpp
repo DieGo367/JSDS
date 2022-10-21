@@ -1829,9 +1829,6 @@ void exposeAPI() {
 	setMethod(ref_proxyHandler_storage, "set", StorageProxySetHandler);
 	setMethod(ref_proxyHandler_storage, "deleteProperty", StorageProxyDeletePropertyHandler);
 
-	jerry_value_t sessionStorage = createStorage();
-	setProperty(ref_global, "sessionStorage", sessionStorage);
-	jerry_release_value(sessionStorage);
 	ref_localStorage = createStorage();
 	setProperty(ref_global, "localStorage", ref_localStorage);
 	setInternalProperty(ref_localStorage, "isLocal", True);
