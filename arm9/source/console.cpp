@@ -10,7 +10,7 @@
 
 PrintConsole *mainConsole;
 
-const u8 MAX_PRINT_RECURSION = 10;
+const u8 MAX_PRINT_RECURSION = 0;
 
 int indent = 0;
 void consoleIndentAdd() { indent++; }
