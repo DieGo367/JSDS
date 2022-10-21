@@ -14,6 +14,7 @@ struct Task {
 
 extern bool inREPL;
 extern bool abortFlag;
+extern bool vblankEvents;
 extern bool localStorageShouldSave;
 
 void onPromiseRejectionOp(jerry_value_t promise, jerry_promise_rejection_operation_t operation);

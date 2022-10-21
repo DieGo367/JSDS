@@ -21,6 +21,7 @@
 
 bool inREPL = false;
 bool abortFlag = false;
+bool vblankEvents = false;
 bool localStorageShouldSave = false;
 
 std::unordered_set<jerry_value_t> rejectedPromises;
@@ -97,8 +98,9 @@ void clearTasks() {
  * Returns when there is no work left to do (not in the REPL and no tasks/timeouts left to execute) or when abortFlag is set.
  */
 void eventLoop() {
-	while (!abortFlag && (inREPL || taskQueue.size() > 0 || timeoutsExist())) {
+	while (!abortFlag && (inREPL || vblankEvents || taskQueue.size() > 0 || timeoutsExist())) {
 		swiWaitForVBlank();
+		if (vblankEvents) queueEventName("vblank");
 		timeoutUpdate();
 		runTasks();
 		if (inREPL) {

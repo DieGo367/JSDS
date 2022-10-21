@@ -779,6 +779,14 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 		jerry_release_value(jerry_call_function(pushFunc, listenersOfType, &listener, 1));
 		jerry_release_value(pushFunc);
 
+		jerry_value_t isGlobal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, target, ref_global);
+		if (jerry_get_boolean_value(isGlobal)) {
+			char *type = getString(typeVal);
+			if (strcmp(type, "vblank") == 0) vblankEvents = true;
+			free(type);
+		}
+		jerry_release_value(isGlobal);
+
 		jerry_release_value(listener);
 	}
 
@@ -835,6 +843,15 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 				jerry_release_value(spliceFunc);
 				setProperty(storedListener, "removed", True);
 				removed = true;
+				if (jerry_get_array_length(listenersOfType) == 0) {
+					jerry_value_t isGlobal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, target, ref_global);
+					if (jerry_get_boolean_value(isGlobal)) {
+						char *type = getString(typeVal);
+						if (strcmp(type, "vblank") == 0) vblankEvents = false;
+						free(type);
+					}
+					jerry_release_value(isGlobal);
+				}
 			}
 			jerry_release_value(callbackEquality);
 			jerry_release_value(storedCapture);
@@ -1848,6 +1865,8 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onload");
 	defEventAttribute(ref_global, "onunhandledrejection");
 	defEventAttribute(ref_global, "onunload");
+	// custom DS-related events
+	defEventAttribute(ref_global, "onvblank");
 }
 
 void releaseReferences() {
