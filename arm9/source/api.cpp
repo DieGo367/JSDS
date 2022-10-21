@@ -468,9 +468,9 @@ static jerry_value_t consoleTimeHandler(CALL_INFO) {
 		printf("' already exists\n");
 	}
 	else {
-		jerry_value_t timeVal = jerry_create_number(time(NULL));
-		jerry_release_value(jerry_set_property(ref_consoleTimers, label, timeVal));
-		jerry_release_value(timeVal);
+		jerry_value_t counterId = jerry_create_number(counterAdd());
+		jerry_release_value(jerry_set_property(ref_consoleTimers, label, counterId));
+		jerry_release_value(counterId);
 	}
 	jerry_release_value(hasLabel);
 	
@@ -486,18 +486,18 @@ static jerry_value_t consoleTimeLogHandler(CALL_INFO) {
 	else label = createString("default");
 
 	consoleIndent();
-	jerry_value_t start = jerry_get_property(ref_consoleTimers, label);
-	if (jerry_value_is_undefined(start)) {
+	jerry_value_t counterVal = jerry_get_property(ref_consoleTimers, label);
+	if (jerry_value_is_undefined(counterVal)) {
 		printf("Timer '");
 		printString(label);
 		printf("' does not exist\n");
 	}
 	else {
-		double elapsed = difftime(time(NULL), jerry_value_as_uint32(start));
+		int counterId = jerry_value_as_int32(counterVal);
 		printString(label);
-		printf(": %lg s\n", elapsed);
+		printf(": %i ms\n", counterGet(counterId));
 	}
-	jerry_release_value(start);
+	jerry_release_value(counterVal);
 
 	jerry_release_value(label);
 	return undefined;
@@ -511,20 +511,21 @@ static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
 	else label = createString("default");
 
 	consoleIndent();
-	jerry_value_t start = jerry_get_property(ref_consoleTimers, label);
-	if (jerry_value_is_undefined(start)) {
+	jerry_value_t counterVal = jerry_get_property(ref_consoleTimers, label);
+	if (jerry_value_is_undefined(counterVal)) {
 		printf("Timer '");
 		printString(label);
 		printf("' does not exist\n");
 	}
 	else {
-		double elapsed = difftime(time(NULL), jerry_value_as_uint32(start));
+		int counterId = jerry_value_as_int32(counterVal);
 		printString(label);
-		printf(": %lg s\n", elapsed);
+		printf(": %i ms\n", counterGet(counterId));
+		counterRemove(counterId);
+		jerry_delete_property(ref_consoleTimers, label);
 	}
-	jerry_release_value(start);
+	jerry_release_value(counterVal);
 
-	jerry_delete_property(ref_consoleTimers, label);
 	jerry_release_value(label);
 	return undefined;
 }

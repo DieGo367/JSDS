@@ -13,14 +13,36 @@
 
 
 std::map<int, Timeout> timeouts;
+std::map<int, int> counters;
 int ids = 0;
 int internalIds = 0;
+int counterIds = 0;
 int nestLevel = 0;
 bool timerOn = false;
+int timerUsage = 0;
 
 void timerTick() {
 	for (const auto &[id, timeout] : timeouts) {
 		timeouts[id].remaining--;
+	}
+	for (const auto &[id, tick] : counters) {
+		counters[id] = counters[id] + 1;
+	}
+}
+void timerUse() {
+	timerUsage++;
+	if (!timerOn) {
+		timerStart(0, ClockDivider_1024, TIMER_FREQ_1024(1000), timerTick);
+		timerOn = true;
+	}
+}
+void timerDone() {
+	if (--timerUsage <= 0) {
+		timerUsage = 0;
+		if (timerOn) {
+			timerStop(0);
+			timerOn = false;
+		}
 	}
 }
 
@@ -48,10 +70,7 @@ jerry_value_t addTimeout(jerry_value_t handler, jerry_value_t timeoutVal, jerry_
 	t.queued = false;
 
 	timeouts[t.id] = t;
-	if (!timerOn) {
-		timerStart(0, ClockDivider_1024, TIMER_FREQ_1024(1000), timerTick);
-		timerOn = true;
-	}
+	timerUse();
 	return jerry_create_number(t.id);
 }
 
@@ -64,11 +83,7 @@ void clearTimeout(jerry_value_t idVal) {
 		timeouts.erase(id);
 		jerry_release_value(t.handler);
 		for (u32 i = 0; i < t.argCount; i++) jerry_release_value(t.args[i]);
-		// check if we can disable the timer
-		if (timerOn && timeouts.size() == 0) {
-			timerStop(0);
-			timerOn = false;
-		}
+		timerDone();
 	}
 }
 
@@ -105,6 +120,7 @@ void runTimeoutTask(const jerry_value_t args[], u32 argCount) {
 			timeouts.erase(t.id);
 			jerry_release_value(t.handler);
 			for (u32 i = 0; i < t.argCount; i++) jerry_release_value(t.args[i]);
+			timerDone();
 		}
 	}
 }
@@ -126,10 +142,6 @@ void timeoutUpdate() {
 			}
 		}
 	}
-	if (timerOn && timeouts.size() == 0) { // disable the timer while it's not being used
-		timerStop(0);
-		timerOn = false;
-	}
 }
 
 void clearTimeouts() {
@@ -142,4 +154,17 @@ void clearTimeouts() {
 
 bool timeoutsExist() {
 	return timeouts.size() > 0;
+}
+
+int counterAdd() {
+	counters[++counterIds] = 0;
+	timerUse();
+	return counterIds;
+}
+int counterGet(int id) {
+	return counters.at(id);
+}
+void counterRemove(int id) {
+	counters.erase(id);
+	timerDone();
 }
