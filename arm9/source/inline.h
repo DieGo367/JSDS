@@ -139,11 +139,12 @@ inline jsClass createClass(jerry_value_t object, const char *name, jerry_externa
 	nameDesc.value = jerry_create_string((jerry_char_t *) name);
 	jerry_release_value(jerry_define_own_property(classFunc, ref_str_name, &nameDesc));
 	jerry_release_value(jerry_set_property(object, nameDesc.value, classFunc));
-	jerry_release_value(nameDesc.value);
 	jerry_value_t proto = jerry_create_object();
 	jerry_release_value(jerry_set_property(classFunc, ref_str_prototype, proto));
 	nonEnumerableDesc.value = classFunc;
 	jerry_release_value(jerry_define_own_property(proto, ref_str_constructor, &nonEnumerableDesc));
+	jerry_set_property(proto, ref_sym_toStringTag, nameDesc.value);
+	jerry_release_value(nameDesc.value);
 	return {.constructor = classFunc, .prototype = proto};
 }
 

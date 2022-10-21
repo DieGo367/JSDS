@@ -28,6 +28,7 @@ jerry_value_t ref_str_name;
 jerry_value_t ref_str_constructor;
 jerry_value_t ref_str_prototype;
 jerry_value_t ref_str_backtrace;
+jerry_value_t ref_sym_toStringTag;
 jerry_value_t ref_proxyHandler_storage;
 jerry_value_t ref_consoleCounters;
 jerry_value_t ref_consoleTimers;
@@ -1729,6 +1730,7 @@ void exposeAPI() {
 	ref_str_constructor = createString("constructor");
 	ref_str_prototype = createString("prototype");
 	ref_str_backtrace = createString("backtrace");
+	ref_sym_toStringTag = jerry_get_well_known_symbol(JERRY_SYMBOL_TO_STRING_TAG);
 	ref_task_abortSignalTimeout = jerry_create_external_function(abortSignalTimeoutTask);
 	ref_consoleCounters = jerry_create_object();
 	ref_consoleTimers = jerry_create_object();
@@ -1860,6 +1862,7 @@ void releaseReferences() {
 	jerry_release_value(ref_str_constructor);
 	jerry_release_value(ref_str_prototype);
 	jerry_release_value(ref_str_backtrace);
+	jerry_release_value(ref_sym_toStringTag);
 	jerry_release_value(ref_proxyHandler_storage);
 	jerry_release_value(ref_consoleCounters);
 	jerry_release_value(ref_consoleTimers);
