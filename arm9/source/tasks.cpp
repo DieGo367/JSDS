@@ -104,6 +104,7 @@ void eventLoop() {
 		scanKeys();
 		if (dependentEvents & (DependentEvent::buttondown)) buttonEvents(true);
 		if (dependentEvents & (DependentEvent::buttonup)) buttonEvents(false);
+		if (dependentEvents & (DependentEvent::stylusdown | DependentEvent::stylusmove | DependentEvent::stylusup)) stylusEvents();
 		timeoutUpdate();
 		runTasks();
 		if (inREPL) {
@@ -610,4 +611,42 @@ void buttonEvents(bool down) {
 		jerry_release_value(buttonStr);
 		jerry_release_value(buttonEventConstructor);
 	}
+}
+
+u16 prevX = 0, prevY = 0;
+void queueStylusEvent(const char *name, int curX, int curY, bool usePrev) {
+	jerry_value_t args[2] = {createString(name), jerry_create_object()};
+	jerry_value_t x = jerry_create_number(curX);
+	jerry_value_t y = jerry_create_number(curY);
+	setProperty(args[1], "x", x);
+	setProperty(args[1], "y", y);
+	jerry_release_value(x);
+	jerry_release_value(y);
+	if (usePrev) {
+		jerry_value_t dx = jerry_create_number(curX - (int) prevX);
+		jerry_value_t dy = jerry_create_number(curY - (int) prevY);
+		setProperty(args[1], "dx", dx);
+		setProperty(args[1], "dy", dy);
+		jerry_release_value(dx);
+		jerry_release_value(dy);
+	}
+	jerry_value_t stylusEventConstructor = getProperty(ref_global, "StylusEvent");
+	jerry_value_t event = jerry_construct_object(stylusEventConstructor, args, 2);
+	queueEvent(ref_global, event);
+	jerry_release_value(args[0]);
+	jerry_release_value(args[1]);
+	jerry_release_value(event);
+	jerry_release_value(stylusEventConstructor);
+}
+
+void stylusEvents() {
+	touchPosition pos;
+	touchRead(&pos);
+	if (keysDown() & KEY_TOUCH) queueStylusEvent("stylusdown", pos.px, pos.py, false);
+	else if (keysHeld() & KEY_TOUCH) {
+		if (prevX != pos.px || prevY != pos.py) queueStylusEvent("stylusmove", pos.px, pos.py, true);
+	}
+	else if (keysUp() & KEY_TOUCH) queueStylusEvent("stylusup", prevX, prevY, false);
+	prevX = pos.px;
+	prevY = pos.py;
 }

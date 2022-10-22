@@ -785,6 +785,9 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 			if (strcmp(type, "vblank") == 0) dependentEvents |= DependentEvent::vblank;
 			else if (strcmp(type, "buttondown") == 0) dependentEvents |= DependentEvent::buttondown;
 			else if (strcmp(type, "buttonup") == 0) dependentEvents |= DependentEvent::buttonup;
+			else if (strcmp(type, "stylusdown") == 0) dependentEvents |= DependentEvent::stylusdown;
+			else if (strcmp(type, "stylusmove") == 0) dependentEvents |= DependentEvent::stylusmove;
+			else if (strcmp(type, "stylusup") == 0) dependentEvents |= DependentEvent::stylusup;
 			free(type);
 		}
 		jerry_release_value(isGlobal);
@@ -852,6 +855,9 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 						if (strcmp(type, "vblank") == 0) dependentEvents &= ~(DependentEvent::vblank);
 						else if (strcmp(type, "buttondown") == 0) dependentEvents &= ~(DependentEvent::buttondown);
 						else if (strcmp(type, "buttonup") == 0) dependentEvents &= ~(DependentEvent::buttonup);
+						else if (strcmp(type, "stylusdown") == 0) dependentEvents &= ~(DependentEvent::stylusdown);
+						else if (strcmp(type, "stylusmove") == 0) dependentEvents &= ~(DependentEvent::stylusmove);
+						else if (strcmp(type, "stylusup") == 0) dependentEvents &= ~(DependentEvent::stylusup);
 						free(type);
 					}
 					jerry_release_value(isGlobal);
@@ -1037,6 +1043,47 @@ static jerry_value_t ButtonEventConstructor(CALL_INFO) {
 	jerry_release_value(buttonAsStr);
 	jerry_release_value(buttonVal);
 	jerry_release_value(buttonStr);
+
+	return undefined;
+}
+
+static jerry_value_t StylusEventConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor StylusEvent cannot be invoked without 'new'");
+	else if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'StylusEvent': 2 arguments required.");
+	else if (!jerry_value_is_object(args[1])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'StylusEvent': The provided value is not of type 'StylusEventInit'");
+	EventConstructor(function, thisValue, args, argCount);
+
+	jerry_value_t xStr = createString("x");
+	jerry_value_t xVal = jerry_get_property(args[1], xStr);
+	jerry_value_t xNum = jerry_value_to_number(xVal);
+	setReadonlyJV(thisValue, xStr, xNum);
+	jerry_release_value(xNum);
+	jerry_release_value(xVal);
+	jerry_release_value(xStr);
+	jerry_value_t yStr = createString("y");
+	jerry_value_t yVal = jerry_get_property(args[1], yStr);
+	jerry_value_t yNum = jerry_value_to_number(yVal);
+	setReadonlyJV(thisValue, yStr, yNum);
+	jerry_release_value(yNum);
+	jerry_release_value(yVal);
+	jerry_release_value(yStr);
+	jerry_value_t dxStr = createString("dx");
+	jerry_value_t dxVal = jerry_get_property(args[1], dxStr);
+	jerry_value_t dxNum = jerry_value_to_number(dxVal);
+	setReadonlyJV(thisValue, dxStr, dxNum);
+	jerry_release_value(dxNum);
+	jerry_release_value(dxVal);
+	jerry_release_value(dxStr);
+	jerry_value_t dyStr = createString("dy");
+	jerry_value_t dyVal = jerry_get_property(args[1], dyStr);
+	jerry_value_t dyNum = jerry_value_to_number(dyVal);
+	setReadonlyJV(thisValue, dyStr, dyNum);
+	jerry_release_value(dyNum);
+	jerry_release_value(dyVal);
+	jerry_release_value(dyStr);
 
 	return undefined;
 }
@@ -1855,6 +1902,7 @@ void exposeAPI() {
 	releaseClass(extendClass(ref_global, "CustomEvent", CustomEventConstructor, Event.prototype));
 	// new DS-related event constructors
 	releaseClass(extendClass(ref_global, "ButtonEvent", ButtonEventConstructor, Event.prototype));
+	releaseClass(extendClass(ref_global, "StylusEvent", StylusEventConstructor, Event.prototype));
 	jerry_release_value(Event.prototype);
 
 	jsClass AbortController = createClass(ref_global, "AbortController", AbortControllerConstructor);
@@ -1901,6 +1949,9 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onvblank");
 	defEventAttribute(ref_global, "onbuttonup");
 	defEventAttribute(ref_global, "onbuttondown");
+	defEventAttribute(ref_global, "onstylusdown");
+	defEventAttribute(ref_global, "onstylusmove");
+	defEventAttribute(ref_global, "onstylusup");
 }
 
 void releaseReferences() {
