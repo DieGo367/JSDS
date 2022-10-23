@@ -782,12 +782,12 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 		jerry_value_t isGlobal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, target, ref_global);
 		if (jerry_get_boolean_value(isGlobal)) {
 			char *type = getString(typeVal);
-			if (strcmp(type, "vblank") == 0) dependentEvents |= DependentEvent::vblank;
-			else if (strcmp(type, "buttondown") == 0) dependentEvents |= DependentEvent::buttondown;
-			else if (strcmp(type, "buttonup") == 0) dependentEvents |= DependentEvent::buttonup;
-			else if (strcmp(type, "stylusdown") == 0) dependentEvents |= DependentEvent::stylusdown;
-			else if (strcmp(type, "stylusmove") == 0) dependentEvents |= DependentEvent::stylusmove;
-			else if (strcmp(type, "stylusup") == 0) dependentEvents |= DependentEvent::stylusup;
+			if (strcmp(type, "vblank") == 0) dependentEvents |= vblank;
+			else if (strcmp(type, "buttondown") == 0) dependentEvents |= buttondown;
+			else if (strcmp(type, "buttonup") == 0) dependentEvents |= buttonup;
+			else if (strcmp(type, "stylusdown") == 0) dependentEvents |= stylusdown;
+			else if (strcmp(type, "stylusmove") == 0) dependentEvents |= stylusmove;
+			else if (strcmp(type, "stylusup") == 0) dependentEvents |= stylusup;
 			free(type);
 		}
 		jerry_release_value(isGlobal);
@@ -852,12 +852,12 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 					jerry_value_t isGlobal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, target, ref_global);
 					if (jerry_get_boolean_value(isGlobal)) {
 						char *type = getString(typeVal);
-						if (strcmp(type, "vblank") == 0) dependentEvents &= ~(DependentEvent::vblank);
-						else if (strcmp(type, "buttondown") == 0) dependentEvents &= ~(DependentEvent::buttondown);
-						else if (strcmp(type, "buttonup") == 0) dependentEvents &= ~(DependentEvent::buttonup);
-						else if (strcmp(type, "stylusdown") == 0) dependentEvents &= ~(DependentEvent::stylusdown);
-						else if (strcmp(type, "stylusmove") == 0) dependentEvents &= ~(DependentEvent::stylusmove);
-						else if (strcmp(type, "stylusup") == 0) dependentEvents &= ~(DependentEvent::stylusup);
+						if (strcmp(type, "vblank") == 0) dependentEvents &= ~(vblank);
+						else if (strcmp(type, "buttondown") == 0) dependentEvents &= ~(buttondown);
+						else if (strcmp(type, "buttonup") == 0) dependentEvents &= ~(buttonup);
+						else if (strcmp(type, "stylusdown") == 0) dependentEvents &= ~(stylusdown);
+						else if (strcmp(type, "stylusmove") == 0) dependentEvents &= ~(stylusmove);
+						else if (strcmp(type, "stylusup") == 0) dependentEvents &= ~(stylusup);
 						free(type);
 					}
 					jerry_release_value(isGlobal);
@@ -1946,12 +1946,14 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onunhandledrejection");
 	defEventAttribute(ref_global, "onunload");
 	// new DS-related events
-	defEventAttribute(ref_global, "onvblank");
-	defEventAttribute(ref_global, "onbuttonup");
 	defEventAttribute(ref_global, "onbuttondown");
+	defEventAttribute(ref_global, "onbuttonup");
+	defEventAttribute(ref_global, "onsleep");
 	defEventAttribute(ref_global, "onstylusdown");
 	defEventAttribute(ref_global, "onstylusmove");
 	defEventAttribute(ref_global, "onstylusup");
+	defEventAttribute(ref_global, "onvblank");
+	defEventAttribute(ref_global, "onwake");
 }
 
 void releaseReferences() {

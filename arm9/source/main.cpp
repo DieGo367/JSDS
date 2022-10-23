@@ -1,5 +1,6 @@
 #include <fat.h>
 #include <nds/arm9/input.h>
+#include <nds/fifocommon.h>
 #include <nds/interrupts.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,6 +65,7 @@ void repl() {
 int main(int argc, char **argv) {
 	// startup
 	srand(time(NULL));
+	fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
 	mainConsole = consoleDemoInit();
 	fatInitDefault();
 	keyboard = keyboardDemoInit();

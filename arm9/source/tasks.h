@@ -32,10 +32,8 @@ void runMicrotasks();
 void runTasks();
 void queueTask(void (*run) (const jerry_value_t *, u32), const jerry_value_t *args, u32 argCount);
 void clearTasks();
-void eventLoop();
 
 void loadStorage(const char *resourceName);
-void saveStorage();
 
 void runParsedCodeTask(const jerry_value_t *args, u32 argCount);
 
@@ -46,7 +44,6 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync);
 void queueEvent(jerry_value_t target, jerry_value_t event);
 void queueEventName(const char *eventName);
 
-void buttonEvents(bool down);
-void stylusEvents();
+void eventLoop();
 
 #endif /* JSDS_TASKS_H */

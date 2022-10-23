@@ -4,6 +4,7 @@
 #include <fat.h>
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>
+#include <nds/system.h>
 #include <queue>
 #include <stdlib.h>
 #include <string.h>
@@ -90,38 +91,6 @@ void clearTasks() {
 		Task task = taskQueue.front();
 		taskQueue.pop();
 		for (u32 i = 0; i < task.argCount; i++) jerry_release_value(task.args[i]);
-	}
-}
-
-/* The Event Loop™
- * On every vblank, run necessary operations before then executing the current task queue.
- * Returns when there is no work left to do (not in the REPL and no tasks/timeouts left to execute) or when abortFlag is set.
- */
-void eventLoop() {
-	while (!abortFlag && (inREPL || dependentEvents || taskQueue.size() > 0 || timeoutsExist())) {
-		swiWaitForVBlank();
-		if (dependentEvents & DependentEvent::vblank) queueEventName("vblank");
-		scanKeys();
-		if (dependentEvents & (DependentEvent::buttondown)) buttonEvents(true);
-		if (dependentEvents & (DependentEvent::buttonup)) buttonEvents(false);
-		if (dependentEvents & (DependentEvent::stylusdown | DependentEvent::stylusmove | DependentEvent::stylusup)) stylusEvents();
-		timeoutUpdate();
-		runTasks();
-		if (inREPL) {
-			if (keyboardEnterPressed) {
-				putchar('\n');
-				jerry_value_t parsedCode = jerry_parse(
-					(const jerry_char_t *) "<REPL>", 6,
-					(const jerry_char_t *) keyboardBuffer(), keyboardBufferLen(),
-					JERRY_PARSE_STRICT_MODE
-				);
-				queueTask(runParsedCodeTask, &parsedCode, 1);
-				jerry_release_value(parsedCode);
-				keyboardClearBuffer();
-			}
-			keyboardUpdate();
-		}
-		if (localStorageShouldSave) saveStorage();
 	}
 }
 
@@ -649,4 +618,65 @@ void stylusEvents() {
 	else if (keysUp() & KEY_TOUCH) queueStylusEvent("stylusup", prevX, prevY, false);
 	prevX = pos.px;
 	prevY = pos.py;
+}
+
+void onSleep() {
+	jerry_value_t args[2] = {createString("sleep"), jerry_create_object()};
+	setProperty(args[1], "cancelable", True);
+	jerry_value_t event = jerry_construct_object(ref_Event, args, 2);
+	bool canceled = dispatchEvent(ref_global, event, false);
+	jerry_release_value(event);
+	jerry_release_value(args[0]);
+	jerry_release_value(args[1]);
+	if (!canceled) {
+		REG_POWERCNT &= ~(POWER_LCD & 0xFFFF);
+		while (keysHeld() & KEY_LID) {
+			swiWaitForVBlank();
+			scanKeys();
+		}
+		REG_POWERCNT |= POWER_LCD & 0xFFFF;
+	}
+}
+void onWake() {
+	jerry_value_t args[2] = {createString("wake"), jerry_create_object()};
+	jerry_value_t event = jerry_construct_object(ref_Event, args, 2);
+	dispatchEvent(ref_global, event, false);
+	jerry_release_value(event);
+	jerry_release_value(args[0]);
+	jerry_release_value(args[1]);
+}
+
+
+/* The Event Loop™
+ * On every vblank, run necessary operations before then executing the current task queue.
+ * Returns when there is no work left to do (not in the REPL and no tasks/timeouts left to execute) or when abortFlag is set.
+ */
+void eventLoop() {
+	while (!abortFlag && (inREPL || dependentEvents || taskQueue.size() > 0 || timeoutsExist())) {
+		swiWaitForVBlank();
+		if (dependentEvents & vblank) queueEventName("vblank");
+		scanKeys();
+		if (keysDown() & KEY_LID) onSleep();
+		if (keysUp() & KEY_LID) onWake();
+		if (dependentEvents & (buttondown)) buttonEvents(true);
+		if (dependentEvents & (buttonup)) buttonEvents(false);
+		if (dependentEvents & (stylusdown | stylusmove | stylusup)) stylusEvents();
+		timeoutUpdate();
+		runTasks();
+		if (inREPL) {
+			if (keyboardEnterPressed) {
+				putchar('\n');
+				jerry_value_t parsedCode = jerry_parse(
+					(const jerry_char_t *) "<REPL>", 6,
+					(const jerry_char_t *) keyboardBuffer(), keyboardBufferLen(),
+					JERRY_PARSE_STRICT_MODE
+				);
+				queueTask(runParsedCodeTask, &parsedCode, 1);
+				jerry_release_value(parsedCode);
+				keyboardClearBuffer();
+			}
+			keyboardUpdate();
+		}
+		if (localStorageShouldSave) saveStorage();
+	}
 }
