@@ -4,7 +4,9 @@
 #include <fat.h>
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>
+extern "C" {
 #include <nds/system.h>
+}
 #include <queue>
 #include <stdlib.h>
 #include <string.h>
@@ -628,14 +630,7 @@ void onSleep() {
 	jerry_release_value(event);
 	jerry_release_value(args[0]);
 	jerry_release_value(args[1]);
-	if (!canceled) {
-		REG_POWERCNT &= ~(POWER_LCD & 0xFFFF);
-		while (keysHeld() & KEY_LID) {
-			swiWaitForVBlank();
-			scanKeys();
-		}
-		REG_POWERCNT |= POWER_LCD & 0xFFFF;
-	}
+	if (!canceled) systemSleep();
 }
 void onWake() {
 	jerry_value_t args[2] = {createString("wake"), jerry_create_object()};
