@@ -2,6 +2,9 @@
 
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>
+extern "C" {
+#include <nds/system.h>
+}
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1814,6 +1817,60 @@ static jerry_value_t TextEncoderEncodeIntoHandler(CALL_INFO) {
 	return returnVal;
 }
 
+static jerry_value_t DSGetBatteryLevelHandler(CALL_INFO) {
+	u32 level = getBatteryLevel();
+	if (level & BIT(7)) return createString("charging");
+	level = level & 0xF;
+	if (level == 0x1) return jerry_create_number(0);
+	else if (level == 0x3) return jerry_create_number(1);
+	else if (level == 0x7) return jerry_create_number(2);
+	else if (level == 0xB) return jerry_create_number(3);
+	else if (level == 0xF) return jerry_create_number(4);
+	else return jerry_create_number_nan();
+}
+
+static jerry_value_t DSSetMainScreenHandler(CALL_INFO) {
+	if (argCount > 0 && jerry_value_to_boolean(args[0])) lcdMainOnTop();
+	else lcdMainOnBottom();
+	return undefined;
+}
+
+static jerry_value_t DSSleepHandler(CALL_INFO) {
+	jerry_value_t eventArgs[2] = {createString("sleep"), jerry_create_object()};
+	setProperty(eventArgs[1], "cancelable", True);
+	jerry_value_t event = jerry_construct_object(ref_Event, eventArgs, 2);
+	bool canceled = dispatchEvent(ref_global, event, true);
+	jerry_release_value(event);
+	jerry_release_value(eventArgs[0]);
+	jerry_release_value(eventArgs[1]);
+	if (!canceled) {
+		systemSleep();
+		swiWaitForVBlank();
+		swiWaitForVBlank(); // I know this is jank but it's the easiest solution to stop 'wake' from dispatching before the system sleeps
+		eventArgs[0] = createString("wake");
+		eventArgs[1] = jerry_create_object();
+		event = jerry_construct_object(ref_Event, eventArgs, 2);
+		dispatchEvent(ref_global, event, true);
+		jerry_release_value(event);
+		jerry_release_value(eventArgs[0]);
+		jerry_release_value(eventArgs[1]);
+	}
+	return undefined;
+}
+
+static jerry_value_t DSStylusGetPositionHandler(CALL_INFO) {
+	if ((keysHeld() & KEY_TOUCH) == 0) return null;
+	touchPosition pos; touchRead(&pos);
+	jerry_value_t position = jerry_create_object();
+	jerry_value_t x = jerry_create_number(pos.px);
+	jerry_value_t y = jerry_create_number(pos.py);
+	setProperty(position, "x", x);
+	setProperty(position, "y", y);
+	jerry_release_value(x);
+	jerry_release_value(y);
+	return position;
+}
+
 static jerry_value_t IllegalConstructor(CALL_INFO) {
 	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Illegal constructor");
 }
@@ -1959,6 +2016,13 @@ void exposeAPI() {
 	jerry_value_t DS = jerry_create_object();
 	setProperty(ref_global, "DS", DS);
 
+	setMethod(DS, "getBatteryLevel", DSGetBatteryLevelHandler);
+	setReadonly(DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
+	setMethod(DS, "setMainScreen", DSSetMainScreenHandler);
+	setMethod(DS, "shutdown", [](CALL_INFO) -> jerry_value_t { systemShutDown(); return undefined; });
+	setMethod(DS, "sleep", DSSleepHandler);
+	setMethod(DS, "swapScreens", [](CALL_INFO) -> jerry_value_t { lcdSwap(); return undefined; });
+
 	jerry_value_t buttons = jerry_create_object();
 	setProperty(DS, "buttons", buttons);
 	jerry_value_t pressed = jerry_create_object();
@@ -2011,18 +2075,7 @@ void exposeAPI() {
 	jerry_value_t stylus = jerry_create_object();
 	setProperty(DS, "stylus", stylus);
 	defGetter(stylus, "touching", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
-	setMethod(stylus, "getPosition", [](CALL_INFO) -> jerry_value_t {
-		if ((keysHeld() & KEY_TOUCH) == 0) return null;
-		touchPosition pos; touchRead(&pos);
-		jerry_value_t position = jerry_create_object();
-		jerry_value_t x = jerry_create_number(pos.px);
-		jerry_value_t y = jerry_create_number(pos.py);
-		setProperty(position, "x", x);
-		setProperty(position, "y", y);
-		jerry_release_value(x);
-		jerry_release_value(y);
-		return position;
-	});
+	setMethod(stylus, "getPosition", DSStylusGetPositionHandler);
 	jerry_release_value(stylus);
 	
 	jerry_release_value(DS);
