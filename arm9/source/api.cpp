@@ -1954,6 +1954,78 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onstylusup");
 	defEventAttribute(ref_global, "onvblank");
 	defEventAttribute(ref_global, "onwake");
+
+	// DS namespace, where most custom functionality lives
+	jerry_value_t DS = jerry_create_object();
+	setProperty(ref_global, "DS", DS);
+
+	jerry_value_t buttons = jerry_create_object();
+	setProperty(DS, "buttons", buttons);
+	jerry_value_t pressed = jerry_create_object();
+	setProperty(buttons, "pressed", pressed);
+	defGetter(pressed, "A",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_A); });
+	defGetter(pressed, "B",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_B); });
+	defGetter(pressed, "X",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_X); });
+	defGetter(pressed, "Y",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_Y); });
+	defGetter(pressed, "L",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_L); });
+	defGetter(pressed, "R",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_R); });
+	defGetter(pressed, "Up",     [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_UP); });
+	defGetter(pressed, "Down",   [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_DOWN); });
+	defGetter(pressed, "Left",   [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_LEFT); });
+	defGetter(pressed, "Right",  [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_RIGHT); });
+	defGetter(pressed, "START",  [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_START); });
+	defGetter(pressed, "SELECT", [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_SELECT); });
+	jerry_release_value(pressed);
+	jerry_value_t held = jerry_create_object();
+	setProperty(buttons, "held", held);
+	defGetter(held, "A",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_A); });
+	defGetter(held, "B",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_B); });
+	defGetter(held, "X",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_X); });
+	defGetter(held, "Y",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_Y); });
+	defGetter(held, "L",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_L); });
+	defGetter(held, "R",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_R); });
+	defGetter(held, "Up",     [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_UP); });
+	defGetter(held, "Down",   [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_DOWN); });
+	defGetter(held, "Left",   [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_LEFT); });
+	defGetter(held, "Right",  [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_RIGHT); });
+	defGetter(held, "START",  [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_START); });
+	defGetter(held, "SELECT", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_SELECT); });
+	jerry_release_value(held);
+	jerry_value_t released = jerry_create_object();
+	setProperty(buttons, "released", released);
+	defGetter(released, "A",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_A); });
+	defGetter(released, "B",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_B); });
+	defGetter(released, "X",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_X); });
+	defGetter(released, "Y",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_Y); });
+	defGetter(released, "L",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_L); });
+	defGetter(released, "R",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_R); });
+	defGetter(released, "Up",     [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_UP); });
+	defGetter(released, "Down",   [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_DOWN); });
+	defGetter(released, "Left",   [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_LEFT); });
+	defGetter(released, "Right",  [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_RIGHT); });
+	defGetter(released, "START",  [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_START); });
+	defGetter(released, "SELECT", [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_SELECT); });
+	jerry_release_value(released);
+	jerry_release_value(buttons);
+
+	jerry_value_t stylus = jerry_create_object();
+	setProperty(DS, "stylus", stylus);
+	defGetter(stylus, "touching", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
+	setMethod(stylus, "getPosition", [](CALL_INFO) -> jerry_value_t {
+		if ((keysHeld() & KEY_TOUCH) == 0) return null;
+		touchPosition pos; touchRead(&pos);
+		jerry_value_t position = jerry_create_object();
+		jerry_value_t x = jerry_create_number(pos.px);
+		jerry_value_t y = jerry_create_number(pos.py);
+		setProperty(position, "x", x);
+		setProperty(position, "y", y);
+		jerry_release_value(x);
+		jerry_release_value(y);
+		return position;
+	});
+	jerry_release_value(stylus);
+	
+	jerry_release_value(DS);
 }
 
 void releaseReferences() {
