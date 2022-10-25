@@ -1,6 +1,7 @@
 #include "api.h"
 
 #include <nds/arm9/input.h>
+#include <nds/arm9/video.h>
 #include <nds/interrupts.h>
 extern "C" {
 #include <nds/system.h>
@@ -1887,6 +1888,53 @@ static jerry_value_t IllegalConstructor(CALL_INFO) {
 	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Illegal constructor");
 }
 
+static jerry_value_t BETA_gfxInit(CALL_INFO) {
+	videoSetMode(MODE_3_2D);
+	vramSetBankA(VRAM_A_MAIN_BG);
+	bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+	return undefined;
+}
+
+static jerry_value_t BETA_gfxPixel(CALL_INFO) {
+	if (argCount < 3) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "3 args required.");
+	u8 x = jerry_value_as_uint32(args[0]);
+	u8 y = jerry_value_as_uint32(args[1]);
+	u16 color = jerry_value_as_uint32(args[2]);
+	bgGetGfxPtr(3)[x + y*256] = color;
+	return undefined;
+}
+
+static jerry_value_t BETA_gfxRect(CALL_INFO) {
+	if (argCount < 5) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "5 args required.");
+	u8 x = jerry_value_as_uint32(args[0]);
+	u8 y = jerry_value_as_uint32(args[1]) % 192;
+	u16 width = jerry_value_as_uint32(args[2]);
+	u16 height = jerry_value_as_uint32(args[3]);
+	u16 color = jerry_value_as_uint32(args[4]);
+	u16 *gfx = bgGetGfxPtr(3);
+	
+	if (width + x > 256) width = 256 - x;
+	if (height + y > 192) height = 192 - y;
+
+	if (width == 0 || height == 0) return undefined;
+
+	for (u8 i = 0; i < height; i++) {
+		dmaFillHalfWords(color, gfx + x + ((y + i) * 256), width * 2);
+	}
+	return undefined;
+}
+
+void exposeBetaAPI(jerry_value_t DS) {
+	jerry_value_t beta = jerry_create_object();
+	setProperty(DS, "beta", beta);
+
+	setMethod(beta, "gfxInit", BETA_gfxInit);
+	setMethod(beta, "gfxPixel", BETA_gfxPixel);
+	setMethod(beta, "gfxRect", BETA_gfxRect);
+
+	jerry_release_value(beta);
+}
+
 void exposeAPI() {
 	// hold some internal references
 	ref_str_name = createString("name");
@@ -2128,12 +2176,14 @@ void exposeAPI() {
 	defGetter(stylus, "touching", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
 	setMethod(stylus, "getPosition", DSStylusGetPositionHandler);
 	jerry_release_value(stylus);
-	
+
 	jerry_value_t Screen = jerry_create_object();
 	setProperty(DS, "Screen", Screen);
 	setStringProperty(Screen, "Bottom", "bottom");
 	setStringProperty(Screen, "Top", "top");
 	jerry_release_value(Screen);
+
+	exposeBetaAPI(DS);
 	
 	jerry_release_value(DS);
 }
