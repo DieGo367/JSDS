@@ -2023,6 +2023,42 @@ void exposeAPI() {
 	setMethod(DS, "sleep", DSSleepHandler);
 	setMethod(DS, "swapScreens", [](CALL_INFO) -> jerry_value_t { lcdSwap(); return undefined; });
 
+	jerry_value_t profile = jerry_create_object();
+	setProperty(DS, "profile", profile);
+	setReadonlyNumber(profile, "alarmHour", PersonalData->alarmHour);
+	setReadonlyNumber(profile, "alarmMinute", PersonalData->alarmMinute);
+	setReadonlyNumber(profile, "birthDay", PersonalData->birthDay);
+	setReadonlyNumber(profile, "birthMonth", PersonalData->birthMonth);
+	u16 name[10];
+	for (u8 i = 0; i < PersonalData->nameLen; i++) name[i] = PersonalData->name[i];
+	jerry_value_t nameStr = createStringU16(name, PersonalData->nameLen);
+	setReadonly(profile, "name", nameStr);
+	jerry_release_value(nameStr);
+	u16 message[26];
+	for (u8 i = 0; i < PersonalData->messageLen; i++) message[i] = PersonalData->message[i];
+	jerry_value_t messageStr = createStringU16(message, PersonalData->messageLen);
+	setReadonly(profile, "message", messageStr);
+	jerry_release_value(messageStr);
+	u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
+	setReadonlyNumber(profile, "color", themeColors[PersonalData->theme]);
+	setReadonly(profile, "autoMode", jerry_create_boolean(PersonalData->autoMode));
+	setReadonly(profile, "gbaScreen", jerry_create_boolean(PersonalData->gbaScreen));
+	u8 language = PersonalData->language;
+	jerry_value_t languageStr = createString(
+		language == 0 ? "日本語" :
+		language == 1 ? "English" :
+		language == 2 ? "Français" :
+		language == 3 ? "Deutsch" :
+		language == 4 ? "Italiano" :
+		language == 5 ? "Español" :
+		language == 6 ? "中文" :
+		language == 7 ? "한국어" :
+		""
+	);
+	setReadonly(profile, "language", languageStr);
+	jerry_release_value(languageStr);
+	jerry_release_value(profile);
+
 	jerry_value_t buttons = jerry_create_object();
 	setProperty(DS, "buttons", buttons);
 	jerry_value_t pressed = jerry_create_object();

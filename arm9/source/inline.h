@@ -20,6 +20,27 @@ inline jerry_value_t createString(const char *str) {
 	return jerry_create_string((const jerry_char_t *) str);
 }
 
+inline jerry_value_t createStringU16(const u16* codepoints, u32 length) {
+	u8 utf8[length * 3]; // each codepoint can be up to 3 bytes
+	u8 *out = utf8;
+	for (u32 i = 0; i < length; i++) {
+		u16 codepoint = codepoints[i];
+		if (codepoint < 0x0080) *(out++) = codepoint;
+		else if (codepoint < 0x800) {
+			out[0] = 0b11000000 | (codepoint >> 6 & 0b00011111);
+			out[1] = BIT(7) | (codepoint & 0b00111111);
+			out += 2;
+		}
+		else {
+			out[0] = 0b11100000 | (codepoint >> 12 & 0xF);
+			out[1] = BIT(7) | (codepoint >> 6 & 0b00111111);
+			out[2] = BIT(7) | (codepoint & 0b00111111);
+			out += 3;
+		}
+	}
+	return jerry_create_string_sz_from_utf8(utf8, out - utf8);
+}
+
 /*
  * Copy a string value into a new c string. Return value must be freed!
  * If stringSize is not NULL, the value it points to will be set to the size as reported by JerryScript (which doesn't count the terminator).
@@ -215,6 +236,13 @@ inline void setReadonly(jerry_value_t object, const char *property, jerry_value_
 	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
 	setReadonlyJV(object, propString, value);
 	jerry_release_value(propString);
+}
+
+// Sets a getter to a number on object via c string and double value.
+inline void setReadonlyNumber(jerry_value_t object, const char *property, double value) {
+	jerry_value_t n = jerry_create_number(value);
+	setReadonly(object, property, n);
+	jerry_release_value(n);
 }
 
 // Create a getter on both the constructor and prototype of a class for a certain property via c string and function.
