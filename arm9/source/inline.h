@@ -255,6 +255,13 @@ inline void classDefGetter(jsClass cls, const char *property, jerry_external_han
 	jerry_release_value(getterDesc.getter);
 }
 
+// Sets a string property on object value via c strings.
+inline void setStringProperty(jerry_value_t object, const char *property, const char *value) {
+	jerry_value_t str = createString(value);
+	setProperty(object, property, str);
+	jerry_release_value(str);
+}
+
 static jerry_value_t eventAttributeSetter(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
 	jerry_value_t attrNameVal = getProperty(function, "name");
 	jerry_length_t size = jerry_get_string_size(attrNameVal);

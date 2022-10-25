@@ -1830,9 +1830,21 @@ static jerry_value_t DSGetBatteryLevelHandler(CALL_INFO) {
 }
 
 static jerry_value_t DSSetMainScreenHandler(CALL_INFO) {
-	if (argCount > 0 && jerry_value_to_boolean(args[0])) lcdMainOnTop();
-	else lcdMainOnBottom();
-	return undefined;
+	if (argCount > 0 && jerry_value_is_string(args[0])) {
+		bool set = false;
+		char *str = getString(args[0]);
+		if (strcmp(str, "top") == 0) {
+			lcdMainOnTop();
+			set = true;
+		}
+		else if (strcmp(str, "bottom") == 0) {
+			lcdMainOnBottom();
+			set = true;
+		}
+		free(str);
+		if (set) return undefined;
+	}
+	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Invalid screen value");
 }
 
 static jerry_value_t DSSleepHandler(CALL_INFO) {
@@ -2017,6 +2029,7 @@ void exposeAPI() {
 	setProperty(ref_global, "DS", DS);
 
 	setMethod(DS, "getBatteryLevel", DSGetBatteryLevelHandler);
+	setMethod(DS, "getMainScreen", [](CALL_INFO) { return createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom"); });
 	setReadonly(DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
 	setMethod(DS, "setMainScreen", DSSetMainScreenHandler);
 	setMethod(DS, "shutdown", [](CALL_INFO) -> jerry_value_t { systemShutDown(); return undefined; });
@@ -2042,7 +2055,9 @@ void exposeAPI() {
 	u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
 	setReadonlyNumber(profile, "color", themeColors[PersonalData->theme]);
 	setReadonly(profile, "autoMode", jerry_create_boolean(PersonalData->autoMode));
-	setReadonly(profile, "gbaScreen", jerry_create_boolean(PersonalData->gbaScreen));
+	jerry_value_t gbaScreenStr = createString(PersonalData->gbaScreen ? "bottom" : "top");
+	setReadonly(profile, "gbaScreen", gbaScreenStr);
+	jerry_release_value(gbaScreenStr);
 	u8 language = PersonalData->language;
 	jerry_value_t languageStr = createString(
 		language == 0 ? "日本語" :
@@ -2113,6 +2128,12 @@ void exposeAPI() {
 	defGetter(stylus, "touching", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
 	setMethod(stylus, "getPosition", DSStylusGetPositionHandler);
 	jerry_release_value(stylus);
+	
+	jerry_value_t Screen = jerry_create_object();
+	setProperty(DS, "Screen", Screen);
+	setStringProperty(Screen, "Bottom", "bottom");
+	setStringProperty(Screen, "Top", "top");
+	jerry_release_value(Screen);
 	
 	jerry_release_value(DS);
 }
