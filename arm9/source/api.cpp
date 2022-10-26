@@ -2069,6 +2069,17 @@ static jerry_value_t DSFileStaticCopyHandler(CALL_INFO) {
 	return undefined;
 }
 
+static jerry_value_t DSFileStaticRenameHandler(CALL_INFO) {
+	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "2 arguments required");
+	char *sourcePath = getAsString(args[0]);
+	char *destPath = getAsString(args[1]);
+	int status = rename(sourcePath, destPath);
+	free(sourcePath);
+	free(destPath);
+	if (status != 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to rename file");
+	return undefined;
+}
+
 static jerry_value_t DSFileStaticRemoveHandler(CALL_INFO) {
 	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
 	char *path = getAsString(args[0]);
@@ -2474,6 +2485,7 @@ void exposeAPI() {
 	jsClass DSFile = createClass(ref_DS, "File", IllegalConstructor);
 	setMethod(DSFile.constructor, "open", DSFileStaticOpenHandler);
 	setMethod(DSFile.constructor, "copy", DSFileStaticCopyHandler);
+	setMethod(DSFile.constructor, "rename", DSFileStaticRenameHandler);
 	setMethod(DSFile.constructor, "remove", DSFileStaticRemoveHandler);
 	setMethod(DSFile.constructor, "read", DSFileStaticReadHandler);
 	setMethod(DSFile.constructor, "readText", DSFileStaticReadTextHandler);
