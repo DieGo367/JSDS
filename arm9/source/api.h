@@ -11,6 +11,7 @@ extern jerry_value_t ref_localStorage;
 extern jerry_value_t ref_Event;
 extern jerry_value_t ref_Error;
 extern jerry_value_t ref_DOMException;
+extern jerry_value_t ref_DS;
 extern jerry_value_t ref_task_reportError;
 extern jerry_value_t ref_task_abortSignalTimeout;
 extern jerry_value_t ref_str_name;

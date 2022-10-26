@@ -22,6 +22,7 @@ extern "C" {
 
 
 jerry_value_t ref_global;
+jerry_value_t ref_DS;
 jerry_value_t ref_localStorage;
 jerry_value_t ref_Event;
 jerry_value_t ref_Error;
@@ -41,6 +42,10 @@ const u32 STORAGE_API_MAX_CAPACITY = 4096; // 4 KiB
 const u32 STORAGE_API_LENGTH_BYTES = 8;
 
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
+
+static jerry_value_t IllegalConstructor(CALL_INFO) {
+	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Illegal constructor");
+}
 
 static jerry_value_t closeHandler(CALL_INFO) {
 	abortFlag = true;
@@ -1092,7 +1097,7 @@ static jerry_value_t StylusEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-jerry_value_t createAbortSignal(bool aborted) {
+jerry_value_t newAbortSignal(bool aborted) {
 	jerry_value_t signal = jerry_create_object();
 	jerry_value_t AbortSignal = getProperty(ref_global, "AbortSignal");
 	jerry_value_t AbortSignalPrototype = jerry_get_property(AbortSignal, ref_str_prototype);
@@ -1163,7 +1168,7 @@ static jerry_value_t AbortControllerConstructor(CALL_INFO) {
 	jerry_release_value(newTarget);
 	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor AbortController cannot be invoked without 'new'");
 
-	jerry_value_t signal = createAbortSignal(false);
+	jerry_value_t signal = newAbortSignal(false);
 	setReadonly(thisValue, "signal", signal);
 	setReadonly(signal, "reason", undefined);
 	jerry_release_value(signal);
@@ -1202,7 +1207,7 @@ static jerry_value_t AbortControllerAbortHandler(CALL_INFO) {
 }
 
 static jerry_value_t AbortSignalStaticAbortHandler(CALL_INFO) {
-	jerry_value_t signal = createAbortSignal(true);
+	jerry_value_t signal = newAbortSignal(true);
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		setReadonly(signal, "reason", args[0]);
 	}
@@ -1216,7 +1221,7 @@ static jerry_value_t AbortSignalStaticAbortHandler(CALL_INFO) {
 
 static jerry_value_t AbortSignalStaticTimeoutHandler(CALL_INFO) {
 	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'timeout': 1 argument required.");
-	jerry_value_t signal = createAbortSignal(false);
+	jerry_value_t signal = newAbortSignal(false);
 	setReadonly(signal, "reason", undefined);
 	jerry_value_t ms = jerry_value_to_number(args[0]);
 	jerry_release_value(addTimeout(ref_task_abortSignalTimeout, ms, &signal, 1, false, true));
@@ -1258,7 +1263,7 @@ static jerry_value_t AbortSignalThrowIfAbortedHandler(CALL_INFO) {
 	else return undefined;
 }
 
-jerry_value_t createStorage() {
+jerry_value_t newStorage() {
 	jerry_value_t storage = jerry_create_object();
 	jerry_value_t Storage = getProperty(ref_global, "Storage");
 	jerry_value_t StoragePrototype = jerry_get_property(Storage, ref_str_prototype);
@@ -1884,8 +1889,150 @@ static jerry_value_t DSStylusGetPositionHandler(CALL_INFO) {
 	return position;
 }
 
-static jerry_value_t IllegalConstructor(CALL_INFO) {
-	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Illegal constructor");
+static void onFileFree(void *file) {
+	fclose((FILE *) file);
+}
+jerry_object_native_info_t fileNativeInfo = {.free_cb = onFileFree};
+
+jerry_value_t newDSFile(FILE *file, jerry_value_t mode) {
+	jerry_value_t fileObj = jerry_create_object();
+	jerry_value_t DSFile = getProperty(ref_DS, "File");
+	jerry_value_t DSFilePrototype = jerry_get_property(DSFile, ref_str_prototype);
+	jerry_release_value(jerry_set_prototype(fileObj, DSFilePrototype));
+	jerry_release_value(DSFilePrototype);
+	jerry_release_value(DSFile);
+
+	jerry_set_object_native_pointer(fileObj, file, &fileNativeInfo);
+	setReadonly(fileObj, "mode", mode);
+	return fileObj;
+}
+
+static jerry_value_t DSFileReadHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+
+	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
+	char *mode = getString(modeStr);
+	if (mode[0] != 'r' && mode[1] != '+') {
+		free(mode);
+		jerry_release_value(modeStr);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Unable to read in current file mode.");
+	}
+	free(mode);
+	jerry_release_value(modeStr);
+	
+	u32 size = jerry_value_as_uint32(args[0]);
+	jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
+	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer);
+	FILE *file;
+	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
+	u32 bytesRead = fread(buf, 1, size, file);
+	if (ferror(file)) {
+		jerry_release_value(arrayBuffer);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File read failed.");
+	}
+	else if (feof(file) && bytesRead == 0) {
+		jerry_release_value(arrayBuffer);
+		return null;
+	}
+	else {
+		jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, bytesRead);
+		jerry_release_value(arrayBuffer);
+		return u8Array;
+	}
+}
+
+static jerry_value_t DSFileWriteHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	if (!jerry_value_is_typedarray(args[0]) || jerry_get_typedarray_type(args[0]) != JERRY_TYPEDARRAY_UINT8) {
+		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Value is not of type 'Uint8Array'.");
+	}
+
+	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
+	char *mode = getString(modeStr);
+	if (mode[0] != 'w' && mode[0] != 'a' && mode[1] != '+') {
+		free(mode);
+		jerry_release_value(modeStr);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Unable to write in current file mode.");
+	}
+	free(mode);
+	jerry_release_value(modeStr);
+	
+	u32 offset, size;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &offset, &size);
+	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
+	FILE *file;
+	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
+
+	u32 bytesWritten = fwrite(buf, 1, size, file);
+	if (ferror(file)) {
+		jerry_release_value(arrayBuffer);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File write failed.");
+	}
+	else {
+		jerry_release_value(arrayBuffer);
+		return jerry_create_number(bytesWritten);
+	}
+}
+
+static jerry_value_t DSFileSeekHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required.");
+	
+	int mode = 10;
+	if (argCount > 1) {
+		char *seekMode = getAsString(args[1]);
+		if (strcmp(seekMode, "start") == 0) mode = SEEK_SET;
+		else if (strcmp(seekMode, "current") == 0) mode = SEEK_CUR;
+		else if (strcmp(seekMode, "end") == 0) mode = SEEK_END;
+		free(seekMode);
+	}
+	else mode = SEEK_SET;
+	if (mode == 10) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Invalid seek mode.");
+
+	FILE *file;
+	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
+	int success = fseek(file, jerry_value_as_int32(args[0]), mode);
+	if (success != 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "File seek failed.");
+	return undefined;
+}
+
+static jerry_value_t DSFileCloseHandler(CALL_INFO) {
+	FILE *file;
+	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
+	if (fclose(file) != 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "File close failed.");
+	return undefined;
+}
+
+static jerry_value_t DSFileStaticOpenHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	char *path = getAsString(args[0]);
+	char defaultMode[2] = "r";
+	char *mode = defaultMode;
+	if (argCount > 1) {
+		mode = getAsString(args[1]);
+		if (strcmp(mode, "r") != 0 && strcmp(mode, "r+") != 0
+		 && strcmp(mode, "w") != 0 && strcmp(mode, "w+") != 0
+		 && strcmp(mode, "a") != 0 && strcmp(mode, "a+") != 0
+		) {
+			free(mode);
+			free(path);
+			return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Invalid file mode");
+		}
+	}
+
+	FILE *file = fopen(path, mode);
+	if (file == NULL) {
+		if (mode != defaultMode) free(mode);
+		free(path);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File not found!");
+	}
+	else {
+		jerry_value_t modeStr = createString(mode);
+		jerry_value_t dsFile = newDSFile(file, modeStr);
+		jerry_release_value(modeStr);
+		if (mode != defaultMode) free(mode);
+		free(path);
+		return dsFile;
+	}
 }
 
 static jerry_value_t BETA_gfxInit(CALL_INFO) {
@@ -1924,9 +2071,9 @@ static jerry_value_t BETA_gfxRect(CALL_INFO) {
 	return undefined;
 }
 
-void exposeBetaAPI(jerry_value_t DS) {
+void exposeBetaAPI() {
 	jerry_value_t beta = jerry_create_object();
-	setProperty(DS, "beta", beta);
+	setProperty(ref_DS, "beta", beta);
 
 	setMethod(beta, "gfxInit", BETA_gfxInit);
 	setMethod(beta, "gfxPixel", BETA_gfxPixel);
@@ -2045,7 +2192,7 @@ void exposeAPI() {
 	setMethod(ref_proxyHandler_storage, "set", StorageProxySetHandler);
 	setMethod(ref_proxyHandler_storage, "deleteProperty", StorageProxyDeletePropertyHandler);
 
-	ref_localStorage = createStorage();
+	ref_localStorage = newStorage();
 	setProperty(ref_global, "localStorage", ref_localStorage);
 	setInternalProperty(ref_localStorage, "isLocal", True);
 
@@ -2073,19 +2220,19 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onwake");
 
 	// DS namespace, where most custom functionality lives
-	jerry_value_t DS = jerry_create_object();
-	setProperty(ref_global, "DS", DS);
+	ref_DS = jerry_create_object();
+	setProperty(ref_global, "DS", ref_DS);
 
-	setMethod(DS, "getBatteryLevel", DSGetBatteryLevelHandler);
-	setMethod(DS, "getMainScreen", [](CALL_INFO) { return createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom"); });
-	setReadonly(DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
-	setMethod(DS, "setMainScreen", DSSetMainScreenHandler);
-	setMethod(DS, "shutdown", [](CALL_INFO) -> jerry_value_t { systemShutDown(); return undefined; });
-	setMethod(DS, "sleep", DSSleepHandler);
-	setMethod(DS, "swapScreens", [](CALL_INFO) -> jerry_value_t { lcdSwap(); return undefined; });
+	setMethod(ref_DS, "getBatteryLevel", DSGetBatteryLevelHandler);
+	setMethod(ref_DS, "getMainScreen", [](CALL_INFO) { return createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom"); });
+	setReadonly(ref_DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
+	setMethod(ref_DS, "setMainScreen", DSSetMainScreenHandler);
+	setMethod(ref_DS, "shutdown", [](CALL_INFO) -> jerry_value_t { systemShutDown(); return undefined; });
+	setMethod(ref_DS, "sleep", DSSleepHandler);
+	setMethod(ref_DS, "swapScreens", [](CALL_INFO) -> jerry_value_t { lcdSwap(); return undefined; });
 
 	jerry_value_t profile = jerry_create_object();
-	setProperty(DS, "profile", profile);
+	setProperty(ref_DS, "profile", profile);
 	setReadonlyNumber(profile, "alarmHour", PersonalData->alarmHour);
 	setReadonlyNumber(profile, "alarmMinute", PersonalData->alarmMinute);
 	setReadonlyNumber(profile, "birthDay", PersonalData->birthDay);
@@ -2123,7 +2270,7 @@ void exposeAPI() {
 	jerry_release_value(profile);
 
 	jerry_value_t buttons = jerry_create_object();
-	setProperty(DS, "buttons", buttons);
+	setProperty(ref_DS, "buttons", buttons);
 	jerry_value_t pressed = jerry_create_object();
 	setProperty(buttons, "pressed", pressed);
 	defGetter(pressed, "A",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_A); });
@@ -2172,24 +2319,38 @@ void exposeAPI() {
 	jerry_release_value(buttons);
 
 	jerry_value_t stylus = jerry_create_object();
-	setProperty(DS, "stylus", stylus);
+	setProperty(ref_DS, "stylus", stylus);
 	defGetter(stylus, "touching", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
 	setMethod(stylus, "getPosition", DSStylusGetPositionHandler);
 	jerry_release_value(stylus);
 
 	jerry_value_t Screen = jerry_create_object();
-	setProperty(DS, "Screen", Screen);
+	setProperty(ref_DS, "Screen", Screen);
 	setStringProperty(Screen, "Bottom", "bottom");
 	setStringProperty(Screen, "Top", "top");
 	jerry_release_value(Screen);
 
-	exposeBetaAPI(DS);
-	
-	jerry_release_value(DS);
+	jerry_value_t SeekMode = jerry_create_object();
+	setProperty(ref_DS, "SeekMode", SeekMode);
+	setStringProperty(SeekMode, "Start", "start");
+	setStringProperty(SeekMode, "Current", "current");
+	setStringProperty(SeekMode, "End", "end");
+	jerry_release_value(SeekMode);
+
+	jsClass DSFile = createClass(ref_DS, "File", IllegalConstructor);
+	setMethod(DSFile.constructor, "open", DSFileStaticOpenHandler);
+	setMethod(DSFile.prototype, "read", DSFileReadHandler);
+	setMethod(DSFile.prototype, "write", DSFileWriteHandler);
+	setMethod(DSFile.prototype, "seek", DSFileSeekHandler);
+	setMethod(DSFile.prototype, "close", DSFileCloseHandler);
+	releaseClass(DSFile);
+
+	exposeBetaAPI();
 }
 
 void releaseReferences() {
 	jerry_release_value(ref_global);
+	jerry_release_value(ref_DS);
 	jerry_release_value(ref_localStorage);
 	jerry_release_value(ref_Event);
 	jerry_release_value(ref_Error);
