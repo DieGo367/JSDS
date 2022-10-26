@@ -98,7 +98,7 @@ void clearTasks() {
 
 void loadStorage(const char *resourceName) {
 	char storagePath[257] = "/_nds/JSDS";
-	char *start = strchr(resourceName, '/');
+	char *start = strrchr(resourceName, '/');
 	strcat(storagePath, start);
 	strcat(storagePath, ".ls");
 	
