@@ -2032,6 +2032,50 @@ static jerry_value_t DSFileStaticOpenHandler(CALL_INFO) {
 	}
 }
 
+static jerry_value_t DSFileStaticCopyHandler(CALL_INFO) {
+	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "2 arguments required");
+	char *sourcePath = getAsString(args[0]);
+	FILE *source = fopen(sourcePath, "r");
+	free(sourcePath);
+	if (source == NULL) return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Unable to open source file during copy.");
+	
+	fseek(source, 0, SEEK_END);
+	u32 size = ftell(source);
+	rewind(source);
+	u8 *data = (u8 *) malloc(size);
+	u32 bytesRead = fread(data, 1, size, source);
+	if (ferror(source)) {
+		free(data);
+		fclose(source);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Failed to read source file during copy.");
+	}
+	fclose(source);
+
+	char *destPath = getAsString(args[1]);
+	FILE *dest = fopen(destPath, "w");
+	free(destPath);
+	if (dest == NULL) {
+		free(data);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Unable to open destination file during copy.");
+	}
+
+	fwrite(data, 1, bytesRead, dest);
+	free(data);
+	if (ferror(dest)) {
+		fclose(dest);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Failed to write destination file during copy.");
+	}
+	fclose(dest);
+	return undefined;
+}
+
+static jerry_value_t DSFileStaticRemoveHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	char *path = getAsString(args[0]);
+	if (remove(path) != 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to delete file");
+	return undefined;
+}
+
 static jerry_value_t DSFileStaticReadHandler(CALL_INFO) {
 	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
 	char *path = getAsString(args[0]);
@@ -2429,6 +2473,8 @@ void exposeAPI() {
 
 	jsClass DSFile = createClass(ref_DS, "File", IllegalConstructor);
 	setMethod(DSFile.constructor, "open", DSFileStaticOpenHandler);
+	setMethod(DSFile.constructor, "copy", DSFileStaticCopyHandler);
+	setMethod(DSFile.constructor, "remove", DSFileStaticRemoveHandler);
 	setMethod(DSFile.constructor, "read", DSFileStaticReadHandler);
 	setMethod(DSFile.constructor, "readText", DSFileStaticReadTextHandler);
 	setMethod(DSFile.constructor, "write", DSFileStaticWriteHandler);
