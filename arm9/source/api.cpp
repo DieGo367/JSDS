@@ -1960,18 +1960,15 @@ static jerry_value_t DSFileWriteHandler(CALL_INFO) {
 	u32 offset, size;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &offset, &size);
 	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
+	jerry_release_value(arrayBuffer);
 	FILE *file;
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
 
 	u32 bytesWritten = fwrite(buf, 1, size, file);
 	if (ferror(file)) {
-		jerry_release_value(arrayBuffer);
 		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File write failed.");
 	}
-	else {
-		jerry_release_value(arrayBuffer);
-		return jerry_create_number(bytesWritten);
-	}
+	else return jerry_create_number(bytesWritten);
 }
 
 static jerry_value_t DSFileSeekHandler(CALL_INFO) {
@@ -2023,7 +2020,7 @@ static jerry_value_t DSFileStaticOpenHandler(CALL_INFO) {
 	if (file == NULL) {
 		if (mode != defaultMode) free(mode);
 		free(path);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File not found!");
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Unable to open file");
 	}
 	else {
 		jerry_value_t modeStr = createString(mode);
@@ -2033,6 +2030,99 @@ static jerry_value_t DSFileStaticOpenHandler(CALL_INFO) {
 		free(path);
 		return dsFile;
 	}
+}
+
+static jerry_value_t DSFileStaticReadHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	char *path = getAsString(args[0]);
+	FILE *file = fopen(path, "r");
+	free(path);
+	if (file == NULL) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Unable to open file");
+
+	fseek(file, 0, SEEK_END);
+	u32 size = ftell(file);
+	rewind(file);
+
+	jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
+	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer);
+	fread(buf, 1, size, file);
+	if (ferror(file)) {
+		jerry_release_value(arrayBuffer);
+		fclose(file);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File read failed.");
+	}
+	fclose(file);
+	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, size);
+	jerry_release_value(arrayBuffer);
+	return u8Array;
+}
+
+static jerry_value_t DSFileStaticReadTextHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	char *path = getAsString(args[0]);
+	FILE *file = fopen(path, "r");
+	free(path);
+	if (file == NULL) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Unable to open file");
+
+	fseek(file, 0, SEEK_END);
+	u32 size = ftell(file);
+	rewind(file);
+
+	char *buf = (char *) malloc(size);
+	fread(buf, 1, size, file);
+	if (ferror(file)) {
+		free(buf);
+		fclose(file);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File read failed.");
+	}
+	fclose(file);
+	jerry_value_t str = jerry_create_string_sz_from_utf8((jerry_char_t *) buf, size);
+	free(buf);
+	return str;
+}
+
+static jerry_value_t DSFileStaticWriteHandler(CALL_INFO) {
+	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "2 arguments required");
+	if (!jerry_value_is_typedarray(args[1]) || jerry_get_typedarray_type(args[1]) != JERRY_TYPEDARRAY_UINT8) {
+		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Value is not of type 'Uint8Array'.");
+	}
+	char *path = getAsString(args[0]);
+	FILE *file = fopen(path, "w");
+	free(path);
+	if (file == NULL) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Unable to open file");
+	
+	u32 offset, size;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &offset, &size);
+	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
+	jerry_release_value(arrayBuffer);
+
+	u32 bytesWritten = fwrite(buf, 1, size, file);
+	if (ferror(file)) {
+		fclose(file);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File write failed.");
+	}
+	fclose(file);
+	return jerry_create_number(bytesWritten);
+}
+
+static jerry_value_t DSFileStaticWriteTextHandler(CALL_INFO) {
+	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "2 arguments required");
+	char *path = getAsString(args[0]);
+	FILE *file = fopen(path, "w");
+	free(path);
+	if (file == NULL) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Unable to open file");
+	
+	u32 size;
+	char *text = getAsString(args[1], &size);
+	u32 bytesWritten = fwrite(text, 1, size, file);
+	if (ferror(file)) {
+		fclose(file);
+		free(text);
+		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File write failed.");
+	}
+	fclose(file);
+	free(text);
+	return jerry_create_number(bytesWritten);
 }
 
 static jerry_value_t BETA_gfxInit(CALL_INFO) {
@@ -2339,6 +2429,10 @@ void exposeAPI() {
 
 	jsClass DSFile = createClass(ref_DS, "File", IllegalConstructor);
 	setMethod(DSFile.constructor, "open", DSFileStaticOpenHandler);
+	setMethod(DSFile.constructor, "read", DSFileStaticReadHandler);
+	setMethod(DSFile.constructor, "readText", DSFileStaticReadTextHandler);
+	setMethod(DSFile.constructor, "write", DSFileStaticWriteHandler);
+	setMethod(DSFile.constructor, "writeText", DSFileStaticWriteTextHandler);
 	setMethod(DSFile.prototype, "read", DSFileReadHandler);
 	setMethod(DSFile.prototype, "write", DSFileWriteHandler);
 	setMethod(DSFile.prototype, "seek", DSFileSeekHandler);
