@@ -1,5 +1,6 @@
 #include "api.h"
 
+#include <dirent.h>
 #include <nds/arm9/input.h>
 #include <nds/arm9/video.h>
 #include <nds/interrupts.h>
@@ -10,6 +11,7 @@ extern "C" {
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <vector>
 
 #include "console.h"
@@ -2180,6 +2182,54 @@ static jerry_value_t DSFileStaticWriteTextHandler(CALL_INFO) {
 	return jerry_create_number(bytesWritten);
 }
 
+static jerry_value_t DSFileStaticMakeDirHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	bool recursive = argCount > 1 ? jerry_value_to_boolean(args[1]) : false;
+	char *path = getAsString(args[0]);
+	int status = -1;
+	if (recursive) {
+		char *slash = strchr(path, '/');
+		if (strchr(path, ':') != NULL || path == slash) slash = strchr(slash + 1, '/');
+		while (slash != NULL) {
+			slash[0] = '\0';
+			mkdir(path, 0777);
+			slash[0] = '/';
+			slash = strchr(slash + 1, '/');
+		}
+		status = access(path, F_OK);
+	}
+	else status = mkdir(path, 0777);
+	free(path);
+	if (status != 0) return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Failed to make directory.");
+	return undefined;
+}
+
+static jerry_value_t DSFileStaticReadDirHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	char *path = getAsString(args[0]);
+	DIR *dir = opendir(path);
+	free(path);
+	if (dir == NULL) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Unable to open directory");
+
+	jerry_value_t arr = jerry_create_array(0);
+	jerry_value_t push = getProperty(arr, "push");
+	dirent *entry = readdir(dir);
+	while (entry != NULL) {
+		jerry_value_t dirEnt = jerry_create_object();
+		setProperty(dirEnt, "isDirectory", jerry_create_boolean(entry->d_type == DT_DIR));
+		setProperty(dirEnt, "isFile", jerry_create_boolean(entry->d_type == DT_REG));
+		jerry_value_t name = createString(entry->d_name);
+		setProperty(dirEnt, "name", name);
+		jerry_release_value(name);
+		jerry_call_function(push, arr, &dirEnt, 1);
+		jerry_release_value(dirEnt);
+		entry = readdir(dir);
+	}
+	closedir(dir);
+	jerry_release_value(push);
+	return arr;
+}
+
 static jerry_value_t BETA_gfxInit(CALL_INFO) {
 	videoSetMode(MODE_3_2D);
 	vramSetBankA(VRAM_A_MAIN_BG);
@@ -2491,6 +2541,8 @@ void exposeAPI() {
 	setMethod(DSFile.constructor, "readText", DSFileStaticReadTextHandler);
 	setMethod(DSFile.constructor, "write", DSFileStaticWriteHandler);
 	setMethod(DSFile.constructor, "writeText", DSFileStaticWriteTextHandler);
+	setMethod(DSFile.constructor, "makeDir", DSFileStaticMakeDirHandler);
+	setMethod(DSFile.constructor, "readDir", DSFileStaticReadDirHandler);
 	setMethod(DSFile.prototype, "read", DSFileReadHandler);
 	setMethod(DSFile.prototype, "write", DSFileWriteHandler);
 	setMethod(DSFile.prototype, "seek", DSFileSeekHandler);
