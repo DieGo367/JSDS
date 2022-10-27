@@ -79,6 +79,7 @@ int main(int argc, char **argv) {
 	else tempLoadMain();
 
 	// cleanup
+	keyboardClose();
 	clearTasks();
 	clearTimeouts();
 	releaseReferences();
