@@ -17,4 +17,8 @@ u8 keyboardBufferLen();
 void keyboardClearBuffer();
 void onKeyboardKeyPress(int key);
 
+void keyboardOpen(bool printInput);
+void keyboardClose();
+bool isKeyboardOpen();
+
 #endif /* JSDS_KEYBOARD_H */

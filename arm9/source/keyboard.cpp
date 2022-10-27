@@ -14,6 +14,7 @@ char buf[keyboardBufferSize] = {0};
 int idx = 0;
 bool keyboardEnterPressed = false;
 bool keyboardEscapePressed = false;
+bool kbdPrintInput = true;
 const char *keyboardBuffer() {
 	return buf;
 }
@@ -27,6 +28,7 @@ void keyboardClearBuffer() {
 	keyboardEscapePressed = false;
 }
 void onKeyboardKeyPress(int key) {
+	if (!kbdPrintInput) return;
 	Keyboard *kbd = keyboardGetDefault();
 	keyboardEnterPressed = false;
 	keyboardEscapePressed = false;
@@ -41,4 +43,25 @@ void onKeyboardKeyPress(int key) {
 		buf[idx++] = key;
 		putchar(key);
 	}
+}
+
+bool kbdIsOpen = false;
+void keyboardOpen(bool printInput) {
+	if (kbdIsOpen) return;
+	keyboardClearBuffer();
+	consoleClear();
+	consoleSetWindow(NULL, 0, 0, 32, 12);
+	keyboardShow();
+	kbdIsOpen = true;
+	kbdPrintInput = printInput;
+}
+void keyboardClose() {
+	if (!kbdIsOpen) return;
+	keyboardHide();
+	consoleClear();
+	consoleSetWindow(NULL, 0, 0, 32, 24);
+	kbdIsOpen = false;
+}
+bool isKeyboardOpen() {
+	return kbdIsOpen;
 }

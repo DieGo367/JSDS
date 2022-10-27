@@ -56,8 +56,7 @@ void tempLoadMain() {
 }
 
 void repl() {
-	consoleSetWindow(NULL, 0, 0, 32, 14);
-	keyboardShow();
+	keyboardOpen(true);
 	loadStorage("/REPL");
 	eventLoop();
 }

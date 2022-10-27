@@ -84,13 +84,10 @@ static jerry_value_t confirmHandler(CALL_INFO) {
 
 static jerry_value_t promptHandler(CALL_INFO) {
 	consoleClear();
+	keyboardOpen(true);
 	printf("============ Prompt ============");
 	if (argCount > 0) printValue(args[0]);
 	printf("========= (A) OK  (B) Cancel ===");
-	consoleSetWindow(NULL, 0, 3, 32, 11);
-
-	keyboardClearBuffer();
-	keyboardShow();
 	bool canceled = false;
 	while (true) {
 		swiWaitForVBlank();
@@ -103,9 +100,8 @@ static jerry_value_t promptHandler(CALL_INFO) {
 		}
 		keyboardUpdate();
 	}
-	keyboardHide();
-
-	consoleSetWindow(NULL, 0, 0, 32, 24);
+	keyboardEnterPressed = false;
+	if (!inREPL) keyboardClose();
 	consoleClear();
 	if (canceled) return undefined;
 	else return jerry_create_string_from_utf8((jerry_char_t *) keyboardBuffer());
@@ -2420,8 +2416,10 @@ void exposeAPI() {
 
 	setMethod(ref_DS, "getBatteryLevel", DSGetBatteryLevelHandler);
 	setMethod(ref_DS, "getMainScreen", [](CALL_INFO) { return createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom"); });
+	setMethod(ref_DS, "hideKeyboard", [](CALL_INFO) -> jerry_value_t { keyboardClose(); return undefined; });
 	setReadonly(ref_DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
 	setMethod(ref_DS, "setMainScreen", DSSetMainScreenHandler);
+	setMethod(ref_DS, "showKeyboard", [](CALL_INFO) -> jerry_value_t { keyboardOpen(false); return undefined; });
 	setMethod(ref_DS, "shutdown", [](CALL_INFO) -> jerry_value_t { systemShutDown(); return undefined; });
 	setMethod(ref_DS, "sleep", DSSleepHandler);
 	setMethod(ref_DS, "swapScreens", [](CALL_INFO) -> jerry_value_t { lcdSwap(); return undefined; });

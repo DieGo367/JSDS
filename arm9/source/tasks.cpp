@@ -670,8 +670,8 @@ void eventLoop() {
 				jerry_release_value(parsedCode);
 				keyboardClearBuffer();
 			}
-			keyboardUpdate();
 		}
+		if (isKeyboardOpen()) keyboardUpdate();
 		if (localStorageShouldSave) saveStorage();
 	}
 }
