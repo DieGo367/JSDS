@@ -57,7 +57,10 @@ static jerry_value_t closeHandler(CALL_INFO) {
 static jerry_value_t alertHandler(CALL_INFO) {
 	consoleClear();
 	printf("============= Alert ============");
-	if (argCount > 0) printValue(args[0]);
+	if (argCount > 0) {
+		printValue(args[0]);
+		putchar('\n');
+	}
 	printf("===================== (A) OK ===");
 	while (true) {
 		swiWaitForVBlank();
@@ -71,7 +74,10 @@ static jerry_value_t alertHandler(CALL_INFO) {
 static jerry_value_t confirmHandler(CALL_INFO) {
 	consoleClear();
 	printf("============ Confirm ===========");
-	if (argCount > 0) printValue(args[0]);
+	if (argCount > 0) {
+		printValue(args[0]);
+		putchar('\n');
+	}
 	printf("========= (A) OK  (B) Cancel ===");
 	while (true) {
 		swiWaitForVBlank();
@@ -86,7 +92,10 @@ static jerry_value_t promptHandler(CALL_INFO) {
 	consoleClear();
 	keyboardOpen(true);
 	printf("============ Prompt ============");
-	if (argCount > 0) printValue(args[0]);
+	if (argCount > 0) {
+		printValue(args[0]);
+		putchar('\n');
+	}
 	printf("========= (A) OK  (B) Cancel ===");
 	bool canceled = false;
 	while (true) {
@@ -795,6 +804,8 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 			else if (strcmp(type, "stylusdown") == 0) dependentEvents |= stylusdown;
 			else if (strcmp(type, "stylusmove") == 0) dependentEvents |= stylusmove;
 			else if (strcmp(type, "stylusup") == 0) dependentEvents |= stylusup;
+			else if (strcmp(type, "keydown") == 0) dependentEvents |= keydown;
+			else if (strcmp(type, "keyup") == 0) dependentEvents |= keyup;
 			free(type);
 		}
 		jerry_release_value(isGlobal);
@@ -865,6 +876,8 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 						else if (strcmp(type, "stylusdown") == 0) dependentEvents &= ~(stylusdown);
 						else if (strcmp(type, "stylusmove") == 0) dependentEvents &= ~(stylusmove);
 						else if (strcmp(type, "stylusup") == 0) dependentEvents &= ~(stylusup);
+						else if (strcmp(type, "keydown") == 0) dependentEvents &= ~(keydown);
+						else if (strcmp(type, "keyup") == 0) dependentEvents &= ~(keyup);
 						free(type);
 					}
 					jerry_release_value(isGlobal);
@@ -895,7 +908,7 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	if (!isInstance) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Not an instance of Event.");
 
 	jerry_value_t dispatchVal = getProperty(args[0], "dispatch");
-	bool dispatched = jerry_get_boolean_value(dispatchVal);
+	bool dispatched = jerry_value_to_boolean(dispatchVal);
 	jerry_release_value(dispatchVal);
 	if (dispatched) return throwDOMException("Invalid event state", "InvalidStateError");
 
@@ -1004,6 +1017,94 @@ static jerry_value_t PromiseRejectionEventConstructor(CALL_INFO) {
 	jerry_release_value(promiseStr);
 
 	return undefined;
+}
+
+static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool targetUndefined = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor KeyboardEvent cannot be invoked without 'new'");
+	else if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'KeyboardEvent': 2 arguments required.");
+	else if (!jerry_value_is_object(args[1])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'KeyboardEvent': The provided value is not of type 'KeyboardEventInit'");
+	EventConstructor(function, thisValue, args, argCount);
+
+	jerry_value_t keyStr = createString("key");
+	jerry_value_t codeStr = createString("code");
+	jerry_value_t locationStr = createString("location");
+
+	jerry_value_t empty = createString("");
+	setReadonlyJV(thisValue, keyStr, empty);
+	setReadonlyJV(thisValue, codeStr, empty);
+	jerry_release_value(empty);
+	jerry_value_t zero = jerry_create_number(0);
+	setReadonlyJV(thisValue, locationStr, zero);
+	jerry_release_value(zero);
+
+	jerry_value_t keyVal = jerry_get_property(args[1], keyStr);
+	if (!jerry_value_is_undefined(keyVal)) {
+		jerry_value_t keyAsStr = jerry_value_to_string(keyVal);
+		jerry_set_internal_property(thisValue, keyStr, keyAsStr);
+		jerry_release_value(keyAsStr);
+	}
+	jerry_release_value(keyVal);
+	jerry_value_t codeVal = jerry_get_property(args[1], codeStr);
+	if (!jerry_value_is_undefined(codeVal)) {
+		jerry_value_t codeAsStr = jerry_value_to_string(codeVal);
+		jerry_set_internal_property(thisValue, codeStr, codeAsStr);
+		jerry_release_value(codeAsStr);
+	}
+	jerry_release_value(codeVal);
+	jerry_value_t locationVal = jerry_get_property(args[1], locationStr);
+	if (!jerry_value_is_undefined(locationVal)) {
+		jerry_value_t locationNum = jerry_create_number(jerry_value_as_uint32(locationVal));
+		jerry_set_internal_property(thisValue, locationStr, locationNum);
+		jerry_release_value(locationNum);
+	}
+	jerry_release_value(locationVal);
+
+	jerry_release_value(locationStr);
+	jerry_release_value(codeStr);
+	jerry_release_value(keyStr);
+
+	char eventInitBooleanProperties[16][20] = {
+		"repeat", "isComposing",
+		"ctrlKey", "shiftKey", "altKey", "metaKey",
+		"modifierAltGraph", "modifierCapsLock",
+		"modifierFn", "modifierFnLock",
+		"modifierHyper", "modifierNumLock", "modifierScrollLock",
+		"modifierSuper", "modifierSymbol", "modifierSymbolLock"
+	};
+
+	for (u8 i = 0; i < 16; i++) {
+		jerry_value_t prop = createString(eventInitBooleanProperties[i]);
+		jerry_value_t val = jerry_get_property(args[1], prop);
+		bool setTrue = jerry_value_to_boolean(val);
+		if (i < 6) setReadonlyJV(thisValue, prop, jerry_create_boolean(setTrue));
+		else jerry_set_internal_property(thisValue, prop, jerry_create_boolean(setTrue));
+		jerry_release_value(val);
+		jerry_release_value(prop);
+	}
+
+	return undefined;
+}
+
+static jerry_value_t KeyboardEventDOM_KEY_LOCATION_STANDARDGetter(CALL_INFO) { return jerry_create_number(0); }
+static jerry_value_t KeyboardEventDOM_KEY_LOCATION_LEFTGetter(CALL_INFO)     { return jerry_create_number(1); }
+static jerry_value_t KeyboardEventDOM_KEY_LOCATION_RIGHTGetter(CALL_INFO)    { return jerry_create_number(2); }
+static jerry_value_t KeyboardEventDOM_KEY_LOCATION_NUMPADGetter(CALL_INFO)   { return jerry_create_number(3); }
+
+static jerry_value_t KeyboardEventGetModifierStateHandler(CALL_INFO) {
+	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	char *key = getAsString(args[0]);
+	bool result = false;
+	if (strcmp(key, "Alt") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "altKey"));
+	else if (strcmp(key, "AltGraph") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "modifierAltGraph"));
+	else if (strcmp(key, "CapsLock") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "modifierCapsLock"));
+	else if (strcmp(key, "Control") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "ctrlKey"));
+	else if (strcmp(key, "Meta") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "metaKey"));
+	else if (strcmp(key, "Shift") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "shiftKey"));
+	free(key);
+	return jerry_create_boolean(result);
 }
 
 static jerry_value_t CustomEventConstructor(CALL_INFO) {
@@ -1536,7 +1637,7 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
 		if (jerry_value_is_object(args[1])) {
 			jerry_value_t streamVal = getProperty(args[1], "stream");
-			doNotFlush = jerry_get_boolean_value(streamVal);
+			doNotFlush = jerry_value_to_boolean(streamVal);
 			jerry_set_internal_property(thisValue, doNotFlushStr, doNotFlush ? True : False);
 			jerry_release_value(streamVal);
 		}
@@ -2352,6 +2453,14 @@ void exposeAPI() {
 	setMethod(Event.prototype, "preventDefault", EventPreventDefaultHandler);
 	ref_Event = Event.constructor;
 
+	jsClass KeyboardEvent = extendClass(ref_global, "KeyboardEvent", KeyboardEventConstructor, Event.prototype);
+	classDefGetter(KeyboardEvent, "DOM_KEY_LOCATION_STANDARD", KeyboardEventDOM_KEY_LOCATION_STANDARDGetter);
+	classDefGetter(KeyboardEvent, "DOM_KEY_LOCATION_LEFT",     KeyboardEventDOM_KEY_LOCATION_LEFTGetter);
+	classDefGetter(KeyboardEvent, "DOM_KEY_LOCATION_RIGHT",    KeyboardEventDOM_KEY_LOCATION_RIGHTGetter);
+	classDefGetter(KeyboardEvent, "DOM_KEY_LOCATION_NUMPAD",   KeyboardEventDOM_KEY_LOCATION_NUMPADGetter);
+	setMethod(KeyboardEvent.prototype, "getModifierState", KeyboardEventGetModifierStateHandler);
+	releaseClass(KeyboardEvent);
+
 	releaseClass(extendClass(ref_global, "ErrorEvent", ErrorEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "PromiseRejectionEvent", PromiseRejectionEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "CustomEvent", CustomEventConstructor, Event.prototype));
@@ -2400,6 +2509,8 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onload");
 	defEventAttribute(ref_global, "onunhandledrejection");
 	defEventAttribute(ref_global, "onunload");
+	defEventAttribute(ref_global, "onkeydown");
+	defEventAttribute(ref_global, "onkeyup");
 	// new DS-related events
 	defEventAttribute(ref_global, "onbuttondown");
 	defEventAttribute(ref_global, "onbuttonup");

@@ -496,6 +496,37 @@ void queueEventName(const char *eventName) {
 	jerry_release_value(event);
 }
 
+bool dispatchKeyboardEvent(bool down, const char *key, const char *code, u8 location, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
+	jerry_value_t kbdEventArgs[2] = {createString(down ? "keydown" : "keyup"), jerry_create_object()};
+	setProperty(kbdEventArgs[1], "cancelable", True);
+
+	jerry_value_t keyStr = createString(key);
+	jerry_value_t codeStr = createString(code);
+	jerry_value_t locationNum = jerry_create_number(location);
+	setProperty(kbdEventArgs[1], "key", keyStr);
+	setProperty(kbdEventArgs[1], "code", codeStr);
+	setProperty(kbdEventArgs[1], "location", locationNum);
+	jerry_release_value(keyStr);
+	jerry_release_value(codeStr);
+	jerry_release_value(locationNum);
+
+	setProperty(kbdEventArgs[1], "shiftKey", jerry_create_boolean(shift));
+	setProperty(kbdEventArgs[1], "ctrlKey", jerry_create_boolean(ctrl));
+	setProperty(kbdEventArgs[1], "altKey", jerry_create_boolean(alt));
+	setProperty(kbdEventArgs[1], "metaKey", jerry_create_boolean(meta));
+	setProperty(kbdEventArgs[1], "modifierAltGraph", jerry_create_boolean(ctrl && alt));
+	setProperty(kbdEventArgs[1], "modifierCapsLock", jerry_create_boolean(caps));
+
+	jerry_value_t keyboardEventConstructor = getProperty(ref_global, "KeyboardEvent");
+	jerry_value_t kbdEvent = jerry_construct_object(keyboardEventConstructor, kbdEventArgs, 2);
+	bool canceled = dispatchEvent(ref_global, kbdEvent, false);
+	jerry_release_value(kbdEvent);
+	jerry_release_value(keyboardEventConstructor);
+	jerry_release_value(kbdEventArgs[0]);
+	jerry_release_value(kbdEventArgs[1]);
+	return canceled;
+}
+
 void buttonEvents(bool down) {
 	u32 set = down ? keysDown() : keysUp();
 	if (set) {

@@ -18,12 +18,14 @@ extern u8 dependentEvents;
 extern bool localStorageShouldSave;
 
 enum DependentEvent {
-	vblank = 0b1,
-	buttondown = 0b10,
-	buttonup = 0b100,
-	stylusdown = 0b1000,
-	stylusmove = 0b10000,
-	stylusup = 0b100000,
+	vblank     = BIT(0),
+	buttondown = BIT(1),
+	buttonup   = BIT(2),
+	stylusdown = BIT(3),
+	stylusmove = BIT(4),
+	stylusup   = BIT(5),
+	keydown    = BIT(6),
+	keyup      = BIT(7)
 };
 
 void onPromiseRejectionOp(jerry_value_t promise, jerry_promise_rejection_operation_t operation);
@@ -43,6 +45,8 @@ void handleRejection(jerry_value_t promise);
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync);
 void queueEvent(jerry_value_t target, jerry_value_t event);
 void queueEventName(const char *eventName);
+
+bool dispatchKeyboardEvent(bool down, const char *key, const char *code, u8 location, bool shift, bool ctrl, bool alt, bool meta, bool caps);
 
 void eventLoop();
 

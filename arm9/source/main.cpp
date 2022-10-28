@@ -69,6 +69,7 @@ int main(int argc, char **argv) {
 	fatInitDefault();
 	keyboard = keyboardDemoInit();
 	keyboard->OnKeyPressed = onKeyboardKeyPress;
+	keyboard->OnKeyReleased = onKeyboardKeyRelease;
 	jerry_init(JERRY_INIT_EMPTY);
 	jerry_set_error_object_created_callback(onErrorCreated, NULL);
 	jerry_jsds_set_promise_rejection_op_callback(onPromiseRejectionOp);

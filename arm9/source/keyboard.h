@@ -16,6 +16,7 @@ u8 keyboardBufferLen();
 
 void keyboardClearBuffer();
 void onKeyboardKeyPress(int key);
+void onKeyboardKeyRelease(int key);
 
 void keyboardOpen(bool printInput);
 void keyboardClose();
