@@ -2412,8 +2412,7 @@ void exposeAPI() {
 	setMethod(ref_global, "setInterval", setIntervalHandler);
 	setMethod(ref_global, "setTimeout", setTimeoutHandler);
 	
-	jerry_value_t console = jerry_create_object();
-	setProperty(ref_global, "console", console);
+	jerry_value_t console = createNamespace(ref_global, "console");
 	setMethod(console, "assert", consoleAssertHandler);
 	setMethod(console, "clear", consoleClearHandler);
 	setMethod(console, "count", consoleCountHandler);
@@ -2533,8 +2532,7 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onwake");
 
 	// DS namespace, where most custom functionality lives
-	ref_DS = jerry_create_object();
-	setProperty(ref_global, "DS", ref_DS);
+	ref_DS = createNamespace(ref_global, "DS");
 
 	setMethod(ref_DS, "getBatteryLevel", DSGetBatteryLevelHandler);
 	setMethod(ref_DS, "getMainScreen", [](CALL_INFO) { return createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom"); });

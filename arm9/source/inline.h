@@ -20,6 +20,7 @@ inline jerry_value_t createString(const char *str) {
 	return jerry_create_string((const jerry_char_t *) str);
 }
 
+// Creates a js string out of a list of 16-bit Unicode codepoints. Return value must be released!
 inline jerry_value_t createStringU16(const u16* codepoints, u32 length) {
 	u8 utf8[length * 3]; // each codepoint can be up to 3 bytes
 	u8 *out = utf8;
@@ -136,7 +137,7 @@ inline void setMethod(jerry_value_t object, const char *method, jerry_external_h
 	jerry_release_value(nameDesc.value);
 	jerry_release_value(func);
 }
-// Create object method via c string and function.
+// Create object method via c string and function. Return value must be released!
 inline jerry_value_t createMethod(jerry_value_t object, const char *method, jerry_external_handler_t function) {
 	jerry_value_t func = jerry_create_external_function(function);
 	// Function.prototype.name isn't being set automatically, so it must be defined manually
@@ -145,6 +146,16 @@ inline jerry_value_t createMethod(jerry_value_t object, const char *method, jerr
 	jerry_release_value(jerry_set_property(object, nameDesc.value, func));
 	jerry_release_value(nameDesc.value);
 	return func;
+}
+
+// Creates a "namespace" on object via c string. Return value must be released!
+inline jerry_value_t createNamespace(jerry_value_t object, const char *name) {
+	jerry_value_t ns = jerry_create_object();
+	jerry_value_t nameStr = jerry_create_string((jerry_char_t *) name);
+	jerry_release_value(jerry_set_property(object, nameStr, ns));
+	jerry_release_value(jerry_set_property(ns, ref_sym_toStringTag, nameStr));
+	jerry_release_value(nameStr);
+	return ns;
 }
 
 struct jsClass {
@@ -164,7 +175,7 @@ inline jsClass createClass(jerry_value_t object, const char *name, jerry_externa
 	jerry_release_value(jerry_set_property(classFunc, ref_str_prototype, proto));
 	nonEnumerableDesc.value = classFunc;
 	jerry_release_value(jerry_define_own_property(proto, ref_str_constructor, &nonEnumerableDesc));
-	jerry_set_property(proto, ref_sym_toStringTag, nameDesc.value);
+	jerry_release_value(jerry_set_property(proto, ref_sym_toStringTag, nameDesc.value));
 	jerry_release_value(nameDesc.value);
 	return {.constructor = classFunc, .prototype = proto};
 }
