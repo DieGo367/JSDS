@@ -256,6 +256,14 @@ inline void setReadonlyNumber(jerry_value_t object, const char *property, double
 	jerry_release_value(n);
 }
 
+// Returns whether new.target is undefined.
+inline bool isNewTargetUndefined() {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool isUnd = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	return isUnd;
+}
+
 // Create a getter on both the constructor and prototype of a class for a certain property via c string and function.
 inline void classDefGetter(jsClass cls, const char *property, jerry_external_handler_t getter) {
 	getterDesc.getter = jerry_create_external_function(getter);
@@ -325,7 +333,16 @@ inline void defEventAttribute(jerry_value_t eventTarget, const char *attributeNa
 	jerry_release_value(nameDesc.value);
 }
 
-// Creates a DOMException with the given message and name.
+// Creates a jerry common error.
+inline jerry_value_t throwError(const char *message) {
+	return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) message);
+}
+// Creates a jerry type error.
+inline jerry_value_t throwTypeError(const char *message) {
+	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) message);
+}
+
+// Creates a DOMException with the given message and name. Return value must be released!
 inline jerry_value_t createDOMException(const char *message, const char *name) {
 	jerry_value_t args[2] = {jerry_create_string((jerry_char_t *) message), jerry_create_string((jerry_char_t *) name)};
 	jerry_value_t exception = jerry_construct_object(ref_DOMException, args, 2);

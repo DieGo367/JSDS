@@ -43,10 +43,16 @@ jerry_value_t ref_consoleTimers;
 const u32 STORAGE_API_MAX_CAPACITY = 4096; // 4 KiB
 const u32 STORAGE_API_LENGTH_BYTES = 8;
 
+const char ONE_ARG[21] = "1 argument required.";
+
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
+#define REQUIRE_1() if (argCount == 0) return throwTypeError(ONE_ARG);
+#define REQUIRE(n) if (argCount < n) return throwTypeError(#n " arguments required.")
+#define EXPECT(test, type) if (!(test)) return throwTypeError("Expected type '" #type "'.")
+#define CONSTRUCTOR(name) if (isNewTargetUndefined()) return throwTypeError("Constructor '" #name "' cannot be invoked without 'new'.");
 
 static jerry_value_t IllegalConstructor(CALL_INFO) {
-	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Illegal constructor");
+	return throwTypeError("Illegal constructor");
 }
 
 static jerry_value_t closeHandler(CALL_INFO) {
@@ -120,7 +126,7 @@ static jerry_value_t promptHandler(CALL_INFO) {
 }
 
 static jerry_value_t atobHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'atob': 1 argument required.");
+	REQUIRE_1();
 	char errorName[22] = "InvalidCharacterError";
 	char errorMsg[25] = "Failed to decode base64.";
 
@@ -195,7 +201,7 @@ static jerry_value_t atobHandler(CALL_INFO) {
 
 const char b64Chars[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static jerry_value_t btoaHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'btoa': 1 argument required.");
+	REQUIRE_1();
 
 	jerry_length_t dataSize;
 	char *data = getAsString(args[0], &dataSize);
@@ -207,7 +213,7 @@ static jerry_value_t btoaHandler(CALL_INFO) {
 		if (*ch & BIT(7)) { // greater than U+007F
 			if (*ch & 0b00111100) { // greater than U+00FF, is out of range and therefore invalid
 				free(data);
-				return throwDOMException("Failed to execute 'btoa': The string to be encoded contains characters outside of the Latin1 range.", "InvalidCharacterError");
+				return throwDOMException("The string to be encoded contains characters outside of the Latin1 range.", "InvalidCharacterError");
 			}
 			*ch = (*ch << 6 & 0b11000000) | (*ch & 0b00111111);
 			ch++;
@@ -279,7 +285,7 @@ static jerry_value_t clearTimeoutHandler(CALL_INFO) {
 }
 
 static jerry_value_t reportErrorHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'reportError': 1 argument required.");
+	REQUIRE_1();
 	jerry_value_t error = jerry_create_error_from_value(args[0], false);
 	handleError(error, true);
 	jerry_release_value(error);
@@ -287,8 +293,7 @@ static jerry_value_t reportErrorHandler(CALL_INFO) {
 }
 
 static jerry_value_t queueMicrotaskHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'queueMicrotask': 1 argument required.");
-	if (!jerry_value_is_function(args[0])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'queueMicrotask': parameter is not of type 'Function'.");
+	REQUIRE_1(); EXPECT(jerry_value_is_function(args[0]), Function);
 
 	jerry_value_t promise = jerry_create_promise();
 	jerry_value_t thenFunc = getProperty(promise, "then");
@@ -564,10 +569,7 @@ static jerry_value_t consoleClearHandler(CALL_INFO) {
 }
 
 static jerry_value_t DOMExceptionConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor DOMException cannot be invoked without 'new'");
+	CONSTRUCTOR(DOMException);
 
 	jerry_value_t messageVal = argCount > 0 ? jerry_value_to_string(args[0]) : createString("");
 	setReadonly(thisValue, "message", messageVal);
@@ -580,11 +582,7 @@ static jerry_value_t DOMExceptionConstructor(CALL_INFO) {
 }
 
 static jerry_value_t EventConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor Event cannot be invoked without 'new'");
-	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'Event': 1 argument required.");
+	CONSTRUCTOR(Event); REQUIRE_1();
 
 	jerry_value_t zero = jerry_create_number(0);
 	setInternalProperty(thisValue, "initialized", True);               // initialized flag
@@ -670,10 +668,7 @@ static jerry_value_t EventPreventDefaultHandler(CALL_INFO) {
 }
 
 static jerry_value_t EventTargetConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor EventTarget cannot be invoked without 'new'");
+	CONSTRUCTOR(EventTarget);
 
 	jerry_value_t eventListenerList = jerry_create_object();
 	setInternalProperty(thisValue, "eventListeners", eventListenerList);
@@ -685,7 +680,7 @@ static jerry_value_t EventTargetConstructor(CALL_INFO) {
 void abortSignalAddAlgorithm(jerry_value_t signal, jerry_value_t handler, jerry_value_t thisValue, const jerry_value_t *args, u32 argCount);
 
 static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
-	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'addEventListener': 2 arguments required.");
+	REQUIRE(2);
 	if (jerry_value_is_null(args[1])) return undefined;
 	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 	
@@ -731,7 +726,7 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 					jerry_release_value(callbackStr);
 					jerry_release_value(typeStr);
 					jerry_release_value(target);
-					return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'addEventListener': signal was not an AbortSignal.");
+					return throwTypeError("'signal' was not an AbortSignal.");
 				}
 				else {
 					jerry_value_t abortedVal = getInternalProperty(signalVal, "aborted");
@@ -838,7 +833,7 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 }
 
 static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
-	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'removeEventListener': 2 arguments required.");
+	REQUIRE(2);
 	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 	
 	jerry_value_t typeStr = createString("type");
@@ -911,12 +906,12 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 }
 
 static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
-	if (argCount < 1) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'dispatchEvent': 1 argument required.");
-	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
+	REQUIRE_1();
 	jerry_value_t isInstanceVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, args[0], ref_Event);
 	bool isInstance = jerry_get_boolean_value(isInstanceVal);
 	jerry_release_value(isInstanceVal);
-	if (!isInstance) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Not an instance of Event.");
+	EXPECT(isInstance, Event);
+	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 
 	jerry_value_t dispatchVal = getProperty(args[0], "dispatch");
 	bool dispatched = jerry_value_to_boolean(dispatchVal);
@@ -928,11 +923,7 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 }
 
 static jerry_value_t ErrorEventConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor ErrorEvent cannot be invoked without 'new'");
-	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'ErrorEvent': 1 argument required.");
+	CONSTRUCTOR(ErrorEvent); REQUIRE_1();
 	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t messageProp = createString("message");
@@ -994,19 +985,15 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 }
 
 static jerry_value_t PromiseRejectionEventConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor PromiseRejectionEvent cannot be invoked without 'new'");
-	else if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'PromiseRejectionEvent': 2 arguments required.");
-	else if (!jerry_value_is_object(args[1])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'PromiseRejectionEvent': The provided value is not of type 'PromiseRejectionEventInit'");
+	CONSTRUCTOR(PromiseRejectionEvent); REQUIRE(2);
+	EXPECT(jerry_value_is_object(args[1]), PromiseRejectionEventInit);
 
 	jerry_value_t promiseStr = createString("promise");
 	jerry_value_t promiseVal = jerry_get_property(args[1], promiseStr);
 	if (jerry_value_is_undefined(promiseVal)) {
 		jerry_release_value(promiseStr);
 		jerry_release_value(promiseVal);
-		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'PromiseRejectionEvent': Failed to read the 'promise' property from options.");
+		return throwTypeError("Failed to read the 'promise' property from options.");
 	}
 	EventConstructor(function, thisValue, args, argCount);
 
@@ -1031,12 +1018,8 @@ static jerry_value_t PromiseRejectionEventConstructor(CALL_INFO) {
 }
 
 static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor KeyboardEvent cannot be invoked without 'new'");
-	else if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'KeyboardEvent': 2 arguments required.");
-	else if (!jerry_value_is_object(args[1])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'KeyboardEvent': The provided value is not of type 'KeyboardEventInit'");
+	CONSTRUCTOR(KeyboardEvent); REQUIRE(2);
+	EXPECT(jerry_value_is_object(args[1]), KeyboardEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t keyStr = createString("key");
@@ -1105,7 +1088,7 @@ static jerry_value_t KeyboardEventDOM_KEY_LOCATION_RIGHTGetter(CALL_INFO)    { r
 static jerry_value_t KeyboardEventDOM_KEY_LOCATION_NUMPADGetter(CALL_INFO)   { return jerry_create_number(3); }
 
 static jerry_value_t KeyboardEventGetModifierStateHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	REQUIRE_1();
 	char *key = getAsString(args[0]);
 	bool result = false;
 	if (strcmp(key, "Alt") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "altKey"));
@@ -1119,11 +1102,7 @@ static jerry_value_t KeyboardEventGetModifierStateHandler(CALL_INFO) {
 }
 
 static jerry_value_t CustomEventConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor CustomEvent cannot be invoked without 'new'");
-	else if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'CustomEvent': 1 argument required.");
+	CONSTRUCTOR(CustomEvent); REQUIRE_1();
 	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t detailProp = createString("detail");
@@ -1141,19 +1120,15 @@ static jerry_value_t CustomEventConstructor(CALL_INFO) {
 }
 
 static jerry_value_t ButtonEventConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor ButtonEvent cannot be invoked without 'new'");
-	else if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'ButtonEvent': 2 arguments required.");
-	else if (!jerry_value_is_object(args[1])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'ButtonEvent': The provided value is not of type 'ButtonEventInit'");
+	CONSTRUCTOR(ButtonEvent); REQUIRE(2);
+	EXPECT(jerry_value_is_object(args[1]), ButtonEventInit);
 
 	jerry_value_t buttonStr = createString("button");
 	jerry_value_t buttonVal = jerry_get_property(args[1], buttonStr);
 	if (jerry_value_is_undefined(buttonVal)) {
 		jerry_release_value(buttonStr);
 		jerry_release_value(buttonVal);
-		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'ButtonEvent': Failed to read the 'button' property from options.");
+		return throwTypeError("Failed to read the 'button' property from options.");
 	}
 	EventConstructor(function, thisValue, args, argCount);
 
@@ -1167,12 +1142,8 @@ static jerry_value_t ButtonEventConstructor(CALL_INFO) {
 }
 
 static jerry_value_t StylusEventConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor StylusEvent cannot be invoked without 'new'");
-	else if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'StylusEvent': 2 arguments required.");
-	else if (!jerry_value_is_object(args[1])) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to construct 'StylusEvent': The provided value is not of type 'StylusEventInit'");
+	CONSTRUCTOR(StylusEvent); REQUIRE(2);
+	EXPECT(jerry_value_is_object(args[1]), StylusEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t xStr = createString("x");
@@ -1273,10 +1244,7 @@ void abortSignalRunAlgorithms(jerry_value_t signal) {
 }
 
 static jerry_value_t AbortControllerConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor AbortController cannot be invoked without 'new'");
+	CONSTRUCTOR(AbortController);
 
 	jerry_value_t signal = newAbortSignal(false);
 	setReadonly(thisValue, "signal", signal);
@@ -1295,7 +1263,7 @@ static jerry_value_t AbortControllerAbortHandler(CALL_INFO) {
 
 		if (argCount > 0 && !jerry_value_is_undefined(args[0])) setInternalProperty(signal, "reason", args[0]);
 		else {
-			jerry_value_t exception = createDOMException("signal is aborted without reason", "AbortError");
+			jerry_value_t exception = createDOMException("signal is aborted without reason.", "AbortError");
 			setInternalProperty(signal, "reason", exception);
 			jerry_release_value(exception);
 		}
@@ -1322,7 +1290,7 @@ static jerry_value_t AbortSignalStaticAbortHandler(CALL_INFO) {
 		setReadonly(signal, "reason", args[0]);
 	}
 	else {
-		jerry_value_t exception = createDOMException("signal is aborted without reason", "AbortError");
+		jerry_value_t exception = createDOMException("signal is aborted without reason.", "AbortError");
 		setReadonly(signal, "reason", exception);
 		jerry_release_value(exception);
 	}
@@ -1330,7 +1298,7 @@ static jerry_value_t AbortSignalStaticAbortHandler(CALL_INFO) {
 }
 
 static jerry_value_t AbortSignalStaticTimeoutHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'timeout': 1 argument required.");
+	REQUIRE_1();
 	jerry_value_t signal = newAbortSignal(false);
 	setReadonly(signal, "reason", undefined);
 	jerry_value_t ms = jerry_value_to_number(args[0]);
@@ -1345,7 +1313,7 @@ static jerry_value_t abortSignalTimeoutTask(CALL_INFO) {
 	if (!jerry_get_boolean_value(abortedVal)) {
 		abortSignalRunAlgorithms(args[0]);
 
-		jerry_value_t exception = createDOMException("signal timed out", "TimeoutError");
+		jerry_value_t exception = createDOMException("signal timed out.", "TimeoutError");
 		setInternalProperty(args[0], "reason", exception);
 		jerry_release_value(exception);
 
@@ -1397,7 +1365,7 @@ static jerry_value_t StorageLengthGetter(CALL_INFO) {
 }
 
 static jerry_value_t StorageKeyHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'key': 1 argument required.");
+	REQUIRE_1();
 	jerry_value_t key = null;
 	jerry_value_t propNames = jerry_get_object_keys(thisValue);
 	jerry_value_t nVal = jerry_value_to_number(args[0]);
@@ -1413,7 +1381,7 @@ static jerry_value_t StorageKeyHandler(CALL_INFO) {
 }
 
 static jerry_value_t StorageGetItemHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'getItem': 1 argument required.");
+	REQUIRE_1();
 	jerry_value_t hasOwnVal = jerry_has_own_property(thisValue, args[0]);
 	bool hasOwn = jerry_get_boolean_value(hasOwnVal);
 	jerry_release_value(hasOwnVal);
@@ -1422,7 +1390,7 @@ static jerry_value_t StorageGetItemHandler(CALL_INFO) {
 }
 
 static jerry_value_t StorageSetItemHandler(CALL_INFO) {
-	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'setItem': 2 arguments required.");
+	REQUIRE(2);
 
 	jerry_value_t storageSizeVal = getInternalProperty(thisValue, "size");
 	u32 storageFilled = jerry_value_as_uint32(storageSizeVal);
@@ -1444,7 +1412,7 @@ static jerry_value_t StorageSetItemHandler(CALL_INFO) {
 
 	jerry_value_t result = undefined;
 	if (storageFilled > STORAGE_API_MAX_CAPACITY) {
-		result = throwDOMException("Failed to execute 'setItem': Exceeded the quota.", "QuotaExceededError");
+		result = throwDOMException("Exceeded the quota.", "QuotaExceededError");
 	}
 	else {
 		if (strcmp(propertyName, "length") == 0) {
@@ -1475,7 +1443,7 @@ static jerry_value_t StorageSetItemHandler(CALL_INFO) {
 }
 
 static jerry_value_t StorageRemoveItemHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'removeItem': 1 argument required.");
+	REQUIRE_1();
 	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
 	jerry_value_t hasOwn = jerry_has_own_property(thisValue, propertyAsString);
 	if (jerry_get_boolean_value(hasOwn)) {
@@ -1537,7 +1505,7 @@ static jerry_value_t StorageProxySetHandler(CALL_INFO) {
 
 	jerry_value_t result;
 	if (storageFilled > STORAGE_API_MAX_CAPACITY) {
-		result = throwDOMException("Failed to execute 'setItem': Exceeded the quota.", "QuotaExceededError");
+		result = throwDOMException("Exceeded the quota.", "QuotaExceededError");
 	}
 	else {
 		jerry_value_t assignment = jerry_set_property(args[0], propertyAsString, valAsString);
@@ -1589,16 +1557,13 @@ static jerry_value_t StorageProxyDeletePropertyHandler(CALL_INFO) {
 }
 
 static jerry_value_t TextDecoderConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor TextDecoder cannot be invoked without 'new'");
+	CONSTRUCTOR(TextDecoder);
 
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		char *str = getAsString(args[0]);
 		if (strcmp(str, "utf-8") != 0 && strcmp(str, "utf8") != 0) {
 			free(str);
-			return jerry_create_error(JERRY_ERROR_RANGE, (jerry_char_t *) "Failed to construct 'TextDecoder': The encoding label provided is invalid.");
+			return jerry_create_error(JERRY_ERROR_RANGE, (jerry_char_t *) "The encoding label provided is invalid.");
 		}
 		free(str);
 	}
@@ -1619,7 +1584,7 @@ static jerry_value_t TextDecoderConstructor(CALL_INFO) {
 		if (!jerry_value_is_object(args[1])) {
 			jerry_release_value(fatalStr);
 			jerry_release_value(ignoreBOMStr);
-			return jerry_create_error(JERRY_ERROR_RANGE, (jerry_char_t *) "Failed to construct 'TextDecoder': The provided value is not of type 'TextDecoderOptions'.");
+			return throwTypeError("Expected type 'TextDecoderOptions'.");
 		}
 		jerry_value_t fatalVal = jerry_get_property(args[1], fatalStr);
 		jerry_set_internal_property(thisValue, fatalStr, jerry_value_to_boolean(fatalVal) ? True : False);
@@ -1654,7 +1619,7 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 		}
 		else {
 			jerry_release_value(doNotFlushStr);
-			return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'decode': The provided value is not of type 'TextDecodeOptions'.");
+			return throwTypeError("Expected type 'TextDecodeOptions'.");
 		}
 	}
 	jerry_release_value(doNotFlushStr);
@@ -1672,7 +1637,7 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 			source = jerry_get_arraybuffer_pointer(args[0]);
 			sourceLen = jerry_get_arraybuffer_byte_length(args[0]);
 		}
-		else return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'decode': The provided value is not of type '(ArrayBuffer or ArrayBufferView)'.");
+		else return throwTypeError("Expected type 'ArrayBuffer' or 'ArrayBufferView'.");
 	}
 
 	jerry_value_t fatal = getInternalProperty(thisValue, "fatal");
@@ -1725,7 +1690,7 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 		if (i >= sourceLen) {
 			if (bytesNeeded > 0 && !doNotFlush) {
 				bytesNeeded = 0;
-				if (isFatal) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) errorMsg);
+				if (isFatal) return throwTypeError(errorMsg);
 				else {
 					out.emplace_back(0xEF);
 					out.emplace_back(0xBF);
@@ -1756,7 +1721,7 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 				sequence = sequence << 8 | byte;
 			}
 			else {
-				if (isFatal) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) errorMsg);
+				if (isFatal) return throwTypeError(errorMsg);
 				else {
 					out.emplace_back(0xEF);
 					out.emplace_back(0xBF);
@@ -1768,7 +1733,7 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 			sequence = bytesNeeded = bytesSeen = 0;
 			lowerBound = 0x80;
 			upperBound = 0xBF;
-			if (isFatal) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) errorMsg);
+			if (isFatal) return throwTypeError(errorMsg);
 			else {
 				out.emplace_back(0xEF);
 				out.emplace_back(0xBF);
@@ -1829,10 +1794,7 @@ static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
 }
 
 static jerry_value_t TextEncoderConstructor(CALL_INFO) {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool targetUndefined = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	if (targetUndefined) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Constructor TextEncoder cannot be invoked without 'new'");
+	CONSTRUCTOR(TextEncoder);
 
 	jerry_value_t encoding = createString("utf-8");
 	setReadonly(thisValue, "encoding", encoding);
@@ -1857,10 +1819,9 @@ static jerry_value_t TextEncoderEncodeHandler(CALL_INFO) {
 }
 
 static jerry_value_t TextEncoderEncodeIntoHandler(CALL_INFO) {
-	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'encodeInto': 2 arguments required.");
-	if (jerry_value_is_object(args[1]) == false || jerry_value_is_typedarray(args[1]) == false || jerry_get_typedarray_type(args[1]) != JERRY_TYPEDARRAY_UINT8) {
-		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to execute 'encodeInto': parameter 2 is not of type 'Uint8Array'.");
-	}
+	REQUIRE(2);
+	EXPECT(jerry_value_is_object(args[1]) && jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
+
 	jerry_value_t stringVal = jerry_value_to_string(args[0]);
 	u32 stringSize = jerry_get_utf8_string_size(stringVal);
 	u32 stringLen = jerry_get_string_length(stringVal);
@@ -1960,7 +1921,7 @@ static jerry_value_t DSSetMainScreenHandler(CALL_INFO) {
 		free(str);
 		if (set) return undefined;
 	}
-	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Invalid screen value");
+	return throwTypeError("Invalid screen value");
 }
 
 static jerry_value_t DSSleepHandler(CALL_INFO) {
@@ -2018,14 +1979,14 @@ jerry_value_t newDSFile(FILE *file, jerry_value_t mode) {
 }
 
 static jerry_value_t DSFileReadHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	REQUIRE_1();
 
 	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
 	char *mode = getString(modeStr);
 	if (mode[0] != 'r' && mode[1] != '+') {
 		free(mode);
 		jerry_release_value(modeStr);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Unable to read in current file mode.");
+		return throwError("Unable to read in current file mode.");
 	}
 	free(mode);
 	jerry_release_value(modeStr);
@@ -2038,7 +1999,7 @@ static jerry_value_t DSFileReadHandler(CALL_INFO) {
 	u32 bytesRead = fread(buf, 1, size, file);
 	if (ferror(file)) {
 		jerry_release_value(arrayBuffer);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File read failed.");
+		return throwError("File read failed.");
 	}
 	else if (feof(file) && bytesRead == 0) {
 		jerry_release_value(arrayBuffer);
@@ -2052,17 +2013,15 @@ static jerry_value_t DSFileReadHandler(CALL_INFO) {
 }
 
 static jerry_value_t DSFileWriteHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
-	if (!jerry_value_is_typedarray(args[0]) || jerry_get_typedarray_type(args[0]) != JERRY_TYPEDARRAY_UINT8) {
-		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Value is not of type 'Uint8Array'.");
-	}
+	REQUIRE_1();
+	EXPECT(jerry_value_is_object(args[1]) && jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 
 	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
 	char *mode = getString(modeStr);
 	if (mode[0] != 'w' && mode[0] != 'a' && mode[1] != '+') {
 		free(mode);
 		jerry_release_value(modeStr);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Unable to write in current file mode.");
+		return throwError("Unable to write in current file mode.");
 	}
 	free(mode);
 	jerry_release_value(modeStr);
@@ -2076,14 +2035,14 @@ static jerry_value_t DSFileWriteHandler(CALL_INFO) {
 
 	u32 bytesWritten = fwrite(buf, 1, size, file);
 	if (ferror(file)) {
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File write failed.");
+		return throwError("File write failed.");
 	}
 	else return jerry_create_number(bytesWritten);
 }
 
 static jerry_value_t DSFileSeekHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required.");
-	
+	REQUIRE_1();
+
 	int mode = 10;
 	if (argCount > 1) {
 		char *seekMode = getAsString(args[1]);
@@ -2093,24 +2052,24 @@ static jerry_value_t DSFileSeekHandler(CALL_INFO) {
 		free(seekMode);
 	}
 	else mode = SEEK_SET;
-	if (mode == 10) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Invalid seek mode.");
+	if (mode == 10) return throwTypeError("Invalid seek mode");
 
 	FILE *file;
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
 	int success = fseek(file, jerry_value_as_int32(args[0]), mode);
-	if (success != 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "File seek failed.");
+	if (success != 0) return throwError("File seek failed.");
 	return undefined;
 }
 
 static jerry_value_t DSFileCloseHandler(CALL_INFO) {
 	FILE *file;
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
-	if (fclose(file) != 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "File close failed.");
+	if (fclose(file) != 0) return throwError("File close failed.");
 	return undefined;
 }
 
 static jerry_value_t DSFileStaticOpenHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	REQUIRE_1();
 	char *path = getAsString(args[0]);
 	char defaultMode[2] = "r";
 	char *mode = defaultMode;
@@ -2122,7 +2081,7 @@ static jerry_value_t DSFileStaticOpenHandler(CALL_INFO) {
 		) {
 			free(mode);
 			free(path);
-			return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Invalid file mode");
+			return throwTypeError("Invalid file mode");
 		}
 	}
 
@@ -2130,7 +2089,7 @@ static jerry_value_t DSFileStaticOpenHandler(CALL_INFO) {
 	if (file == NULL) {
 		if (mode != defaultMode) free(mode);
 		free(path);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Unable to open file");
+		return throwError("Unable to open file.");
 	}
 	else {
 		jerry_value_t modeStr = createString(mode);
@@ -2143,11 +2102,11 @@ static jerry_value_t DSFileStaticOpenHandler(CALL_INFO) {
 }
 
 static jerry_value_t DSFileStaticCopyHandler(CALL_INFO) {
-	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "2 arguments required");
+	REQUIRE(2);
 	char *sourcePath = getAsString(args[0]);
 	FILE *source = fopen(sourcePath, "r");
 	free(sourcePath);
-	if (source == NULL) return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Unable to open source file during copy.");
+	if (source == NULL) return throwError("Unable to open source file during copy.");
 	
 	fseek(source, 0, SEEK_END);
 	u32 size = ftell(source);
@@ -2157,7 +2116,7 @@ static jerry_value_t DSFileStaticCopyHandler(CALL_INFO) {
 	if (ferror(source)) {
 		free(data);
 		fclose(source);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Failed to read source file during copy.");
+		return throwError("Failed to read source file during copy.");
 	}
 	fclose(source);
 
@@ -2166,43 +2125,43 @@ static jerry_value_t DSFileStaticCopyHandler(CALL_INFO) {
 	free(destPath);
 	if (dest == NULL) {
 		free(data);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Unable to open destination file during copy.");
+		return throwError("Unable to open destination file during copy.");
 	}
 
 	fwrite(data, 1, bytesRead, dest);
 	free(data);
 	if (ferror(dest)) {
 		fclose(dest);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Failed to write destination file during copy.");
+		return throwError("Failed to write destination file during copy.");
 	}
 	fclose(dest);
 	return undefined;
 }
 
 static jerry_value_t DSFileStaticRenameHandler(CALL_INFO) {
-	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "2 arguments required");
+	REQUIRE(2);
 	char *sourcePath = getAsString(args[0]);
 	char *destPath = getAsString(args[1]);
 	int status = rename(sourcePath, destPath);
 	free(sourcePath);
 	free(destPath);
-	if (status != 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to rename file");
+	if (status != 0) return throwError("Failed to rename file.");
 	return undefined;
 }
 
 static jerry_value_t DSFileStaticRemoveHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	REQUIRE_1();
 	char *path = getAsString(args[0]);
-	if (remove(path) != 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Failed to delete file");
+	if (remove(path) != 0) return throwError("Failed to delete file.");
 	return undefined;
 }
 
 static jerry_value_t DSFileStaticReadHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	REQUIRE_1();
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "r");
 	free(path);
-	if (file == NULL) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Unable to open file");
+	if (file == NULL) return throwError("Unable to open file.");
 
 	fseek(file, 0, SEEK_END);
 	u32 size = ftell(file);
@@ -2214,7 +2173,7 @@ static jerry_value_t DSFileStaticReadHandler(CALL_INFO) {
 	if (ferror(file)) {
 		jerry_release_value(arrayBuffer);
 		fclose(file);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File read failed.");
+		return throwError("File read failed.");
 	}
 	fclose(file);
 	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, size);
@@ -2223,11 +2182,11 @@ static jerry_value_t DSFileStaticReadHandler(CALL_INFO) {
 }
 
 static jerry_value_t DSFileStaticReadTextHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	REQUIRE_1();
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "r");
 	free(path);
-	if (file == NULL) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Unable to open file");
+	if (file == NULL) return throwError("Unable to open file.");
 
 	fseek(file, 0, SEEK_END);
 	u32 size = ftell(file);
@@ -2238,7 +2197,7 @@ static jerry_value_t DSFileStaticReadTextHandler(CALL_INFO) {
 	if (ferror(file)) {
 		free(buf);
 		fclose(file);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File read failed.");
+		return throwError("File read failed.");
 	}
 	fclose(file);
 	jerry_value_t str = jerry_create_string_sz_from_utf8((jerry_char_t *) buf, size);
@@ -2247,14 +2206,12 @@ static jerry_value_t DSFileStaticReadTextHandler(CALL_INFO) {
 }
 
 static jerry_value_t DSFileStaticWriteHandler(CALL_INFO) {
-	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "2 arguments required");
-	if (!jerry_value_is_typedarray(args[1]) || jerry_get_typedarray_type(args[1]) != JERRY_TYPEDARRAY_UINT8) {
-		return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Value is not of type 'Uint8Array'.");
-	}
+	REQUIRE(2);
+	EXPECT(jerry_value_is_object(args[1]) && jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "w");
 	free(path);
-	if (file == NULL) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Unable to open file");
+	if (file == NULL) return throwError("Unable to open file.");
 	
 	u32 offset, size;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &offset, &size);
@@ -2264,18 +2221,18 @@ static jerry_value_t DSFileStaticWriteHandler(CALL_INFO) {
 	u32 bytesWritten = fwrite(buf, 1, size, file);
 	if (ferror(file)) {
 		fclose(file);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File write failed.");
+		return throwError("File write failed.");
 	}
 	fclose(file);
 	return jerry_create_number(bytesWritten);
 }
 
 static jerry_value_t DSFileStaticWriteTextHandler(CALL_INFO) {
-	if (argCount < 2) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "2 arguments required");
+	REQUIRE(2);
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "w");
 	free(path);
-	if (file == NULL) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Unable to open file");
+	if (file == NULL) return throwError("Unable to open file.");
 	
 	u32 size;
 	char *text = getAsString(args[1], &size);
@@ -2283,7 +2240,7 @@ static jerry_value_t DSFileStaticWriteTextHandler(CALL_INFO) {
 	if (ferror(file)) {
 		fclose(file);
 		free(text);
-		return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "File write failed.");
+		return throwError("File write failed.");
 	}
 	fclose(file);
 	free(text);
@@ -2291,7 +2248,7 @@ static jerry_value_t DSFileStaticWriteTextHandler(CALL_INFO) {
 }
 
 static jerry_value_t DSFileStaticMakeDirHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	REQUIRE_1();
 	bool recursive = argCount > 1 ? jerry_value_to_boolean(args[1]) : false;
 	char *path = getAsString(args[0]);
 	int status = -1;
@@ -2308,16 +2265,16 @@ static jerry_value_t DSFileStaticMakeDirHandler(CALL_INFO) {
 	}
 	else status = mkdir(path, 0777);
 	free(path);
-	if (status != 0) return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) "Failed to make directory.");
+	if (status != 0) return throwError("Failed to make directory.");
 	return undefined;
 }
 
 static jerry_value_t DSFileStaticReadDirHandler(CALL_INFO) {
-	if (argCount == 0) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "1 argument required");
+	REQUIRE_1();
 	char *path = getAsString(args[0]);
 	DIR *dir = opendir(path);
 	free(path);
-	if (dir == NULL) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "Unable to open directory");
+	if (dir == NULL) return throwError("Unable to open directory.");
 
 	jerry_value_t arr = jerry_create_array(0);
 	jerry_value_t push = getProperty(arr, "push");
@@ -2346,7 +2303,7 @@ static jerry_value_t BETA_gfxInit(CALL_INFO) {
 }
 
 static jerry_value_t BETA_gfxPixel(CALL_INFO) {
-	if (argCount < 3) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "3 args required.");
+	REQUIRE(3);
 	u8 x = jerry_value_as_uint32(args[0]);
 	u8 y = jerry_value_as_uint32(args[1]);
 	u16 color = jerry_value_as_uint32(args[2]);
@@ -2355,7 +2312,7 @@ static jerry_value_t BETA_gfxPixel(CALL_INFO) {
 }
 
 static jerry_value_t BETA_gfxRect(CALL_INFO) {
-	if (argCount < 5) return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) "5 args required.");
+	REQUIRE(5);
 	u8 x = jerry_value_as_uint32(args[0]);
 	u8 y = jerry_value_as_uint32(args[1]) % 192;
 	u16 width = jerry_value_as_uint32(args[2]);
