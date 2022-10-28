@@ -112,7 +112,10 @@ static jerry_value_t promptHandler(CALL_INFO) {
 	keyboardEnterPressed = false;
 	if (!inREPL) keyboardClose();
 	consoleClear();
-	if (canceled) return undefined;
+	if (canceled) {
+		if (argCount > 1) return jerry_value_to_string(args[1]);
+		else return null;
+	}
 	else return jerry_create_string_from_utf8((jerry_char_t *) keyboardBuffer());
 }
 
@@ -412,6 +415,10 @@ static jerry_value_t consoleTableHandler(CALL_INFO) {
 
 static jerry_value_t consoleGroupHandler(CALL_INFO) {
 	consoleIndentAdd();
+	if (argCount > 0) {
+		consoleIndent();
+		consolePrint(args, argCount);
+	}
 	return undefined;
 }
 
@@ -512,7 +519,11 @@ static jerry_value_t consoleTimeLogHandler(CALL_INFO) {
 	else {
 		int counterId = jerry_value_as_int32(counterVal);
 		printString(label);
-		printf(": %i ms\n", counterGet(counterId));
+		printf(": %i ms", counterGet(counterId));
+		if (argCount > 1) {
+			putchar(' ');
+			consolePrint(args + 1, argCount - 1);
+		}
 	}
 	jerry_release_value(counterVal);
 

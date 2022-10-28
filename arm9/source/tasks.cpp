@@ -391,8 +391,14 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 		jerry_value_t spliceFunc = getProperty(listenersOfType, "splice");
 		jerry_value_t inPassiveListenerStr = createString("inPassiveListener");
 		jerry_value_t handleEventStr = createString("handleEvent");
+		jerry_value_t stopImmediatePropagationStr = createString("stopImmediatePropagation");
 
 		for (u32 i = 0; i < length && !abortFlag; i++) {
+			jerry_value_t stopImmediate = jerry_get_internal_property(event, stopImmediatePropagationStr);
+			bool stop = jerry_get_boolean_value(stopImmediate);
+			jerry_release_value(stopImmediate);
+			if (stop) break;
+
 			jerry_value_t listener = jerry_get_property_by_index(listenersCopy, i);
 			jerry_value_t removedVal = jerry_get_property(listener, removedStr);
 			bool removed = jerry_get_boolean_value(removedVal);
