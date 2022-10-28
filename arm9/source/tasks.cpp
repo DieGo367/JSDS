@@ -177,14 +177,8 @@ void saveStorage() {
 	char *storagePath = getString(filePath);
 	jerry_release_value(filePath);
 	
-	// make directories
-	char *slash = strchr(storagePath + 1, '/');
-	while (slash != NULL) {
-		slash[0] = '\0';
-		mkdir(storagePath, 0777);
-		slash[0] = '/';
-		slash = strchr(slash + 1, '/');
-	}
+	mkdir("/_nds", 0777);
+	mkdir("/_nds/JSDS", 0777);
 
 	jerry_value_t sizeVal = getInternalProperty(ref_localStorage, "size");
 	u32 size = jerry_value_as_uint32(sizeVal);
