@@ -15,6 +15,7 @@ struct Task {
 extern bool inREPL;
 extern bool abortFlag;
 extern u8 dependentEvents;
+extern int fatInitSuccess;
 extern bool localStorageShouldSave;
 
 enum DependentEvent {

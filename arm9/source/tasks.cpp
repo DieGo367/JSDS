@@ -25,6 +25,7 @@ extern "C" {
 bool inREPL = false;
 bool abortFlag = false;
 u8 dependentEvents = 0;
+int fatInitSuccess = 0;
 bool localStorageShouldSave = false;
 
 std::unordered_set<jerry_value_t> rejectedPromises;
@@ -97,6 +98,7 @@ void clearTasks() {
 }
 
 void loadStorage(const char *resourceName) {
+	if (!fatInitSuccess) return;
 	char storagePath[257] = "/_nds/JSDS";
 	char *start = strrchr(resourceName, '/');
 	strcat(storagePath, start);
@@ -173,6 +175,7 @@ void loadStorage(const char *resourceName) {
 }
 void saveStorage() {
 	localStorageShouldSave = false;
+	if (!fatInitSuccess) return;
 	jerry_value_t filePath = getInternalProperty(ref_localStorage, "filePath");
 	char *storagePath = getString(filePath);
 	jerry_release_value(filePath);
