@@ -4,7 +4,9 @@
 #include <nds/interrupts.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "api.h"
 #include "console.h"
@@ -23,12 +25,16 @@ void onErrorCreated(jerry_value_t errorObject, void *userPtr) {
 	jerry_release_value(backtrace);
 }
 
-void tempLoadMain() {
-	// try to read main.js file from root
-	FILE *file = fopen("/main.js", "r");
+void runFile(const char *filename) {
+	if (access(filename, F_OK) != 0) {
+		BG_PALETTE_SUB[0] = 0x001F;
+		printf("\n\n\tCouldn't find \"%s\".", filename);
+		return;
+	}
+	FILE *file = fopen(filename, "r");
 	if (file == NULL) {
 		BG_PALETTE_SUB[0] = 0x001F;
-		printf("\n\n\tFile read error!\n\nCouldn't open \"/main.js\".");
+		printf("\n\n\tCouldn't open \"%s\".", filename);
 		return;
 	}
 	
@@ -39,7 +45,7 @@ void tempLoadMain() {
 	fread(script, 1, size, file);
 	fclose(file);
 	jerry_value_t parsedCode = jerry_parse(
-		(const jerry_char_t *) "/main.js", 8,
+		(const jerry_char_t *) filename, strlen(filename),
 		(const jerry_char_t *) script, size,
 		JERRY_PARSE_STRICT_MODE & JERRY_PARSE_MODULE
 	);
@@ -47,7 +53,7 @@ void tempLoadMain() {
 	queueTask(runParsedCodeTask, &parsedCode, 1);
 	jerry_release_value(parsedCode);
 	queueEventName("load");
-	loadStorage("/main.js");
+	loadStorage(filename);
 	eventLoop();
 	if (!abortFlag) {
 		queueEventName("unload");
@@ -56,6 +62,7 @@ void tempLoadMain() {
 }
 
 void repl() {
+	inREPL = true;
 	keyboardOpen(true);
 	loadStorage("/REPL");
 	eventLoop();
@@ -76,8 +83,8 @@ int main(int argc, char **argv) {
 	exposeAPI();
 
 	// run
-	if (inREPL) repl();
-	else tempLoadMain();
+	if (argc > 1) runFile(argv[1]);
+	else repl();
 
 	// cleanup
 	keyboardClose();

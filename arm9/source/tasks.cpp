@@ -99,10 +99,11 @@ void clearTasks() {
 
 void loadStorage(const char *resourceName) {
 	if (!fatInitSuccess) return;
-	char storagePath[257] = "/_nds/JSDS";
+	char storagePath[257] = "/_nds/JSDS/";
 	char *start = strrchr(resourceName, '/');
-	strcat(storagePath, start);
+	strcat(storagePath, start == NULL ? resourceName : start + 1);
 	strcat(storagePath, ".ls");
+	storagePath[256] = '\0';
 	
 	jerry_value_t filePath = createString(storagePath);
 	setInternalProperty(ref_localStorage, "filePath", filePath);
