@@ -924,6 +924,7 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 
 static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 	CONSTRUCTOR(ErrorEvent); REQUIRE_1();
+	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), ErrorEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t messageProp = createString("message");
@@ -940,7 +941,7 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 	jerry_release_value(zero);
 	jerry_release_value(emptyStr);
 
-	if (argCount > 1 && jerry_value_is_object(args[1])) {
+	if (argCount > 1) {
 		jerry_value_t messageVal = jerry_get_property(args[1], messageProp);
 		if (!jerry_value_is_undefined(messageVal)) {
 			jerry_value_t messageStr = jerry_value_to_string(messageVal);
@@ -1018,8 +1019,8 @@ static jerry_value_t PromiseRejectionEventConstructor(CALL_INFO) {
 }
 
 static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
-	CONSTRUCTOR(KeyboardEvent); REQUIRE(2);
-	EXPECT(jerry_value_is_object(args[1]), KeyboardEventInit);
+	CONSTRUCTOR(KeyboardEvent); REQUIRE_1();
+	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), KeyboardEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t keyStr = createString("key");
@@ -1034,27 +1035,29 @@ static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
 	setReadonlyJV(thisValue, locationStr, zero);
 	jerry_release_value(zero);
 
-	jerry_value_t keyVal = jerry_get_property(args[1], keyStr);
-	if (!jerry_value_is_undefined(keyVal)) {
-		jerry_value_t keyAsStr = jerry_value_to_string(keyVal);
-		jerry_set_internal_property(thisValue, keyStr, keyAsStr);
-		jerry_release_value(keyAsStr);
+	if (argCount > 1) {
+		jerry_value_t keyVal = jerry_get_property(args[1], keyStr);
+		if (!jerry_value_is_undefined(keyVal)) {
+			jerry_value_t keyAsStr = jerry_value_to_string(keyVal);
+			jerry_set_internal_property(thisValue, keyStr, keyAsStr);
+			jerry_release_value(keyAsStr);
+		}
+		jerry_release_value(keyVal);
+		jerry_value_t codeVal = jerry_get_property(args[1], codeStr);
+		if (!jerry_value_is_undefined(codeVal)) {
+			jerry_value_t codeAsStr = jerry_value_to_string(codeVal);
+			jerry_set_internal_property(thisValue, codeStr, codeAsStr);
+			jerry_release_value(codeAsStr);
+		}
+		jerry_release_value(codeVal);
+		jerry_value_t locationVal = jerry_get_property(args[1], locationStr);
+		if (!jerry_value_is_undefined(locationVal)) {
+			jerry_value_t locationNum = jerry_create_number(jerry_value_as_uint32(locationVal));
+			jerry_set_internal_property(thisValue, locationStr, locationNum);
+			jerry_release_value(locationNum);
+		}
+		jerry_release_value(locationVal);
 	}
-	jerry_release_value(keyVal);
-	jerry_value_t codeVal = jerry_get_property(args[1], codeStr);
-	if (!jerry_value_is_undefined(codeVal)) {
-		jerry_value_t codeAsStr = jerry_value_to_string(codeVal);
-		jerry_set_internal_property(thisValue, codeStr, codeAsStr);
-		jerry_release_value(codeAsStr);
-	}
-	jerry_release_value(codeVal);
-	jerry_value_t locationVal = jerry_get_property(args[1], locationStr);
-	if (!jerry_value_is_undefined(locationVal)) {
-		jerry_value_t locationNum = jerry_create_number(jerry_value_as_uint32(locationVal));
-		jerry_set_internal_property(thisValue, locationStr, locationNum);
-		jerry_release_value(locationNum);
-	}
-	jerry_release_value(locationVal);
 
 	jerry_release_value(locationStr);
 	jerry_release_value(codeStr);
@@ -1069,14 +1072,22 @@ static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
 		"modifierSuper", "modifierSymbol", "modifierSymbolLock"
 	};
 
-	for (u8 i = 0; i < 16; i++) {
-		jerry_value_t prop = createString(eventInitBooleanProperties[i]);
-		jerry_value_t val = jerry_get_property(args[1], prop);
-		bool setTrue = jerry_value_to_boolean(val);
-		if (i < 6) setReadonlyJV(thisValue, prop, jerry_create_boolean(setTrue));
-		else jerry_set_internal_property(thisValue, prop, jerry_create_boolean(setTrue));
-		jerry_release_value(val);
-		jerry_release_value(prop);
+	if (argCount > 1) {
+		for (u8 i = 0; i < 16; i++) {
+			jerry_value_t prop = createString(eventInitBooleanProperties[i]);
+			jerry_value_t val = jerry_get_property(args[1], prop);
+			bool setTrue = jerry_value_to_boolean(val);
+			if (i < 6) setReadonlyJV(thisValue, prop, jerry_create_boolean(setTrue));
+			else jerry_set_internal_property(thisValue, prop, jerry_create_boolean(setTrue));
+			jerry_release_value(val);
+			jerry_release_value(prop);
+		}
+	}
+	else {
+		for (u8 i = 0; i < 16; i++) {
+			if (i < 6) setReadonly(thisValue, eventInitBooleanProperties[i], False);
+			else setInternalProperty(thisValue, eventInitBooleanProperties[i], False);
+		}
 	}
 
 	return undefined;
@@ -1103,11 +1114,12 @@ static jerry_value_t KeyboardEventGetModifierStateHandler(CALL_INFO) {
 
 static jerry_value_t CustomEventConstructor(CALL_INFO) {
 	CONSTRUCTOR(CustomEvent); REQUIRE_1();
+	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), CustomEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t detailProp = createString("detail");
 	setReadonlyJV(thisValue, detailProp, null);
-	if (argCount > 1 && jerry_value_is_object(args[1])) {
+	if (argCount > 1) {
 		jerry_value_t detailVal = jerry_get_property(args[1], detailProp);
 		if (!jerry_value_is_undefined(detailVal)) {
 			jerry_set_internal_property(thisValue, detailProp, detailVal);
@@ -1120,59 +1132,72 @@ static jerry_value_t CustomEventConstructor(CALL_INFO) {
 }
 
 static jerry_value_t ButtonEventConstructor(CALL_INFO) {
-	CONSTRUCTOR(ButtonEvent); REQUIRE(2);
-	EXPECT(jerry_value_is_object(args[1]), ButtonEventInit);
-
-	jerry_value_t buttonStr = createString("button");
-	jerry_value_t buttonVal = jerry_get_property(args[1], buttonStr);
-	if (jerry_value_is_undefined(buttonVal)) {
-		jerry_release_value(buttonStr);
-		jerry_release_value(buttonVal);
-		return throwTypeError("Failed to read the 'button' property from options.");
-	}
+	CONSTRUCTOR(ButtonEvent); REQUIRE_1();
+	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), ButtonEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
-	jerry_value_t buttonAsStr = jerry_value_to_string(buttonVal);
-	setReadonlyJV(thisValue, buttonStr, buttonAsStr);
-	jerry_release_value(buttonAsStr);
-	jerry_release_value(buttonVal);
+	jerry_value_t buttonStr = createString("button");
+	if (argCount > 1) {
+		jerry_value_t buttonVal = jerry_get_property(args[1], buttonStr);
+		jerry_value_t buttonAsStr = jerry_value_to_string(buttonVal);
+		setReadonlyJV(thisValue, buttonStr, buttonAsStr);
+		jerry_release_value(buttonAsStr);
+		jerry_release_value(buttonVal);
+	}
+	else {
+		jerry_value_t empty = createString("");
+		setReadonlyJV(thisValue, buttonStr, empty);
+		jerry_release_value(empty);
+	}
 	jerry_release_value(buttonStr);
 
 	return undefined;
 }
 
 static jerry_value_t StylusEventConstructor(CALL_INFO) {
-	CONSTRUCTOR(StylusEvent); REQUIRE(2);
-	EXPECT(jerry_value_is_object(args[1]), StylusEventInit);
+	CONSTRUCTOR(StylusEvent); REQUIRE_1();
+	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), StylusEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t xStr = createString("x");
-	jerry_value_t xVal = jerry_get_property(args[1], xStr);
-	jerry_value_t xNum = jerry_value_to_number(xVal);
-	setReadonlyJV(thisValue, xStr, xNum);
-	jerry_release_value(xNum);
-	jerry_release_value(xVal);
-	jerry_release_value(xStr);
 	jerry_value_t yStr = createString("y");
-	jerry_value_t yVal = jerry_get_property(args[1], yStr);
-	jerry_value_t yNum = jerry_value_to_number(yVal);
-	setReadonlyJV(thisValue, yStr, yNum);
-	jerry_release_value(yNum);
-	jerry_release_value(yVal);
-	jerry_release_value(yStr);
 	jerry_value_t dxStr = createString("dx");
-	jerry_value_t dxVal = jerry_get_property(args[1], dxStr);
-	jerry_value_t dxNum = jerry_value_to_number(dxVal);
-	setReadonlyJV(thisValue, dxStr, dxNum);
-	jerry_release_value(dxNum);
-	jerry_release_value(dxVal);
-	jerry_release_value(dxStr);
 	jerry_value_t dyStr = createString("dy");
-	jerry_value_t dyVal = jerry_get_property(args[1], dyStr);
-	jerry_value_t dyNum = jerry_value_to_number(dyVal);
-	setReadonlyJV(thisValue, dyStr, dyNum);
-	jerry_release_value(dyNum);
-	jerry_release_value(dyVal);
+
+	if (argCount > 1) {
+		jerry_value_t xVal = jerry_get_property(args[1], xStr);
+		jerry_value_t xNum = jerry_value_to_number(xVal);
+		setReadonlyJV(thisValue, xStr, xNum);
+		jerry_release_value(xNum);
+		jerry_release_value(xVal);
+		jerry_value_t yVal = jerry_get_property(args[1], yStr);
+		jerry_value_t yNum = jerry_value_to_number(yVal);
+		setReadonlyJV(thisValue, yStr, yNum);
+		jerry_release_value(yNum);
+		jerry_release_value(yVal);
+		jerry_value_t dxVal = jerry_get_property(args[1], dxStr);
+		jerry_value_t dxNum = jerry_value_to_number(dxVal);
+		setReadonlyJV(thisValue, dxStr, dxNum);
+		jerry_release_value(dxNum);
+		jerry_release_value(dxVal);
+		jerry_value_t dyVal = jerry_get_property(args[1], dyStr);
+		jerry_value_t dyNum = jerry_value_to_number(dyVal);
+		setReadonlyJV(thisValue, dyStr, dyNum);
+		jerry_release_value(dyNum);
+		jerry_release_value(dyVal);
+	}
+	else {
+		jerry_value_t NaN = jerry_create_number_nan();
+		setReadonlyJV(thisValue, xStr, NaN);
+		setReadonlyJV(thisValue, yStr, NaN);
+		setReadonlyJV(thisValue, dxStr, NaN);
+		setReadonlyJV(thisValue, dyStr, NaN);
+		jerry_release_value(NaN);
+	}
+
+	jerry_release_value(xStr);
+	jerry_release_value(yStr);
+	jerry_release_value(dxStr);
 	jerry_release_value(dyStr);
 
 	return undefined;
