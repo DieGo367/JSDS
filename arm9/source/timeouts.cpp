@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "api.h"
+#include "error.h"
 #include "console.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"

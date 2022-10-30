@@ -1,8 +1,6 @@
 #include <fat.h>
 #include <nds/arm9/input.h>
 #include <nds/fifocommon.h>
-#include <nds/interrupts.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -10,6 +8,7 @@
 
 #include "api.h"
 #include "console.h"
+#include "error.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
 #include "jerry/jerryscript-port-default.h"
@@ -19,12 +18,6 @@
 #include "timeouts.h"
 
 
-
-void onErrorCreated(jerry_value_t errorObject, void *userPtr) {
-	jerry_value_t backtrace = jerry_get_backtrace(10);
-	jerry_set_internal_property(errorObject, ref_str_backtrace, backtrace);
-	jerry_release_value(backtrace);
-}
 
 void runFile(const char *filename) {
 	if (access(filename, F_OK) != 0) {
@@ -79,8 +72,7 @@ int main(int argc, char **argv) {
 	keyboard->OnKeyPressed = onKeyboardKeyPress;
 	keyboard->OnKeyReleased = onKeyboardKeyRelease;
 	jerry_init(JERRY_INIT_EMPTY);
-	jerry_set_error_object_created_callback(onErrorCreated, NULL);
-	jerry_jsds_set_promise_rejection_op_callback(onPromiseRejectionOp);
+	setErrorHandlers();
 	exposeAPI();
 
 	// run

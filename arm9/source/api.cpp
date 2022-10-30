@@ -15,6 +15,7 @@ extern "C" {
 #include <vector>
 
 #include "console.h"
+#include "error.h"
 #include "keyboard.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"

@@ -28,17 +28,12 @@ enum DependentEvent {
 	keyup      = BIT(7)
 };
 
-void onPromiseRejectionOp(jerry_value_t promise, jerry_promise_rejection_operation_t operation);
-void runMicrotasks();
-
 void runTasks();
 void queueTask(void (*run) (const jerry_value_t *, u32), const jerry_value_t *args, u32 argCount);
 void clearTasks();
+void runMicrotasks();
 
 void runParsedCodeTask(const jerry_value_t *args, u32 argCount);
-
-void handleError(jerry_value_t error, bool sync);
-void handleRejection(jerry_value_t promise);
 
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync);
 void queueEvent(jerry_value_t target, jerry_value_t event);
