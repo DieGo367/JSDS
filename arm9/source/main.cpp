@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
 
 	// run
 	if (argc > 1) runFile(argv[1]);
-	else if (access("/_boot_.js", F_OK) == 0) runFile("/_boot_.js");
+	else if (access("/BOOT.js", F_OK) == 0) runFile("/BOOT.js");
 	else repl();
 
 	// cleanup
