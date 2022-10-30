@@ -6,21 +6,6 @@
 
 
 
-struct Timeout {
-	int id;
-	int timeout;
-	jerry_value_t handler;
-	jerry_value_t *args;
-	u32 argCount;
-	int nestLevel;
-	int remaining;
-	bool repeat;
-	bool queued;
-};
-
-void timerUse();
-void timerDone();
-
 jerry_value_t addTimeout(jerry_value_t handler, jerry_value_t ticks, jerry_value_t *args, u32 argCount, bool repeat, bool isInternal = false);
 void clearTimeout(jerry_value_t idVal);
 void timeoutUpdate();

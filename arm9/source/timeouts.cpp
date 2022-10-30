@@ -13,6 +13,18 @@
 
 
 
+struct Timeout {
+	int id;
+	int timeout;
+	jerry_value_t handler;
+	jerry_value_t *args;
+	u32 argCount;
+	int nestLevel;
+	int remaining;
+	bool repeat;
+	bool queued;
+};
+
 std::map<int, Timeout> timeouts;
 std::map<int, int> counters;
 int ids = 0;
@@ -22,7 +34,7 @@ int nestLevel = 0;
 bool timerOn = false;
 int timerUsage = 0;
 
-void timerTick() {
+void timingTick() {
 	for (const auto &[id, timeout] : timeouts) {
 		timeouts[id].remaining--;
 	}
@@ -30,14 +42,14 @@ void timerTick() {
 		counters[id] = counters[id] + 1;
 	}
 }
-void timerUse() {
+void timingUse() {
 	timerUsage++;
 	if (!timerOn) {
-		timerStart(0, ClockDivider_1024, TIMER_FREQ_1024(1000), timerTick);
+		timerStart(0, ClockDivider_1024, TIMER_FREQ_1024(1000), timingTick);
 		timerOn = true;
 	}
 }
-void timerDone() {
+void timingDone() {
 	if (--timerUsage <= 0) {
 		timerUsage = 0;
 		if (timerOn) {
@@ -71,7 +83,7 @@ jerry_value_t addTimeout(jerry_value_t handler, jerry_value_t timeoutVal, jerry_
 	t.queued = false;
 
 	timeouts[t.id] = t;
-	timerUse();
+	timingUse();
 	return jerry_create_number(t.id);
 }
 
@@ -84,7 +96,7 @@ void clearTimeout(jerry_value_t idVal) {
 		timeouts.erase(id);
 		jerry_release_value(t.handler);
 		for (u32 i = 0; i < t.argCount; i++) jerry_release_value(t.args[i]);
-		timerDone();
+		timingDone();
 	}
 }
 
@@ -121,7 +133,7 @@ void runTimeoutTask(const jerry_value_t args[], u32 argCount) {
 			timeouts.erase(t.id);
 			jerry_release_value(t.handler);
 			for (u32 i = 0; i < t.argCount; i++) jerry_release_value(t.args[i]);
-			timerDone();
+			timingDone();
 		}
 	}
 }
@@ -159,7 +171,7 @@ bool timeoutsExist() {
 
 int counterAdd() {
 	counters[++counterIds] = 0;
-	timerUse();
+	timingUse();
 	return counterIds;
 }
 int counterGet(int id) {
@@ -167,5 +179,5 @@ int counterGet(int id) {
 }
 void counterRemove(int id) {
 	counters.erase(id);
-	timerDone();
+	timingDone();
 }
