@@ -135,11 +135,13 @@ void keyboardOpen(bool printInput) {
 	kbdIsOpen = true;
 	kbdPrintInput = printInput;
 }
-void keyboardClose() {
+void keyboardClose(bool clear) {
 	if (!kbdIsOpen) return;
 	keyboardHide();
-	consoleClear();
-	consoleSetWindow(NULL, 0, 0, 32, 24);
+	if (clear) {
+		consoleClear();
+		consoleSetWindow(NULL, 0, 0, 32, 24);
+	}
 	kbdIsOpen = false;
 }
 bool isKeyboardOpen() {

@@ -19,7 +19,7 @@ void onKeyboardKeyPress(int key);
 void onKeyboardKeyRelease(int key);
 
 void keyboardOpen(bool printInput);
-void keyboardClose();
+void keyboardClose(bool clear = true);
 bool isKeyboardOpen();
 
 #endif /* JSDS_KEYBOARD_H */

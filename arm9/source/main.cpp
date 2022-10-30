@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 	else repl();
 
 	// cleanup
-	keyboardClose();
+	keyboardClose(false);
 	clearTasks();
 	clearTimeouts();
 	releaseReferences();
