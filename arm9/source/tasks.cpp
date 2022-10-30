@@ -446,6 +446,7 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 			jerry_release_value(listener);
 		}
 
+		jerry_release_value(stopImmediatePropagationStr);
 		jerry_release_value(handleEventStr);
 		jerry_release_value(inPassiveListenerStr);
 		jerry_release_value(spliceFunc);
