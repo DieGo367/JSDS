@@ -151,3 +151,24 @@ jerry_value_t newStorage() {
 	jerry_release_value(zero);
 	return proxy;
 }
+
+// Helpers for DS File API. Not really part of the Storage API,
+// but it may as well go here.
+
+static void onFileFree(void *file) {
+	fclose((FILE *) file);
+}
+jerry_object_native_info_t fileNativeInfo = {.free_cb = onFileFree};
+
+jerry_value_t newDSFile(FILE *file, jerry_value_t mode) {
+	jerry_value_t fileObj = jerry_create_object();
+	jerry_value_t DSFile = getProperty(ref_DS, "File");
+	jerry_value_t DSFilePrototype = jerry_get_property(DSFile, ref_str_prototype);
+	jerry_release_value(jerry_set_prototype(fileObj, DSFilePrototype));
+	jerry_release_value(DSFilePrototype);
+	jerry_release_value(DSFile);
+
+	jerry_set_object_native_pointer(fileObj, file, &fileNativeInfo);
+	setReadonly(fileObj, "mode", mode);
+	return fileObj;
+}
