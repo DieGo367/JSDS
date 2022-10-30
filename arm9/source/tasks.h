@@ -16,8 +16,6 @@ extern bool inREPL;
 extern bool abortFlag;
 extern bool userClosed;
 extern u8 dependentEvents;
-extern int fatInitSuccess;
-extern bool localStorageShouldSave;
 
 enum DependentEvent {
 	vblank     = BIT(0),
@@ -36,8 +34,6 @@ void runMicrotasks();
 void runTasks();
 void queueTask(void (*run) (const jerry_value_t *, u32), const jerry_value_t *args, u32 argCount);
 void clearTasks();
-
-void loadStorage(const char *resourceName);
 
 void runParsedCodeTask(const jerry_value_t *args, u32 argCount);
 

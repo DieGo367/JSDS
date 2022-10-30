@@ -18,6 +18,7 @@ extern "C" {
 #include "keyboard.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
+#include "storage.h"
 #include "tasks.h"
 #include "timeouts.h"
 
@@ -1367,22 +1368,6 @@ static jerry_value_t AbortSignalThrowIfAbortedHandler(CALL_INFO) {
 	else return undefined;
 }
 
-jerry_value_t newStorage() {
-	jerry_value_t storage = jerry_create_object();
-	jerry_value_t Storage = getProperty(ref_global, "Storage");
-	jerry_value_t StoragePrototype = jerry_get_property(Storage, ref_str_prototype);
-	jerry_release_value(jerry_set_prototype(storage, StoragePrototype));
-	jerry_release_value(StoragePrototype);
-	jerry_release_value(Storage);
-	jerry_value_t proxy = jerry_create_proxy(storage, ref_proxyHandler_storage);
-	setInternalProperty(storage, "proxy", proxy);
-	jerry_release_value(storage);
-	jerry_value_t zero = jerry_create_number(0);
-	setInternalProperty(proxy, "size", zero);
-	jerry_release_value(zero);
-	return proxy;
-}
-
 static jerry_value_t StorageLengthGetter(CALL_INFO) {
 	jerry_value_t propNames = jerry_get_object_keys(thisValue);
 	u32 length = jerry_get_array_length(propNames);
@@ -1458,7 +1443,7 @@ static jerry_value_t StorageSetItemHandler(CALL_INFO) {
 		setInternalProperty(thisValue, "size", newSize);
 		jerry_release_value(newSize);
 		jerry_value_t isLocal = getInternalProperty(thisValue, "isLocal");
-		if (jerry_get_boolean_value(isLocal)) localStorageShouldSave = true;
+		if (jerry_get_boolean_value(isLocal)) storageRequestSave();
 		jerry_release_value(isLocal);
 	}
 
@@ -1484,7 +1469,7 @@ static jerry_value_t StorageRemoveItemHandler(CALL_INFO) {
 			setInternalProperty(thisValue, "size", newSize);
 			jerry_release_value(newSize);
 			jerry_value_t isLocal = getInternalProperty(thisValue, "isLocal");
-			if (jerry_get_boolean_value(isLocal)) localStorageShouldSave = true;
+			if (jerry_get_boolean_value(isLocal)) storageRequestSave();
 			jerry_release_value(isLocal);
 		}
 		jerry_release_value(currentValue);
@@ -1507,7 +1492,7 @@ static jerry_value_t StorageClearHandler(CALL_INFO) {
 	setInternalProperty(thisValue, "size", zero);
 	jerry_release_value(zero);
 	jerry_value_t isLocal = getInternalProperty(thisValue, "isLocal");
-	if (jerry_get_boolean_value(isLocal)) localStorageShouldSave = true;
+	if (jerry_get_boolean_value(isLocal)) storageRequestSave();
 	jerry_release_value(isLocal);
 	return undefined;
 }
@@ -1543,7 +1528,7 @@ static jerry_value_t StorageProxySetHandler(CALL_INFO) {
 			setInternalProperty(args[3], "size", newSize);
 			jerry_release_value(newSize);
 			jerry_value_t isLocal = getInternalProperty(args[3], "isLocal");
-			if (jerry_get_boolean_value(isLocal)) localStorageShouldSave = true;
+			if (jerry_get_boolean_value(isLocal)) storageRequestSave();
 			jerry_release_value(isLocal);
 		}
 	}
@@ -1570,7 +1555,7 @@ static jerry_value_t StorageProxyDeletePropertyHandler(CALL_INFO) {
 			setInternalProperty(proxy, "size", newSize);
 			jerry_release_value(newSize);
 			jerry_value_t isLocal = getInternalProperty(proxy, "isLocal");
-			if (jerry_get_boolean_value(isLocal)) localStorageShouldSave = true;
+			if (jerry_get_boolean_value(isLocal)) storageRequestSave();
 			jerry_release_value(isLocal);
 		}
 		else result = False;

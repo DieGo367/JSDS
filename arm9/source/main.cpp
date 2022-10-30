@@ -14,6 +14,7 @@
 #include "jerry/jerryscript.h"
 #include "jerry/jerryscript-port-default.h"
 #include "keyboard.h"
+#include "storage.h"
 #include "tasks.h"
 #include "timeouts.h"
 
@@ -53,7 +54,7 @@ void runFile(const char *filename) {
 	queueTask(runParsedCodeTask, &parsedCode, 1);
 	jerry_release_value(parsedCode);
 	queueEventName("load");
-	loadStorage(filename);
+	storageLoad(filename);
 	eventLoop();
 	if (!abortFlag) {
 		queueEventName("unload");
@@ -64,7 +65,7 @@ void runFile(const char *filename) {
 void repl() {
 	inREPL = true;
 	keyboardOpen(true);
-	loadStorage("/REPL");
+	storageLoad("/REPL");
 	eventLoop();
 }
 
@@ -73,7 +74,7 @@ int main(int argc, char **argv) {
 	srand(time(NULL));
 	fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
 	mainConsole = consoleDemoInit();
-	fatInitSuccess = fatInitDefault();
+	fatInitDefault();
 	keyboard = keyboardDemoInit();
 	keyboard->OnKeyPressed = onKeyboardKeyPress;
 	keyboard->OnKeyReleased = onKeyboardKeyRelease;
