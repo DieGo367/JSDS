@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
 	jerry_cleanup();
 
 	// exit
-	if (!inREPL) while (true) {
+	if (!userClosed) while (true) {
 		swiWaitForVBlank();
 		scanKeys();
 		if (keysDown() & KEY_START) break;

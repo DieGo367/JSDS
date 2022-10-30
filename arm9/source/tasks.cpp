@@ -24,6 +24,7 @@ extern "C" {
 
 bool inREPL = false;
 bool abortFlag = false;
+bool userClosed = false;
 u8 dependentEvents = 0;
 int fatInitSuccess = 0;
 bool localStorageShouldSave = false;

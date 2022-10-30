@@ -57,6 +57,7 @@ static jerry_value_t IllegalConstructor(CALL_INFO) {
 
 static jerry_value_t closeHandler(CALL_INFO) {
 	abortFlag = true;
+	userClosed = true;
 	return jerry_create_abort_from_value(createString("close() was called."), true);
 }
 

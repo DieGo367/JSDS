@@ -14,6 +14,7 @@ struct Task {
 
 extern bool inREPL;
 extern bool abortFlag;
+extern bool userClosed;
 extern u8 dependentEvents;
 extern int fatInitSuccess;
 extern bool localStorageShouldSave;
