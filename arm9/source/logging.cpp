@@ -1,4 +1,4 @@
-#include "console.h"
+#include "logging.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -13,11 +13,11 @@ PrintConsole *mainConsole;
 const u8 MAX_PRINT_RECURSION = 0;
 
 int indent = 0;
-void consoleIndentAdd() { indent++; }
-void consoleIndentRemove() { indent = indent > 0 ? indent - 1 : 0; }
-void consoleIndent() { for (int i = 0; i < indent; i++) putchar(' '); }
+void logIndentAdd() { indent++; }
+void logIndentRemove() { indent = indent > 0 ? indent - 1 : 0; }
+void logIndent() { for (int i = 0; i < indent; i++) putchar(' '); }
 
-void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
+void log(const jerry_value_t args[], jerry_length_t argCount) {
 	u32 i = 0;
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
 		i++;
@@ -62,13 +62,13 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 				i++;
 			}
 			else if (specifier == 'o') { // output next param with "optimally useful formatting"
-				consolePrintLiteral(args[i]);
+				logLiteral(args[i]);
 				pos = find + 2;
 				i++;
 			}
 			else if (specifier == 'O') { // output next param as object
-				if (jerry_value_is_object(args[i])) consolePrintObject(args[i]);
-				else consolePrintLiteral(args[i]);
+				if (jerry_value_is_object(args[i])) logObject(args[i]);
+				else logLiteral(args[i]);
 				pos = find + 2;
 				i++;
 			}
@@ -117,13 +117,13 @@ void consolePrint(const jerry_value_t args[], jerry_length_t argCount) {
 	}
 	for (; i < argCount; i++) {
 		if (jerry_value_is_string(args[i])) printString(args[i]);
-		else consolePrintLiteral(args[i]);
+		else logLiteral(args[i]);
 		if (i < argCount - 1) putchar(' ');
 	}
 	putchar('\n');
 }
 
-void consolePrintLiteral(jerry_value_t value, u8 level) {
+void logLiteral(jerry_value_t value, u8 level) {
 	u16 pal = mainConsole->fontCurPal;
 	jerry_type_t type = jerry_value_get_type(value);
 	switch (type) {
@@ -201,7 +201,7 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 			}
 			else {
 				printf("Uncaught ");
-				consolePrintLiteral(errorThrown);
+				logLiteral(errorThrown);
 			}
 			jerry_release_value(isErrorVal);
 			jerry_release_value(errorThrown);
@@ -230,7 +230,7 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 					printf("[ ");
 					for (u32 i = 0; i < length; i++) {
 						jerry_value_t item = jerry_get_property_by_index(value, i);
-						consolePrintLiteral(item);
+						logLiteral(item);
 						jerry_release_value(item);
 						if (i < length - 1) printf(", ");
 					}
@@ -245,7 +245,7 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 					printf("[ ");
 					for (u32 i = 0; i < length; i++) {
 						jerry_value_t item = jerry_get_property_by_index(value, i);
-						consolePrintLiteral(item, level + 1);
+						logLiteral(item, level + 1);
 						jerry_release_value(item);
 						if (i < length - 1) printf(", ");
 					}
@@ -267,14 +267,14 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 						mainConsole->fontCurPal = pal;
 						// intentional fall-through
 					case JERRY_PROMISE_STATE_FULFILLED:
-						consolePrintLiteral(promiseResult);
+						logLiteral(promiseResult);
 						break;
 					default: break;
 				}
 				printf("}");
 				jerry_release_value(promiseResult);
 			}
-			else consolePrintObject(value, level);
+			else logObject(value, level);
 			break;
 		default:
 			printValue(value); // catch-all, shouldn't be reachable but should work anyway if it is
@@ -282,7 +282,7 @@ void consolePrintLiteral(jerry_value_t value, u8 level) {
 	mainConsole->fontCurPal = pal;
 }
 
-void consolePrintObject(jerry_value_t obj, u8 level) {
+void logObject(jerry_value_t obj, u8 level) {
 	jerry_value_t keysArray = jerry_get_object_keys(obj);
 	u32 length = jerry_get_array_length(keysArray);
 	if (length == 0) printf("{}");
@@ -320,7 +320,7 @@ void consolePrintObject(jerry_value_t obj, u8 level) {
 			printf(": ");
 			jerry_value_t item = getProperty(obj, keyStr);
 			free(keyStr);
-			consolePrintLiteral(item, level + 1);
+			logLiteral(item, level + 1);
 			jerry_release_value(item);
 			if (i < length - 1) printf(", ");
 		}
@@ -398,10 +398,10 @@ static void tableValuePrint(jerry_value_t value, u8 width) {
 	mainConsole->fontCurPal = pal;
 }
 
-void consolePrintTable(const jerry_value_t args[], jerry_value_t argCount) {
+void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 	if (!jerry_value_is_object(args[0])) {
 		printf("%*s", indent, "");
-		consolePrintLiteral(args[0]);
+		logLiteral(args[0]);
 		putchar('\n');
 		return;
 	}

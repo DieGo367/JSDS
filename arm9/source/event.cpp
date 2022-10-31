@@ -9,12 +9,12 @@ extern "C" {
 #include <stdlib.h>
 
 #include "api.h"
-#include "console.h"
 #include "error.h"
 #include "inline.h"
 #include "input.h"
 #include "jerry/jerryscript.h"
 #include "keyboard.h"
+#include "logging.h"
 #include "storage.h"
 #include "timeouts.h"
 
@@ -79,11 +79,11 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
 		runMicrotasks();
 		if (inREPL) {
 			printf("-> ");
-			consolePrintLiteral(result);
+			logLiteral(result);
 			putchar('\n');
 		}
 		else if (jerry_value_is_error(result)) {
-			consolePrintLiteral(result);
+			logLiteral(result);
 			putchar('\n');
 			abortFlag = true;
 		}

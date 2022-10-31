@@ -7,13 +7,13 @@
 #include <unistd.h>
 
 #include "api.h"
-#include "console.h"
 #include "error.h"
 #include "event.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
 #include "jerry/jerryscript-port-default.h"
 #include "keyboard.h"
+#include "logging.h"
 #include "storage.h"
 #include "timeouts.h"
 

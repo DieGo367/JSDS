@@ -4,10 +4,10 @@
 #include <string.h>
 #include <unordered_set>
 
-#include "console.h"
 #include "event.h"
 #include "inline.h"
 #include "jerry/jerryscript-port-default.h"
+#include "logging.h"
 
 
 
@@ -79,7 +79,7 @@ void handleError(jerry_value_t error, bool sync) {
 	jerry_release_value(errorStr);
 
 	if (!errorHandled) {
-		consolePrintLiteral(error);
+		logLiteral(error);
 		putchar('\n');
 		if (!inREPL) abortFlag = true;
 	}
@@ -119,7 +119,7 @@ void handleRejection(jerry_value_t promise) {
 	if (!rejectionHandled) {
 		jerry_value_t reason = jerry_get_promise_result(promise);
 		printf("Uncaught (in promise) ");
-		consolePrintLiteral(reason);
+		logLiteral(reason);
 		putchar('\n');
 		jerry_release_value(reason);
 		if (!inREPL) abortFlag = true;

@@ -5,11 +5,11 @@
 #include <stdlib.h>
 
 #include "api.h"
-#include "console.h"
 #include "error.h"
 #include "event.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
+#include "logging.h"
 
 
 
