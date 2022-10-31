@@ -100,7 +100,8 @@ static jerry_value_t confirmHandler(CALL_INFO) {
 
 static jerry_value_t promptHandler(CALL_INFO) {
 	consoleClear();
-	keyboardOpen(true);
+	bool open = isKeyboardOpen();
+	if (!open) keyboardOpen(true);
 	printf("============ Prompt ============");
 	if (argCount > 0) {
 		printValue(args[0]);
@@ -120,7 +121,7 @@ static jerry_value_t promptHandler(CALL_INFO) {
 		keyboardUpdate();
 	}
 	keyboardEnterPressed = false;
-	if (!inREPL) keyboardClose();
+	if (!open) keyboardClose();
 	consoleClear();
 	if (canceled) {
 		if (argCount > 1) return jerry_value_to_string(args[1]);
