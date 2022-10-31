@@ -278,7 +278,7 @@ void eventLoop() {
 			if (keyboardEnterPressed) {
 				putchar('\n');
 				jerry_value_t parsedCode = jerry_parse(
-					(const jerry_char_t *) "<REPL>", 6,
+					(const jerry_char_t *) "REPL", 4,
 					(const jerry_char_t *) keyboardBuffer(), keyboardBufferLen(),
 					JERRY_PARSE_STRICT_MODE
 				);
