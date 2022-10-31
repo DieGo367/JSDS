@@ -1,4 +1,4 @@
-#include "tasks.h"
+#include "event.h"
 
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>

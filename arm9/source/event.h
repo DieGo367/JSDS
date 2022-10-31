@@ -1,5 +1,5 @@
-#ifndef JSDS_TASKS_H
-#define JSDS_TASKS_H
+#ifndef JSDS_EVENT_H
+#define JSDS_EVENT_H
 
 #include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
@@ -41,4 +41,4 @@ void queueEventName(const char *eventName);
 
 void eventLoop();
 
-#endif /* JSDS_TASKS_H */
+#endif /* JSDS_EVENT_H */

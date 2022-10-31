@@ -3,9 +3,9 @@
 #include <nds/arm9/console.h>
 #include <string.h>
 
-#include "jerry/jerryscript.h"
+#include "event.h"
 #include "input.h"
-#include "tasks.h"
+#include "jerry/jerryscript.h"
 
 
 

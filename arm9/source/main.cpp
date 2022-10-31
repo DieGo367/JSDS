@@ -9,12 +9,12 @@
 #include "api.h"
 #include "console.h"
 #include "error.h"
+#include "event.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
 #include "jerry/jerryscript-port-default.h"
 #include "keyboard.h"
 #include "storage.h"
-#include "tasks.h"
 #include "timeouts.h"
 
 

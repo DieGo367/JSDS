@@ -17,11 +17,11 @@ extern "C" {
 #include "abortsignal.h"
 #include "console.h"
 #include "error.h"
-#include "keyboard.h"
+#include "event.h"
 #include "inline.h"
 #include "jerry/jerryscript.h"
+#include "keyboard.h"
 #include "storage.h"
-#include "tasks.h"
 #include "timeouts.h"
 
 

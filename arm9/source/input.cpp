@@ -3,8 +3,8 @@
 #include <nds/arm9/input.h>
 #include <stdlib.h>
 
+#include "event.h"
 #include "inline.h"
-#include "tasks.h"
 
 
 
