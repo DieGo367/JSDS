@@ -39,8 +39,6 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync);
 void queueEvent(jerry_value_t target, jerry_value_t event);
 void queueEventName(const char *eventName);
 
-bool dispatchKeyboardEvent(bool down, const char *key, const char *code, u8 location, bool shift, bool ctrl, bool alt, bool meta, bool caps);
-
 void eventLoop();
 
 #endif /* JSDS_TASKS_H */

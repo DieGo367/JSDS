@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "jerry/jerryscript.h"
+#include "input.h"
 #include "tasks.h"
 
 
