@@ -1,5 +1,5 @@
-#ifndef JSDS_ERROR_H
-#define JSDS_ERROR_H
+#ifndef JSDS_ERROR_HPP
+#define JSDS_ERROR_HPP
 
 #include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
@@ -12,4 +12,4 @@ void handleRejectedPromises();
 
 void setErrorHandlers();
 
-#endif /* JSDS_ERROR_H */
+#endif /* JSDS_ERROR_HPP */

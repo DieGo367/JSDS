@@ -1,4 +1,4 @@
-#include "event.h"
+#include "event.hpp"
 
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>
@@ -8,15 +8,15 @@ extern "C" {
 #include <queue>
 #include <stdlib.h>
 
-#include "api.h"
-#include "error.h"
-#include "inline.h"
-#include "input.h"
+#include "api.hpp"
+#include "error.hpp"
+#include "inline.hpp"
+#include "input.hpp"
 #include "jerry/jerryscript.h"
-#include "keyboard.h"
-#include "logging.h"
-#include "storage.h"
-#include "timeouts.h"
+#include "keyboard.hpp"
+#include "logging.hpp"
+#include "storage.hpp"
+#include "timeouts.hpp"
 
 
 

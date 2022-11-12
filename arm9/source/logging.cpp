@@ -1,9 +1,9 @@
-#include "logging.h"
+#include "logging.hpp"
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "inline.h"
+#include "inline.hpp"
 #include "jerry/jerryscript.h"
 
 

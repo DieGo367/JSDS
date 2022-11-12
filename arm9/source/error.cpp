@@ -1,13 +1,13 @@
-#include "error.h"
+#include "error.hpp"
 
 #include <stdlib.h>
 #include <string.h>
 #include <unordered_set>
 
-#include "event.h"
-#include "inline.h"
+#include "event.hpp"
+#include "inline.hpp"
 #include "jerry/jerryscript-port-default.h"
-#include "logging.h"
+#include "logging.hpp"
 
 
 

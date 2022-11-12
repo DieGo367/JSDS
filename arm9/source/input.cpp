@@ -1,10 +1,10 @@
-#include "input.h"
+#include "input.hpp"
 
 #include <nds/arm9/input.h>
 #include <stdlib.h>
 
-#include "event.h"
-#include "inline.h"
+#include "event.hpp"
+#include "inline.hpp"
 
 
 

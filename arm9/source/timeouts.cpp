@@ -1,15 +1,15 @@
-#include "timeouts.h"
+#include "timeouts.hpp"
 
 #include <map>
 #include <nds/timers.h>
 #include <stdlib.h>
 
-#include "api.h"
-#include "error.h"
-#include "event.h"
-#include "inline.h"
+#include "api.hpp"
+#include "error.hpp"
+#include "event.hpp"
+#include "inline.hpp"
 #include "jerry/jerryscript.h"
-#include "logging.h"
+#include "logging.hpp"
 
 
 

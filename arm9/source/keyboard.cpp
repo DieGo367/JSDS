@@ -1,10 +1,10 @@
-#include "keyboard.h"
+#include "keyboard.hpp"
 
 #include <nds/arm9/console.h>
 #include <string.h>
 
-#include "event.h"
-#include "input.h"
+#include "event.hpp"
+#include "input.hpp"
 #include "jerry/jerryscript.h"
 
 

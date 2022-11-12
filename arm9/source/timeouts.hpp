@@ -1,5 +1,5 @@
-#ifndef JSDS_TIMEOUTS_H
-#define JSDS_TIMEOUTS_H
+#ifndef JSDS_TIMEOUTS_HPP
+#define JSDS_TIMEOUTS_HPP
 
 #include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
@@ -16,4 +16,4 @@ int counterAdd();
 int counterGet(int id);
 void counterRemove(int id);
 
-#endif /* JSDS_TIMEOUTS_H */
+#endif /* JSDS_TIMEOUTS_HPP */

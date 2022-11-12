@@ -1,4 +1,4 @@
-#include "storage.h"
+#include "storage.hpp"
 
 #include <dirent.h>
 #include <fat.h>
@@ -6,7 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "inline.h"
+#include "inline.hpp"
 
 
 

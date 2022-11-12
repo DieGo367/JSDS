@@ -1,5 +1,5 @@
-#ifndef JSDS_API_H
-#define JSDS_API_H
+#ifndef JSDS_API_HPP
+#define JSDS_API_HPP
 
 #include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
@@ -26,4 +26,4 @@ extern jerry_value_t ref_consoleTimers;
 void exposeAPI();
 void releaseReferences();
 
-#endif /* JSDS_API_H */
+#endif /* JSDS_API_HPP */

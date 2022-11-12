@@ -1,5 +1,5 @@
-#ifndef JSDS_KEYBOARD_H
-#define JSDS_KEYBOARD_H
+#ifndef JSDS_KEYBOARD_HPP
+#define JSDS_KEYBOARD_HPP
 
 #include <nds/arm9/keyboard.h>
 #include "jerry/jerryscript.h"
@@ -22,4 +22,4 @@ void keyboardOpen(bool printInput);
 void keyboardClose(bool clear = true);
 bool isKeyboardOpen();
 
-#endif /* JSDS_KEYBOARD_H */
+#endif /* JSDS_KEYBOARD_HPP */

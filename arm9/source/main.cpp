@@ -6,16 +6,16 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "api.h"
-#include "error.h"
-#include "event.h"
-#include "inline.h"
+#include "api.hpp"
+#include "error.hpp"
+#include "event.hpp"
+#include "inline.hpp"
 #include "jerry/jerryscript.h"
 #include "jerry/jerryscript-port-default.h"
-#include "keyboard.h"
-#include "logging.h"
-#include "storage.h"
-#include "timeouts.h"
+#include "keyboard.hpp"
+#include "logging.hpp"
+#include "storage.hpp"
+#include "timeouts.hpp"
 
 
 

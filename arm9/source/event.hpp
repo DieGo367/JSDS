@@ -1,5 +1,5 @@
-#ifndef JSDS_EVENT_H
-#define JSDS_EVENT_H
+#ifndef JSDS_EVENT_HPP
+#define JSDS_EVENT_HPP
 
 #include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
@@ -41,4 +41,4 @@ void queueEventName(const char *eventName);
 
 void eventLoop();
 
-#endif /* JSDS_EVENT_H */
+#endif /* JSDS_EVENT_HPP */

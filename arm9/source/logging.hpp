@@ -1,5 +1,5 @@
-#ifndef JSDS_LOGGING_H
-#define JSDS_LOGGING_H
+#ifndef JSDS_LOGGING_HPP
+#define JSDS_LOGGING_HPP
 
 #include <nds/arm9/console.h>
 #include "jerry/jerryscript.h"
@@ -36,4 +36,4 @@ void logLiteral(jerry_value_t value, u8 level = 0);
 void logObject(jerry_value_t value, u8 level = 0);
 void logTable(const jerry_value_t args[], jerry_value_t argCount);
 
-#endif /* JSDS_LOGGING_H */
+#endif /* JSDS_LOGGING_HPP */

@@ -1,4 +1,4 @@
-#include "api.h"
+#include "api.hpp"
 
 #include <dirent.h>
 #include <nds/arm9/input.h>
@@ -14,15 +14,15 @@ extern "C" {
 #include <unistd.h>
 #include <vector>
 
-#include "abortsignal.h"
-#include "error.h"
-#include "event.h"
-#include "inline.h"
+#include "abortsignal.hpp"
+#include "error.hpp"
+#include "event.hpp"
+#include "inline.hpp"
 #include "jerry/jerryscript.h"
-#include "keyboard.h"
-#include "logging.h"
-#include "storage.h"
-#include "timeouts.h"
+#include "keyboard.hpp"
+#include "logging.hpp"
+#include "storage.hpp"
+#include "timeouts.hpp"
 
 
 

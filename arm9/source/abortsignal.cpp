@@ -1,8 +1,8 @@
-#include "abortsignal.h"
+#include "abortsignal.hpp"
 
 #include <stdlib.h>
 
-#include "inline.h"
+#include "inline.hpp"
 
 jerry_value_t newAbortSignal(bool aborted) {
 	jerry_value_t signal = jerry_create_object();

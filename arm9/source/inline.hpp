@@ -1,7 +1,7 @@
-#ifndef JSDS_INLINE_H
-#define JSDS_INLINE_H
+#ifndef JSDS_INLINE_HPP
+#define JSDS_INLINE_HPP
 
-#include "api.h"
+#include "api.hpp"
 #include "jerry/jerryscript.h"
 
 // constant js values, these do not need to be freed and can be used without restraint
@@ -369,4 +369,4 @@ inline char *writeBinByteToUTF8(u8 byte, char *out) {
 	return out;
 }
 
-#endif /* JSDS_INLINE_H */
+#endif /* JSDS_INLINE_HPP */
