@@ -9,6 +9,7 @@ extern "C" {
 #include <stdlib.h>
 
 #include "api.hpp"
+#include "console.hpp"
 #include "error.hpp"
 #include "inline.hpp"
 #include "input.hpp"

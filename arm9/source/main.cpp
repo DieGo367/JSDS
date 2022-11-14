@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "api.hpp"
+#include "console.hpp"
 #include "error.hpp"
 #include "event.hpp"
 #include "inline.hpp"
@@ -66,7 +67,7 @@ int main(int argc, char **argv) {
 	// startup
 	srand(time(NULL));
 	fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
-	mainConsole = consoleDemoInit();
+	newConsoleInit();
 	fatInitDefault();
 	keyboard = keyboardDemoInit();
 	keyboard->OnKeyPressed = onKeyboardKeyPress;

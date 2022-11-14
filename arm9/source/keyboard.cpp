@@ -1,6 +1,6 @@
 #include "keyboard.hpp"
 
-#include <nds/arm9/console.h>
+// #include <nds/arm9/console.h>
 #include <string.h>
 
 #include "event.hpp"
@@ -111,7 +111,7 @@ void onKeyboardKeyPress(int key) {
 	if (key == DVK_FOLD) keyboardEscapePressed = true;
 	else if (key == DVK_BACKSPACE && idx > 0) {
 		buf[--idx] = '\0';
-		consoleClear();
+		// consoleClear();
 		printf(buf);
 	}
 	else if (key == DVK_ENTER && !kbd->shifted) keyboardEnterPressed = true;
@@ -130,8 +130,8 @@ bool kbdIsOpen = false;
 void keyboardOpen(bool printInput) {
 	if (kbdIsOpen) return;
 	keyboardClearBuffer();
-	consoleClear();
-	consoleSetWindow(NULL, 0, 0, 32, 12);
+	// consoleClear();
+	// consoleSetWindow(NULL, 0, 0, 32, 12);
 	keyboardShow();
 	kbdIsOpen = true;
 	kbdPrintInput = printInput;
@@ -140,8 +140,8 @@ void keyboardClose(bool clear) {
 	if (!kbdIsOpen) return;
 	keyboardHide();
 	if (clear) {
-		consoleClear();
-		consoleSetWindow(NULL, 0, 0, 32, 24);
+		// consoleClear();
+		// consoleSetWindow(NULL, 0, 0, 32, 24);
 	}
 	kbdIsOpen = false;
 }

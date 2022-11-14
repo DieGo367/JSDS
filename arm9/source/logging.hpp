@@ -1,12 +1,13 @@
 #ifndef JSDS_LOGGING_HPP
 #define JSDS_LOGGING_HPP
 
-#include <nds/arm9/console.h>
+// #include <nds/arm9/console.h>
+#include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
 
 
 
-extern PrintConsole *mainConsole;
+// extern PrintConsole *mainConsole;
 
 enum ConsolePalette {
 	BLACK = 0,

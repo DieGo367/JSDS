@@ -65,7 +65,7 @@ static jerry_value_t closeHandler(CALL_INFO) {
 }
 
 static jerry_value_t alertHandler(CALL_INFO) {
-	consoleClear();
+	// consoleClear();
 	printf("============= Alert ============");
 	if (argCount > 0) {
 		printValue(args[0]);
@@ -77,12 +77,12 @@ static jerry_value_t alertHandler(CALL_INFO) {
 		scanKeys();
 		if (keysDown() & KEY_A) break;
 	}
-	consoleClear();
+	// consoleClear();
 	return undefined;
 }
 
 static jerry_value_t confirmHandler(CALL_INFO) {
-	consoleClear();
+	// consoleClear();
 	printf("============ Confirm ===========");
 	if (argCount > 0) {
 		printValue(args[0]);
@@ -93,13 +93,13 @@ static jerry_value_t confirmHandler(CALL_INFO) {
 		swiWaitForVBlank();
 		scanKeys();
 		u32 keys = keysDown();
-		if (keys & KEY_A) return consoleClear(), True;
-		else if (keys & KEY_B) return consoleClear(), False;
+		if (keys & KEY_A) return /*consoleClear(), */True;
+		else if (keys & KEY_B) return /*consoleClear(), */False;
 	}
 }
 
 static jerry_value_t promptHandler(CALL_INFO) {
-	consoleClear();
+	// consoleClear();
 	bool open = isKeyboardOpen();
 	if (!open) keyboardOpen(true);
 	printf("============ Prompt ============");
@@ -122,7 +122,7 @@ static jerry_value_t promptHandler(CALL_INFO) {
 	}
 	keyboardEnterPressed = false;
 	if (!open) keyboardClose();
-	consoleClear();
+	// consoleClear();
 	if (canceled) {
 		if (argCount > 1) return jerry_value_to_string(args[1]);
 		else return null;
@@ -324,56 +324,56 @@ static jerry_value_t consoleLogHandler(CALL_INFO) {
 
 static jerry_value_t consoleInfoHandler(CALL_INFO) {
 	if (argCount > 0) {
-		u16 pal = mainConsole->fontCurPal;
-		mainConsole->fontCurPal = ConsolePalette::AQUA;
+		// u16 pal = mainConsole->fontCurPal;
+		// mainConsole->fontCurPal = ConsolePalette::AQUA;
 		logIndent();
 		log(args, argCount);
-		mainConsole->fontCurPal = pal;
+		// mainConsole->fontCurPal = pal;
 	}
 	return undefined;
 }
 
 static jerry_value_t consoleWarnHandler(CALL_INFO) {
 	if (argCount > 0) {
-		u16 pal = mainConsole->fontCurPal;
-		mainConsole->fontCurPal = ConsolePalette::YELLOW;
+		// u16 pal = mainConsole->fontCurPal;
+		// mainConsole->fontCurPal = ConsolePalette::YELLOW;
 		logIndent();
 		log(args, argCount);
-		mainConsole->fontCurPal = pal;
+		// mainConsole->fontCurPal = pal;
 	}
 	return undefined;
 }
 
 static jerry_value_t consoleErrorHandler(CALL_INFO) {
 	if (argCount > 0) {
-		u16 pal = mainConsole->fontCurPal;
-		mainConsole->fontCurPal = ConsolePalette::RED;
+		// u16 pal = mainConsole->fontCurPal;
+		// mainConsole->fontCurPal = ConsolePalette::RED;
 		logIndent();
 		log(args, argCount);
-		mainConsole->fontCurPal = pal;
+		// mainConsole->fontCurPal = pal;
 	}
 	return undefined;
 }
 
 static jerry_value_t consoleAssertHandler(CALL_INFO) {
 	if (argCount == 0 || !jerry_value_to_boolean(args[0])) {
-		u16 pal = mainConsole->fontCurPal;
-		mainConsole->fontCurPal = ConsolePalette::RED;
+		// u16 pal = mainConsole->fontCurPal;
+		// mainConsole->fontCurPal = ConsolePalette::RED;
 		logIndent();
 		printf("Assertion failed: ");
 		log(args + 1, argCount - 1);
-		mainConsole->fontCurPal = pal;
+		// mainConsole->fontCurPal = pal;
 	}
 	return undefined;
 }
 
 static jerry_value_t consoleDebugHandler(CALL_INFO) {
 	if (argCount > 0) {
-		u16 pal = mainConsole->fontCurPal;
-		mainConsole->fontCurPal = ConsolePalette::NAVY;
+		// u16 pal = mainConsole->fontCurPal;
+		// mainConsole->fontCurPal = ConsolePalette::NAVY;
 		logIndent();
 		log(args, argCount);
-		mainConsole->fontCurPal = pal;
+		// mainConsole->fontCurPal = pal;
 	}
 	return undefined;
 }
@@ -569,7 +569,7 @@ static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
 }
 
 static jerry_value_t consoleClearHandler(CALL_INFO) {
-	consoleClear();
+	// consoleClear();
 	return undefined;
 }
 

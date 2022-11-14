@@ -8,7 +8,7 @@
 
 
 
-PrintConsole *mainConsole;
+// PrintConsole *mainConsole;
 
 const u8 MAX_PRINT_RECURSION = 0;
 
@@ -21,7 +21,7 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 	u32 i = 0;
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
 		i++;
-		u16 pal = mainConsole->fontCurPal;
+		// u16 pal = mainConsole->fontCurPal;
 		char *msg = getString(args[0]);
 		char *pos = msg;
 		if (pos) while (i < argCount) {
@@ -80,24 +80,24 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 				while (numSet == 2) { // found an attribute
 					// so far only "color" is supported, not sure what else is feasable
 					if (strcmp(attribute, "color") == 0) {
-						if (strcmp(value, "none") == 0) mainConsole->fontCurPal = pal; // reset (fast)
-						else if (strcmp(value, "black") == 0) mainConsole->fontCurPal = ConsolePalette::BLACK;
-						else if (strcmp(value, "maroon") == 0) mainConsole->fontCurPal = ConsolePalette::MAROON;
-						else if (strcmp(value, "green") == 0) mainConsole->fontCurPal = ConsolePalette::GREEN;
-						else if (strcmp(value, "olive") == 0) mainConsole->fontCurPal = ConsolePalette::OLIVE;
-						else if (strcmp(value, "navy") == 0) mainConsole->fontCurPal = ConsolePalette::NAVY;
-						else if (strcmp(value, "purple") == 0) mainConsole->fontCurPal = ConsolePalette::PURPLE;
-						else if (strcmp(value, "teal") == 0) mainConsole->fontCurPal = ConsolePalette::TEAL;
-						else if (strcmp(value, "silver") == 0) mainConsole->fontCurPal = ConsolePalette::SILVER;
-						else if (strcmp(value, "gray") == 0 || strcmp(value, "grey") == 0) mainConsole->fontCurPal = ConsolePalette::GRAY;
-						else if (strcmp(value, "red") == 0) mainConsole->fontCurPal = ConsolePalette::RED;
-						else if (strcmp(value, "lime") == 0) mainConsole->fontCurPal = ConsolePalette::LIME;
-						else if (strcmp(value, "yellow") == 0) mainConsole->fontCurPal = ConsolePalette::YELLOW;
-						else if (strcmp(value, "blue") == 0) mainConsole->fontCurPal = ConsolePalette::BLUE;
-						else if (strcmp(value, "fuchsia") == 0 || strcmp(value, "magenta") == 0) mainConsole->fontCurPal = ConsolePalette::FUCHSIA;
-						else if (strcmp(value, "aqua") == 0 || strcmp(value, "cyan") == 0) mainConsole->fontCurPal = ConsolePalette::AQUA;
-						else if (strcmp(value, "white") == 0) mainConsole->fontCurPal = ConsolePalette::WHITE;
-						else mainConsole->fontCurPal = pal; // reset
+						// if (strcmp(value, "none") == 0) mainConsole->fontCurPal = pal; // reset (fast)
+						// else if (strcmp(value, "black") == 0) mainConsole->fontCurPal = ConsolePalette::BLACK;
+						// else if (strcmp(value, "maroon") == 0) mainConsole->fontCurPal = ConsolePalette::MAROON;
+						// else if (strcmp(value, "green") == 0) mainConsole->fontCurPal = ConsolePalette::GREEN;
+						// else if (strcmp(value, "olive") == 0) mainConsole->fontCurPal = ConsolePalette::OLIVE;
+						// else if (strcmp(value, "navy") == 0) mainConsole->fontCurPal = ConsolePalette::NAVY;
+						// else if (strcmp(value, "purple") == 0) mainConsole->fontCurPal = ConsolePalette::PURPLE;
+						// else if (strcmp(value, "teal") == 0) mainConsole->fontCurPal = ConsolePalette::TEAL;
+						// else if (strcmp(value, "silver") == 0) mainConsole->fontCurPal = ConsolePalette::SILVER;
+						// else if (strcmp(value, "gray") == 0 || strcmp(value, "grey") == 0) mainConsole->fontCurPal = ConsolePalette::GRAY;
+						// else if (strcmp(value, "red") == 0) mainConsole->fontCurPal = ConsolePalette::RED;
+						// else if (strcmp(value, "lime") == 0) mainConsole->fontCurPal = ConsolePalette::LIME;
+						// else if (strcmp(value, "yellow") == 0) mainConsole->fontCurPal = ConsolePalette::YELLOW;
+						// else if (strcmp(value, "blue") == 0) mainConsole->fontCurPal = ConsolePalette::BLUE;
+						// else if (strcmp(value, "fuchsia") == 0 || strcmp(value, "magenta") == 0) mainConsole->fontCurPal = ConsolePalette::FUCHSIA;
+						// else if (strcmp(value, "aqua") == 0 || strcmp(value, "cyan") == 0) mainConsole->fontCurPal = ConsolePalette::AQUA;
+						// else if (strcmp(value, "white") == 0) mainConsole->fontCurPal = ConsolePalette::WHITE;
+						// else mainConsole->fontCurPal = pal; // reset
 					}
 					numSet = sscanf(cssString, "; %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
 				}
@@ -112,7 +112,7 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 		}
 		printf(pos);
 		free(msg);
-		mainConsole->fontCurPal = pal;
+		// mainConsole->fontCurPal = pal;
 		if (i < argCount) putchar(' ');
 	}
 	for (; i < argCount; i++) {
@@ -124,26 +124,26 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 }
 
 void logLiteral(jerry_value_t value, u8 level) {
-	u16 pal = mainConsole->fontCurPal;
+	// u16 pal = mainConsole->fontCurPal;
 	jerry_type_t type = jerry_value_get_type(value);
 	switch (type) {
 		case JERRY_TYPE_BOOLEAN:
 		case JERRY_TYPE_NUMBER:
 		case JERRY_TYPE_BIGINT: {}
-			mainConsole->fontCurPal = ConsolePalette::YELLOW;
+			// mainConsole->fontCurPal = ConsolePalette::YELLOW;
 			printValue(value);
 			if (type == JERRY_TYPE_BIGINT) putchar('n');
 			break;
 		case JERRY_TYPE_NULL:
-			mainConsole->fontCurPal = ConsolePalette::SILVER;
+			// mainConsole->fontCurPal = ConsolePalette::SILVER;
 			printf("null");
 			break;
 		case JERRY_TYPE_UNDEFINED:
-			mainConsole->fontCurPal = ConsolePalette::GRAY;
+			// mainConsole->fontCurPal = ConsolePalette::GRAY;
 			printf("undefined");
 			break;
 		case JERRY_TYPE_STRING: {
-			mainConsole->fontCurPal = ConsolePalette::LIME;
+			// mainConsole->fontCurPal = ConsolePalette::LIME;
 			char *string = getString(value);
 			if (strchr(string, '"') == NULL) printf("\"%s\"", string);
 			else if (strchr(string, '\'') == NULL) printf("'%s'", string);
@@ -163,13 +163,13 @@ void logLiteral(jerry_value_t value, u8 level) {
 			free(string);
 		} break;
 		case JERRY_TYPE_SYMBOL: {
-			mainConsole->fontCurPal = ConsolePalette::LIME;
+			// mainConsole->fontCurPal = ConsolePalette::LIME;
 			jerry_value_t description = jerry_get_symbol_descriptive_string(value);
 			printString(description);
 			jerry_release_value(description);
 		} break;
 		case JERRY_TYPE_FUNCTION: {
-			mainConsole->fontCurPal = ConsolePalette::AQUA;
+			// mainConsole->fontCurPal = ConsolePalette::AQUA;
 			char *name = getStringProperty(value, "name");
 			putchar('[');
 			if (jerry_value_is_async_function(value)) printf("Async");
@@ -257,14 +257,14 @@ void logLiteral(jerry_value_t value, u8 level) {
 				printf("Promise {");
 				switch (jerry_get_promise_state(value)) {
 					case JERRY_PROMISE_STATE_PENDING:
-						mainConsole->fontCurPal = ConsolePalette::AQUA;
+						// mainConsole->fontCurPal = ConsolePalette::AQUA;
 						printf("<pending>");
-						mainConsole->fontCurPal = pal;
+						// mainConsole->fontCurPal = pal;
 						break;
 					case JERRY_PROMISE_STATE_REJECTED:
-						mainConsole->fontCurPal = ConsolePalette::RED;
+						// mainConsole->fontCurPal = ConsolePalette::RED;
 						printf("<rejected> ");
-						mainConsole->fontCurPal = pal;
+						// mainConsole->fontCurPal = pal;
 						// intentional fall-through
 					case JERRY_PROMISE_STATE_FULFILLED:
 						logLiteral(promiseResult);
@@ -279,7 +279,7 @@ void logLiteral(jerry_value_t value, u8 level) {
 		default:
 			printValue(value); // catch-all, shouldn't be reachable but should work anyway if it is
 	}
-	mainConsole->fontCurPal = pal;
+	// mainConsole->fontCurPal = pal;
 }
 
 void logObject(jerry_value_t obj, u8 level) {
@@ -299,8 +299,8 @@ void logObject(jerry_value_t obj, u8 level) {
 				printf(keyStr);
 			}
 			else {
-				u16 pal = mainConsole->fontCurPal;
-				mainConsole->fontCurPal = ConsolePalette::LIME;
+				// u16 pal = mainConsole->fontCurPal;
+				// mainConsole->fontCurPal = ConsolePalette::LIME;
 				if (strchr(keyStr, '"') == NULL) printf("\"%s\"", keyStr);
 				else if (strchr(keyStr, '\'') == NULL) printf("'%s'", keyStr);
 				else {
@@ -315,7 +315,7 @@ void logObject(jerry_value_t obj, u8 level) {
 					printf(pos);
 					putchar('"');
 				}
-				mainConsole->fontCurPal = pal;
+				// mainConsole->fontCurPal = pal;
 			}
 			printf(": ");
 			jerry_value_t item = getProperty(obj, keyStr);
@@ -352,7 +352,7 @@ static u8 tableValueWidth(jerry_value_t value) {
 }
 
 static void tableValuePrint(jerry_value_t value, u8 width) {
-	u16 pal = mainConsole->fontCurPal;
+	// u16 pal = mainConsole->fontCurPal;
 	jerry_type_t type = jerry_value_get_type(value);
 	switch (type) {
 		case JERRY_TYPE_STRING: {
@@ -362,7 +362,7 @@ static void tableValuePrint(jerry_value_t value, u8 width) {
 		} break;
 		case JERRY_TYPE_NUMBER:
 		case JERRY_TYPE_BIGINT: {
-			mainConsole->fontCurPal = ConsolePalette::YELLOW;
+			// mainConsole->fontCurPal = ConsolePalette::YELLOW;
 			jerry_value_t asString = jerry_value_to_string(value);
 			u32 numLen = jerry_get_string_length(asString);
 			printString(asString);
@@ -374,28 +374,28 @@ static void tableValuePrint(jerry_value_t value, u8 width) {
 			printf("%-*s", (int) (width - numLen), "");
 		} break;
 		case JERRY_TYPE_BOOLEAN:
-			mainConsole->fontCurPal = ConsolePalette::YELLOW;
+			// mainConsole->fontCurPal = ConsolePalette::YELLOW;
 			printf("%-*s", width, jerry_value_to_boolean(value) ? "true" : "false");
 			break;
 		case JERRY_TYPE_NULL:
-			mainConsole->fontCurPal = ConsolePalette::SILVER;
+			// mainConsole->fontCurPal = ConsolePalette::SILVER;
 			printf("%-*s", width, "null");
 			break;
 		case JERRY_TYPE_FUNCTION:
-			mainConsole->fontCurPal = ConsolePalette::AQUA;
+			// mainConsole->fontCurPal = ConsolePalette::AQUA;
 			printf("%-*s", width, "Function");
 			break;
 		case JERRY_TYPE_SYMBOL:
-			mainConsole->fontCurPal = ConsolePalette::LIME;
+			// mainConsole->fontCurPal = ConsolePalette::LIME;
 			printf("%-*s", width, "Symbol");
 			break;
 		case JERRY_TYPE_OBJECT:
-			mainConsole->fontCurPal = ConsolePalette::SILVER;
+			// mainConsole->fontCurPal = ConsolePalette::SILVER;
 			printf("%-*s", width, jerry_value_is_array(value) ? "[...]" : "{...}");
 			break;
 		default: printf("%-*s", width, "");; // undefined and anything else
 	}
-	mainConsole->fontCurPal = pal;
+	// mainConsole->fontCurPal = pal;
 }
 
 void logTable(const jerry_value_t args[], jerry_value_t argCount) {
