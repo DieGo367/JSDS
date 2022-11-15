@@ -16,6 +16,52 @@ void logIndentAdd() { indent++; }
 void logIndentRemove() { indent = indent > 0 ? indent - 1 : 0; }
 void logIndent() { for (int i = 0; i < indent; i++) putchar(' '); }
 
+u16 valueToColor(const char *str, u16 noneColor) {
+	char *endptr = NULL;
+	if (str[0] == '#') {
+		u32 len = strlen(str);
+		if (len == 5) { // BGR15 hex code
+			u16 color = strtoul(str + 1, &endptr, 16);
+			if (endptr == str + 1) return noneColor;
+			else return color;
+		}
+		else if (len == 7) { // RGB hex code
+			u32 colorCode = strtoul(str + 1, &endptr, 16);
+			if (endptr == str + 1) return noneColor;
+			else {
+				u8 red = (colorCode >> 16 & 0xFF) * 31 / 255;
+				u8 green = (colorCode >> 8 & 0xFF) * 31 / 255;
+				u8 blue = (colorCode & 0xFF) * 31 / 255;
+				return BIT(15) | blue << 10 | green << 5 | red;
+			}
+		}
+	}
+	// raw number input (i.e. from DS.profile.color)
+	u16 color = strtoul(str, &endptr, 0);
+	if (endptr != str) return color;
+	// list of CSS Level 2 colors + none and transparent
+	else if (strcmp(str, "none") == 0) return noneColor;
+	else if (strcmp(str, "transparent") == 0) return 0x0000;
+	else if (strcmp(str, "black") == 0) return 0x8000;
+	else if (strcmp(str, "silver") == 0) return 0xDEF7;
+	else if (strcmp(str, "gray") == 0 || strcmp(str, "grey") == 0) return 0xC210;
+	else if (strcmp(str, "white") == 0) return 0xFFFF;
+	else if (strcmp(str, "maroon") == 0) return 0x8010;
+	else if (strcmp(str, "red") == 0) return 0x801F;
+	else if (strcmp(str, "purple") == 0) return 0xC010;
+	else if (strcmp(str, "fuchsia") == 0 || strcmp(str, "magenta") == 0) return 0xFC1F;
+	else if (strcmp(str, "green") == 0) return 0x8200;
+	else if (strcmp(str, "lime") == 0) return 0x83E0;
+	else if (strcmp(str, "olive") == 0) return 0x8210;
+	else if (strcmp(str, "yellow") == 0) return 0x83FF;
+	else if (strcmp(str, "navy") == 0) return 0xC000;
+	else if (strcmp(str, "blue") == 0) return 0xFC00;
+	else if (strcmp(str, "teal") == 0) return 0xC200;
+	else if (strcmp(str, "aqua") == 0 || strcmp(str, "cyan") == 0) return 0xFFE0;
+	else if (strcmp(str, "orange") == 0) return 0x829F;
+	else return noneColor;
+}
+
 void log(const jerry_value_t args[], jerry_length_t argCount) {
 	u32 i = 0;
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
@@ -78,6 +124,12 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 				char value[31] = {0};
 				int numSet = sscanf(cssString, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9#] ", attribute, value);
 				while (numSet == 2) { // found an attribute
+					if (strcmp(attribute, "color") == 0) {
+						consoleSetColor(valueToColor(value, prevColor));
+					}
+					else if (strcmp(attribute, "background") == 0) {
+						consoleSetBackground(valueToColor(value, prevBackground));
+					}
 					numSet = sscanf(cssString, "; %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
 				}
 				free(cssString);

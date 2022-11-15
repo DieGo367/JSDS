@@ -151,7 +151,7 @@ bool printChar(u16 codepoint) {
 		for (u8 x = 0; x < widths[0]; x++) {
 			u8 bufX = lineWidths[currentLine] + x;
 			if (bufX < SCREEN_WIDTH) {
-				gfxBuffer[bufX + bufY * SCREEN_WIDTH] = 0;
+				gfxBuffer[bufX + bufY * SCREEN_WIDTH] = colors[0];
 			}
 		}
 
