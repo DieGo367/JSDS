@@ -121,9 +121,11 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 			}
 			else if (specifier == 'c') { // use next param as CSS rule
 				char *cssString = getAsString(args[i]);
+				char *semi = strchr(cssString, ';');
+				char *str = cssString;
 				char attribute[31] = {0};
 				char value[31] = {0};
-				int numSet = sscanf(cssString, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9#] ", attribute, value);
+				int numSet = sscanf(str, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9#] ", attribute, value);
 				while (numSet == 2) { // found an attribute
 					if (strcmp(attribute, "color") == 0) {
 						consoleSetColor(valueToColor(value, prevColor));
@@ -131,7 +133,12 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 					else if (strcmp(attribute, "background") == 0) {
 						consoleSetBackground(valueToColor(value, prevBackground));
 					}
-					numSet = sscanf(cssString, "; %30[a-zA-Z0-9] : %30[a-zA-Z0-9] ", attribute, value);
+					if (semi != NULL) {
+						str = semi + 1;
+						semi = strchr(str, ';');
+						numSet = sscanf(str, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9#] ", attribute, value);
+					}
+					else numSet = 0;
 				}
 				free(cssString);
 				pos = find + 2;
