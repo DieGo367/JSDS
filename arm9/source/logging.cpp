@@ -63,6 +63,7 @@ u16 valueToColor(const char *str, u16 noneColor) {
 }
 
 void log(const jerry_value_t args[], jerry_length_t argCount) {
+	consolePause();
 	u32 i = 0;
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
 		i++;
@@ -153,6 +154,7 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 		if (i < argCount - 1) putchar(' ');
 	}
 	putchar('\n');
+	consoleResume();
 }
 
 void logLiteral(jerry_value_t value, u8 level) {
@@ -430,10 +432,12 @@ static void tableValuePrint(jerry_value_t value, u8 width) {
 }
 
 void logTable(const jerry_value_t args[], jerry_value_t argCount) {
+	consolePause();
 	if (!jerry_value_is_object(args[0])) {
 		printf("%*s", indent, "");
 		logLiteral(args[0]);
 		putchar('\n');
+		consoleResume();
 		return;
 	}
 	u8 idxColWidth = 1;
@@ -602,4 +606,5 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 	jerry_release_value(spliceFunc);
 	jerry_release_value(pushFunc);
 	jerry_release_value(sharedKeys);
+	consoleResume();
 }

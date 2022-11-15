@@ -13,4 +13,8 @@ u16 consoleGetColor();
 u16 consoleSetBackground(u16);
 u16 consoleGetBackground();
 
+void consolePause();
+void consoleResume();
+void consoleClear();
+
 #endif /* JSDS_CONSOLE_HPP */

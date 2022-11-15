@@ -66,7 +66,7 @@ static jerry_value_t closeHandler(CALL_INFO) {
 }
 
 static jerry_value_t alertHandler(CALL_INFO) {
-	// consoleClear();
+	consoleClear();
 	printf("============= Alert ============");
 	if (argCount > 0) {
 		printValue(args[0]);
@@ -78,12 +78,12 @@ static jerry_value_t alertHandler(CALL_INFO) {
 		scanKeys();
 		if (keysDown() & KEY_A) break;
 	}
-	// consoleClear();
+	consoleClear();
 	return undefined;
 }
 
 static jerry_value_t confirmHandler(CALL_INFO) {
-	// consoleClear();
+	consoleClear();
 	printf("============ Confirm ===========");
 	if (argCount > 0) {
 		printValue(args[0]);
@@ -94,13 +94,13 @@ static jerry_value_t confirmHandler(CALL_INFO) {
 		swiWaitForVBlank();
 		scanKeys();
 		u32 keys = keysDown();
-		if (keys & KEY_A) return /*consoleClear(), */True;
-		else if (keys & KEY_B) return /*consoleClear(), */False;
+		if (keys & KEY_A) return consoleClear(), True;
+		else if (keys & KEY_B) return consoleClear(), False;
 	}
 }
 
 static jerry_value_t promptHandler(CALL_INFO) {
-	// consoleClear();
+	consoleClear();
 	bool open = isKeyboardOpen();
 	if (!open) keyboardOpen(true);
 	printf("============ Prompt ============");
@@ -123,7 +123,7 @@ static jerry_value_t promptHandler(CALL_INFO) {
 	}
 	keyboardEnterPressed = false;
 	if (!open) keyboardClose();
-	// consoleClear();
+	consoleClear();
 	if (canceled) {
 		if (argCount > 1) return jerry_value_to_string(args[1]);
 		else return null;
@@ -393,16 +393,19 @@ static jerry_value_t consoleTraceHandler(CALL_INFO) {
 }
 
 static jerry_value_t consoleDirHandler(CALL_INFO) {
+	consolePause();
 	if (argCount > 0) {
 		logIndent();
 		if (jerry_value_is_object(args[0])) logObject(args[0]);
 		else logLiteral(args[0]);
 		putchar('\n');
 	}
+	consoleResume();
 	return undefined;
 }
 
 static jerry_value_t consoleDirxmlHandler(CALL_INFO) {
+	consolePause();
 	if (argCount > 0) {
 		logIndent();
 		for (u32 i = 0; i < argCount; i++) {
@@ -411,6 +414,7 @@ static jerry_value_t consoleDirxmlHandler(CALL_INFO) {
 		}
 		putchar('\n');
 	}
+	consoleResume();
 	return undefined;
 }
 
@@ -565,7 +569,7 @@ static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
 }
 
 static jerry_value_t consoleClearHandler(CALL_INFO) {
-	// consoleClear();
+	consoleClear();
 	return undefined;
 }
 

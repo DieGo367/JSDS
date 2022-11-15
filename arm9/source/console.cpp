@@ -36,6 +36,7 @@ u16 lineWidths[LINE_CT];
 u8 currentLine = 0;
 u8 currentChar = 0;
 u16 lineTop = 0;
+bool paused = false;
 
 #define getU16(src, offset) *((u16 *) (src + offset))
 #define getU32(src, offset) *((u32 *) (src + offset))
@@ -187,7 +188,7 @@ ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 	while (amt-- > 0) {
 		if (printChar(*(message++))) update = true;
 	}
-	if (update) dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
+	if (update && !paused) dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
 	return len;
 }
 
@@ -212,4 +213,20 @@ void consoleInit() {
 	bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
 	loadFont((u8 *) font_nftr);
 	consoleSetColor(0xFFFF);
+}
+
+// Pauses the DMA copies after every console write
+void consolePause() {
+	paused = true;
+}
+// Resumes the DMA copies after every console write, and performs one immediately
+void consoleResume() {
+	paused = false;
+	dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
+}
+void consoleClear() {
+	for (u8 i = 0; i < LINE_CT; i++) memset(textBuffer[i], 0, sizeof(textBuffer[i]));
+	memset(gfxBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u16));
+	if (!paused) dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
+	currentLine = currentChar = lineTop = 0;
 }
