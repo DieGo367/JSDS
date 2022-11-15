@@ -32,7 +32,7 @@ u16 charMap[CHAR_RANGE];
 u16 gfxBuffer[SCREEN_WIDTH * SCREEN_HEIGHT] = {0};
 
 u16 textBuffer[LINE_CT][CHAR_PER_LINE];
-u8 lineWidths[LINE_CT];
+u16 lineWidths[LINE_CT];
 u8 currentLine = 0;
 u8 currentChar = 0;
 u16 lineTop = 0;
@@ -113,23 +113,25 @@ u16 consoleSetBackground(u16 color) {
 }
 u16 consoleGetBackground() { return colors[0]; }
 
+void newLine() {
+	currentLine = (currentLine + 1) % LINE_CT;
+	memset(textBuffer[currentLine], 0, CHAR_PER_LINE * sizeof(u16));
+	lineWidths[currentLine] = 0;
+	currentChar = 0;
+	if (lineTop + tileHeight >= SCREEN_HEIGHT) {
+		u8 shift = (lineTop + tileHeight) - (SCREEN_HEIGHT - tileHeight);
+		memmove(gfxBuffer, gfxBuffer + (shift * SCREEN_WIDTH), SCREEN_WIDTH * (SCREEN_HEIGHT - shift) * sizeof(u16));
+		for (u8 y = 0; y < tileHeight; y++) {
+			memset(gfxBuffer + ((lineTop + y) * SCREEN_WIDTH), 0, SCREEN_WIDTH * sizeof(u16));
+		}
+		lineTop = SCREEN_HEIGHT - tileHeight;
+	}
+	else lineTop += tileHeight;
+}
 
 bool printChar(u16 codepoint) {
 	if (codepoint == '\n') {
-		u8 clearWidth = lineWidths[currentLine];
-		currentLine = (currentLine + 1) % LINE_CT;
-		memset(textBuffer[currentLine], 0, CHAR_PER_LINE * sizeof(u16));
-		lineWidths[currentLine] = 0;
-		currentChar = 0;
-		if (lineTop + tileHeight >= SCREEN_HEIGHT) {
-			u8 shift = (lineTop + tileHeight) - (SCREEN_HEIGHT - tileHeight);
-			memmove(gfxBuffer, gfxBuffer + (shift * SCREEN_WIDTH), SCREEN_WIDTH * (SCREEN_HEIGHT - shift) * sizeof(u16));
-			for (u8 y = 0; y < tileHeight; y++) {
-				memset(gfxBuffer + ((lineTop + y) * SCREEN_WIDTH), 0, clearWidth * sizeof(u16));
-			}
-			lineTop = SCREEN_HEIGHT - tileHeight;
-		}
-		else lineTop += tileHeight;
+		newLine();
 		return true;
 	}
 
@@ -142,6 +144,8 @@ bool printChar(u16 codepoint) {
 
 	u8 *tile = tileData + tileNum * tileSize;
 	u8 *widths = widthData + tileNum * 3;
+	if (lineWidths[currentLine] + widths[2] > SCREEN_WIDTH) newLine();
+
 	u8 byte = 0;
 	u8 bitsLeft = 0;
 	for (u8 y = 0; y < tileHeight; y++) {
