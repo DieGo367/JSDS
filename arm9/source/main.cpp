@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 	// startup
 	srand(time(NULL));
 	fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
-	newConsoleInit();
+	consoleInit();
 	fatInitDefault();
 	keyboard = keyboardDemoInit();
 	keyboard->OnKeyPressed = onKeyboardKeyPress;

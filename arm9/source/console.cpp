@@ -1,6 +1,8 @@
 #include "console.hpp"
 
+#include <nds/arm9/background.h>
 #include <nds/arm9/cache.h>
+#include <nds/arm9/video.h>
 extern "C" {
 #include <nds/debug.h>
 }
@@ -34,7 +36,6 @@ u8 lineWidths[LINE_CT];
 u8 currentLine = 0;
 u8 currentChar = 0;
 u16 lineTop = 0;
-bool updateText = false;
 
 #define getU16(src, offset) *((u16 *) (src + offset))
 #define getU32(src, offset) *((u32 *) (src + offset))
@@ -83,9 +84,37 @@ void loadFont(u8 *data) {
 	replace = charMap[REPLACEMENT_CHAR] != NO_TILE;
 }
 
-u16 colors[4] = {0x0000, 0x9ce7, 0xdad6, 0xffff};
+u16 colors[4] = {0};
 
-void printChar(u16 codepoint) {
+u16 colorBlend(u16 baseColor, u16 targetColor, u8 strength) {
+	if (!((baseColor | targetColor) & BIT(15))) return 0x0000;
+	u8 neg = 31 - strength;
+	u16 blue = ((baseColor >> 10) & 0b11111) * neg / 31 + ((targetColor >> 10) & 0b11111) * strength / 31;
+	u16 green = ((baseColor >> 5) & 0b11111) * neg / 31 + ((targetColor >> 5) & 0b11111) * strength / 31;
+	u16 red = (baseColor & 0b11111) * neg / 31 + (targetColor & 0b11111) * strength / 31;
+	return BIT(15) | blue << 10 | green << 5 | red;
+}
+
+u16 consoleSetColor(u16 color) {
+	u16 prev = colors[3];
+	colors[3] = color;
+	colors[2] = colorBlend(colors[0], color, 24);
+	colors[1] = colorBlend(colors[0], color, 15);
+	return prev;
+}
+u16 consoleGetColor() { return colors[3]; }
+
+u16 consoleSetBackground(u16 color) {
+	u16 prev = colors[0];
+	colors[0] = color;
+	colors[1] = colorBlend(color, colors[3], 15);
+	colors[2] = colorBlend(color, colors[3], 24);
+	return prev;
+}
+u16 consoleGetBackground() { return colors[0]; }
+
+
+bool printChar(u16 codepoint) {
 	if (codepoint == '\n') {
 		u8 clearWidth = lineWidths[currentLine];
 		currentLine = (currentLine + 1) % LINE_CT;
@@ -101,15 +130,14 @@ void printChar(u16 codepoint) {
 			lineTop = SCREEN_HEIGHT - tileHeight;
 		}
 		else lineTop += tileHeight;
-		updateText = true;
-		return;
+		return true;
 	}
 
 
 	u16 tileNum = charMap[codepoint];
 	if (tileNum == NO_TILE) {
 		if (replace) tileNum = charMap[REPLACEMENT_CHAR];
-		else return;
+		else return false;
 	}
 
 	u8 *tile = tileData + tileNum * tileSize;
@@ -145,23 +173,17 @@ void printChar(u16 codepoint) {
 
 	textBuffer[currentLine][currentChar++] = codepoint;
 	lineWidths[currentLine] += widths[2];
-	updateText = true;
-}
-
-void drawConsole() {
-	if (!updateText) return;
-	updateText = false;
-	DC_FlushRange(gfxBuffer, sizeof(gfxBuffer));
-	dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
+	return true;
 }
 
 ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 	if (!message) return 0;
 	int amt = len;
+	bool update = false;
 	while (amt-- > 0) {
-		printChar(*(message++));
+		if (printChar(*(message++))) update = true;
 	}
-	drawConsole();
+	if (update) dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
 	return len;
 }
 
@@ -176,7 +198,7 @@ const devoptab_t opTable = {
 	NULL
 };
 
-void newConsoleInit() {
+void consoleInit() {
 	devoptab_list[STD_OUT] = &opTable;
 	devoptab_list[STD_ERR] = &opTable;
 	setvbuf(stdout, NULL, _IONBF, 0);
@@ -184,5 +206,6 @@ void newConsoleInit() {
 	videoSetMode(MODE_3_2D);
 	vramSetBankA(VRAM_A_MAIN_BG);
 	bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-	loadFont((u8 *)font_nftr);
+	loadFont((u8 *) font_nftr);
+	consoleSetColor(0xFFFF);
 }

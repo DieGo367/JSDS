@@ -15,6 +15,7 @@ extern "C" {
 #include <vector>
 
 #include "abortsignal.hpp"
+#include "console.hpp"
 #include "error.hpp"
 #include "event.hpp"
 #include "inline.hpp"
@@ -324,56 +325,51 @@ static jerry_value_t consoleLogHandler(CALL_INFO) {
 
 static jerry_value_t consoleInfoHandler(CALL_INFO) {
 	if (argCount > 0) {
-		// u16 pal = mainConsole->fontCurPal;
-		// mainConsole->fontCurPal = ConsolePalette::AQUA;
+		u16 prev = consoleSetColor(INFO);
 		logIndent();
 		log(args, argCount);
-		// mainConsole->fontCurPal = pal;
+		consoleSetColor(prev);
 	}
 	return undefined;
 }
 
 static jerry_value_t consoleWarnHandler(CALL_INFO) {
 	if (argCount > 0) {
-		// u16 pal = mainConsole->fontCurPal;
-		// mainConsole->fontCurPal = ConsolePalette::YELLOW;
+		u16 prev = consoleSetColor(WARN);
 		logIndent();
 		log(args, argCount);
-		// mainConsole->fontCurPal = pal;
+		consoleSetColor(prev);
 	}
 	return undefined;
 }
 
 static jerry_value_t consoleErrorHandler(CALL_INFO) {
 	if (argCount > 0) {
-		// u16 pal = mainConsole->fontCurPal;
-		// mainConsole->fontCurPal = ConsolePalette::RED;
+		u16 prev = consoleSetColor(ERROR);
 		logIndent();
 		log(args, argCount);
-		// mainConsole->fontCurPal = pal;
+		consoleSetColor(prev);
 	}
 	return undefined;
 }
 
 static jerry_value_t consoleAssertHandler(CALL_INFO) {
 	if (argCount == 0 || !jerry_value_to_boolean(args[0])) {
-		// u16 pal = mainConsole->fontCurPal;
-		// mainConsole->fontCurPal = ConsolePalette::RED;
+		u16 prev = consoleSetColor(ERROR);
 		logIndent();
 		printf("Assertion failed: ");
 		log(args + 1, argCount - 1);
-		// mainConsole->fontCurPal = pal;
+		consoleSetColor(prev);
 	}
 	return undefined;
 }
 
 static jerry_value_t consoleDebugHandler(CALL_INFO) {
 	if (argCount > 0) {
-		// u16 pal = mainConsole->fontCurPal;
-		// mainConsole->fontCurPal = ConsolePalette::NAVY;
+		u16 prev = consoleSetColor(DEBUG);
 		logIndent();
 		log(args, argCount);
-		// mainConsole->fontCurPal = pal;
+		consoleSetColor(prev);
 	}
 	return undefined;
 }
