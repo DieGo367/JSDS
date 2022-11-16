@@ -16,25 +16,19 @@ extern "C" {
 const u32 CHAR_RANGE = 0x10000;
 const u16 NO_TILE = 0xFFFF;
 const u16 REPLACEMENT_CHAR = 0xFFFD;
-const u8 LINE_CT = 16;
-const u8 CHAR_PER_LINE = 32;
 
-u8 tileWidth;
-u8 tileHeight;
-u16 tileSize;
-u8 bitdepth;
+u8 tileWidth = 0;
+u8 tileHeight = 0;
+u16 tileSize = 0;
 bool replace = false;
 
-u8 *tileData;
-u8 *widthData;
-u16 charMap[CHAR_RANGE];
+u8 *tileData = NULL;
+u8 *widthData = NULL;
+u16 charMap[CHAR_RANGE] = {0};
 
 u16 gfxBuffer[SCREEN_WIDTH * SCREEN_HEIGHT] = {0};
 
-u16 textBuffer[LINE_CT][CHAR_PER_LINE];
-u16 lineWidths[LINE_CT];
-u8 currentLine = 0;
-u8 currentChar = 0;
+u16 lineWidth = 0;
 u16 lineTop = 0;
 bool paused = false;
 
@@ -46,10 +40,14 @@ void loadFont(u8 *data) {
 	u8 *cglp = data + getU32(finf, 0x10) - 8;
 	u8 *cwdh = data + getU32(finf, 0x14) - 8;
 
+	u8 encoding = finf[0x0F];
+	u8 bitdepth = cglp[0x0E];
+	if (encoding != 1 || bitdepth != 2) return;
+
 	tileWidth = cglp[0x08];
 	tileHeight = cglp[0x09];
 	tileSize = getU16(cglp, 0x0A);
-	bitdepth = cglp[0x0E];
+
 	tileData = cglp + 0x10;
 	widthData = cwdh + 0x10;
 	for (u32 i = 0; i < CHAR_RANGE; i++) charMap[i] = NO_TILE;
@@ -115,27 +113,57 @@ u16 consoleSetBackground(u16 color) {
 u16 consoleGetBackground() { return colors[0]; }
 
 void newLine() {
-	currentLine = (currentLine + 1) % LINE_CT;
-	memset(textBuffer[currentLine], 0, CHAR_PER_LINE * sizeof(u16));
-	lineWidths[currentLine] = 0;
-	currentChar = 0;
-	if (lineTop + tileHeight >= SCREEN_HEIGHT) {
-		u8 shift = (lineTop + tileHeight) - (SCREEN_HEIGHT - tileHeight);
-		memmove(gfxBuffer, gfxBuffer + (shift * SCREEN_WIDTH), SCREEN_WIDTH * (SCREEN_HEIGHT - shift) * sizeof(u16));
-		for (u8 y = 0; y < tileHeight; y++) {
-			memset(gfxBuffer + ((lineTop + y) * SCREEN_WIDTH), 0, SCREEN_WIDTH * sizeof(u16));
+	lineWidth = 0;
+	lineTop += tileHeight;
+	if (lineTop >= SCREEN_HEIGHT) {
+		int rowCount = lineTop - tileHeight;
+		u32 *dst = (u32 *) gfxBuffer;
+		u32 *src = (u32 *) (gfxBuffer + (tileHeight * SCREEN_WIDTH));
+		while (rowCount--) { // moves an entire row of bg data at a time.
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
+			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
 		}
 		lineTop = SCREEN_HEIGHT - tileHeight;
+		memset(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * tileHeight * sizeof(u16));
 	}
-	else lineTop += tileHeight;
 }
 
 bool printChar(u16 codepoint) {
+	if (!tileData || !widthData) return false;
 	if (codepoint == '\n') {
 		newLine();
 		return true;
 	}
-
 
 	u16 tileNum = charMap[codepoint];
 	if (tileNum == NO_TILE) {
@@ -145,7 +173,7 @@ bool printChar(u16 codepoint) {
 
 	u8 *tile = tileData + tileNum * tileSize;
 	u8 *widths = widthData + tileNum * 3;
-	if (lineWidths[currentLine] + widths[2] > SCREEN_WIDTH) newLine();
+	if (lineWidth + widths[2] > SCREEN_WIDTH) newLine();
 
 	u8 byte = 0;
 	u8 bitsLeft = 0;
@@ -154,7 +182,7 @@ bool printChar(u16 codepoint) {
 		if (bufY >= SCREEN_HEIGHT) break;
 
 		for (u8 x = 0; x < widths[0]; x++) {
-			u8 bufX = lineWidths[currentLine] + x;
+			u8 bufX = lineWidth + x;
 			if (bufX < SCREEN_WIDTH) {
 				gfxBuffer[bufX + bufY * SCREEN_WIDTH] = colors[0];
 			}
@@ -166,7 +194,7 @@ bool printChar(u16 codepoint) {
 				bitsLeft = 8;
 			}
 			if (x < widths[1]) {
-				u16 bufX = lineWidths[currentLine] + widths[0] + x;
+				u16 bufX = lineWidth + widths[0] + x;
 				if (bufX < SCREEN_WIDTH) {
 					gfxBuffer[bufX + bufY * SCREEN_WIDTH] = colors[byte >> 6];
 				}
@@ -176,8 +204,7 @@ bool printChar(u16 codepoint) {
 		}
 	}
 
-	textBuffer[currentLine][currentChar++] = codepoint;
-	lineWidths[currentLine] += widths[2];
+	lineWidth += widths[2];
 	return true;
 }
 
@@ -225,8 +252,7 @@ void consoleResume() {
 	dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
 }
 void consoleClear() {
-	for (u8 i = 0; i < LINE_CT; i++) memset(textBuffer[i], 0, sizeof(textBuffer[i]));
 	memset(gfxBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u16));
 	if (!paused) dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
-	currentLine = currentChar = lineTop = 0;
+	lineWidth = lineTop = 0;
 }
