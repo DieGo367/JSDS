@@ -218,7 +218,26 @@ ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 	int amt = len;
 	int update = 0;
 	while (amt-- > 0) {
-		int status = printChar(*(message++));
+		int status = 0;
+		u8 ch = *message++;
+		if (ch & BIT(7)) {
+			if (amt >= 1 && (ch & 0xE0) == 0xC0 && (message[0] & 0xC0) == 0x80) {
+				status = printChar((ch & 0x1F) << 6 | (message[0] & 0x3F));
+				amt--; message++;
+			}
+			else if (amt >= 2 && (ch & 0xF0) == 0xE0 && (message[0] & 0xC0) == 0x80 && (message[1] & 0xC0) == 0x80) {
+				status = printChar((ch & 0x0F) << 12 | (message[0] & 0x3F) << 6 | (message[1] & 0x3F));
+				amt -= 2;
+				message += 2;
+			}
+			else if (amt >= 3 && (ch & 0xF8) == 0xF0 && (message[0] & 0xC0) == 0x80 && (message[1] & 0xC0) == 0x80 && (message[2] & 0xC0) == 0x80) {
+				status = printChar(REPLACEMENT_CHAR);
+				amt -= 3;
+				message += 3;
+			}
+			else status = printChar(REPLACEMENT_CHAR);
+		}
+		else status = printChar(ch);
 		if (status > update) update = status;
 	}
 	if (!paused) {
