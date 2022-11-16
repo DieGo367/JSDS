@@ -187,7 +187,7 @@ int printChar(u16 codepoint) {
 			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[0];
 		}
 		// assuming 2bpp (or 4 pixels per byte) and that tileWidth is a multiple of 4
-		for (u8 x = 0; x + 4 <= widths[1]; x += 4) {
+		for (u8 x = 0; x < widths[1]; x += 4) {
 			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[(*tile & 0b11000000) >> 6];
 			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[(*tile & 0b00110000) >> 4];
 			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[(*tile & 0b00001100) >> 2];
