@@ -158,22 +158,26 @@ void newLine() {
 	}
 }
 
-bool printChar(u16 codepoint) {
-	if (!tileData || !widthData) return false;
+int printChar(u16 codepoint) {
+	if (!tileData || !widthData) return 0;
 	if (codepoint == '\n') {
 		newLine();
-		return true;
+		return 2;
 	}
 
 	u16 tileNum = charMap[codepoint];
 	if (tileNum == NO_TILE) {
 		if (replace) tileNum = charMap[REPLACEMENT_CHAR];
-		else return false;
+		else return 0;
 	}
 
 	u8 *tile = tileData + tileNum * tileSize;
 	u8 *widths = widthData + tileNum * 3;
-	if (lineWidth + widths[2] > SCREEN_WIDTH) newLine();
+	bool newLined = false;
+	if (lineWidth + widths[2] > SCREEN_WIDTH) {
+		newLine();
+		newLined = true;
+	}
 
 	u8 byte = 0;
 	u8 bitsLeft = 0;
@@ -206,16 +210,25 @@ bool printChar(u16 codepoint) {
 
 	lineWidth += widths[2];
 	return true;
+	return newLined ? 2 : 1;
 }
 
 ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 	if (!message) return 0;
 	int amt = len;
-	bool update = false;
+	int update = 0;
 	while (amt-- > 0) {
-		if (printChar(*(message++))) update = true;
+		int status = printChar(*(message++));
+		if (status > update) update = status;
 	}
-	if (update && !paused) dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
+	if (!paused) {
+		if (update == 2) dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
+		else if (update == 1) dmaCopy(
+			gfxBuffer + (lineTop * SCREEN_WIDTH),
+			bgGetGfxPtr(3) + (lineTop * SCREEN_WIDTH),
+			SCREEN_WIDTH * tileHeight * sizeof(u16)
+		);
+	}
 	return len;
 }
 
