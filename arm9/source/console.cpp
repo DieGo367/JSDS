@@ -179,33 +179,21 @@ int printChar(u16 codepoint) {
 		newLined = true;
 	}
 
-	u8 byte = 0;
-	u8 bitsLeft = 0;
+	// this assumes character is in screen bounds (normal console behavior should ensure that)
 	for (u8 y = 0; y < tileHeight; y++) {
 		u16 bufY = lineTop + y;
-		if (bufY >= SCREEN_HEIGHT) break;
-
+		u8 bufX = lineWidth;
 		for (u8 x = 0; x < widths[0]; x++) {
-			u8 bufX = lineWidth + x;
-			if (bufX < SCREEN_WIDTH) {
-				gfxBuffer[bufX + bufY * SCREEN_WIDTH] = colors[0];
-			}
+			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[0];
 		}
-
-		for (u8 x = 0; x < tileWidth; x++) {
-			if (bitsLeft == 0) {
-				byte = *(tile++);
-				bitsLeft = 8;
-			}
-			if (x < widths[1]) {
-				u16 bufX = lineWidth + widths[0] + x;
-				if (bufX < SCREEN_WIDTH) {
-					gfxBuffer[bufX + bufY * SCREEN_WIDTH] = colors[byte >> 6];
-				}
-			}
-			byte = (byte & 0b00111111) << 2;
-			bitsLeft -= 2;
+		// assuming 2bpp (or 4 pixels per byte) and that tileWidth is a multiple of 4
+		for (u8 x = 0; x + 4 <= widths[1]; x += 4) {
+			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[(*tile & 0b11000000) >> 6];
+			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[(*tile & 0b00110000) >> 4];
+			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[(*tile & 0b00001100) >> 2];
+			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[*tile++ & 0b00000011];
 		}
+		tile += (tileWidth - widths[1]) / 4;
 	}
 
 	lineWidth += widths[2];
