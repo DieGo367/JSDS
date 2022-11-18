@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <nds/arm9/input.h>
 #include <nds/arm9/video.h>
+#include <nds/arm9/background.h>
 #include <nds/interrupts.h>
 extern "C" {
 #include <nds/system.h>
@@ -1943,7 +1944,7 @@ static jerry_value_t DSFileReadHandler(CALL_INFO) {
 
 static jerry_value_t DSFileWriteHandler(CALL_INFO) {
 	REQUIRE_1();
-	EXPECT(jerry_value_is_object(args[1]) && jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
+	EXPECT(jerry_value_is_object(args[0]) && jerry_value_is_typedarray(args[0]) && jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 
 	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
 	char *mode = getString(modeStr);
