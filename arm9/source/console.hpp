@@ -2,7 +2,6 @@
 #define JSDS_CONSOLE_HPP
 
 #include <nds/ndstypes.h>
-#include "jerry/jerryscript.h"
 
 
 

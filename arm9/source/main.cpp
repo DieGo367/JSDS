@@ -1,5 +1,6 @@
 #include <fat.h>
 #include <nds/arm9/input.h>
+#include <nds/arm9/video.h>
 #include <nds/fifocommon.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,10 +69,8 @@ int main(int argc, char **argv) {
 	srand(time(NULL));
 	fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
 	consoleInit();
+	keyboardInit();
 	fatInitDefault();
-	keyboard = keyboardDemoInit();
-	keyboard->OnKeyPressed = onKeyboardKeyPress;
-	keyboard->OnKeyReleased = onKeyboardKeyRelease;
 	jerry_init(JERRY_INIT_EMPTY);
 	setErrorHandlers();
 	exposeAPI();

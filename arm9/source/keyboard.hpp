@@ -1,12 +1,12 @@
 #ifndef JSDS_KEYBOARD_HPP
 #define JSDS_KEYBOARD_HPP
 
-#include <nds/arm9/keyboard.h>
-#include "jerry/jerryscript.h"
+#include <nds/ndstypes.h>
 
 
 
-extern Keyboard *keyboard;
+void keyboardInit();
+void keyboardUpdate();
 
 extern bool keyboardEnterPressed;
 extern bool keyboardEscapePressed;

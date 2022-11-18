@@ -6,6 +6,7 @@
 extern "C" {
 #include <nds/debug.h>
 }
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/iosupport.h>
@@ -26,7 +27,7 @@ u8 *tileData = NULL;
 u8 *widthData = NULL;
 u16 charMap[CHAR_RANGE] = {0};
 
-u16 gfxBuffer[SCREEN_WIDTH * SCREEN_HEIGHT] = {0};
+static u16 gfxBuffer[SCREEN_WIDTH * SCREEN_HEIGHT] = {0};
 
 u16 lineWidth = 0;
 u16 lineTop = 0;
