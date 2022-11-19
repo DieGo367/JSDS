@@ -18,9 +18,9 @@ const u16 COLOR_KEYBOARD_BACKDROP = 0xDAD6;//0xF7BD;
 const u16 COLOR_KEY_NORMAL = 0xFFFF;//0xEB5A;
 
 struct KeyDef {
-	char code[13];
-	char lower[13];
-	char upper[13];
+	char code[20];
+	char lower[20];
+	char upper[20];
 	u8 x;
 	u8 y;
 	u8 width;
@@ -89,7 +89,7 @@ const KeyDef boardAlphanumeric[KEY_CNT_ALPHANUMERIC] = {
 	{"Comma", ",", "<", 165, 49, 15},
 	{"Period", ".", ">", 181, 49, 15},
 	{"Slash", "/", "?", 197, 49, 15},
-	{"Space", " ", " ", 81, 65, 95},
+	{"Space", " ", " ", 81, 65, 95}
 };
 
 const u8 KEY_CNT_LATIN_ACCENTED = 55;
@@ -148,12 +148,12 @@ const KeyDef boardLatinAccented[KEY_CNT_LATIN_ACCENTED] = {
 	{"Key€", "€", "", 65, 65, 15},
 	{"Key¢", "¢", "", 81, 65, 15},
 	{"Key£", "£", "", 97, 65, 15},
-	{"Space", "Space", "", 209, 65, 46},
+	{"Space", " ", "", 225, 65, 30}
 };
 
 const u8 KEY_CNT_KANA = 59;
 const KeyDef boardKana[KEY_CNT_KANA] = {
-	{"HiriganaMode", "HiraganaMode", "HiraganaMode", 17, 1, 31},
+	{"Hiragana", "Hiragana", "Hiragana", 17, 1, 31},
 	{"Keyあ", "あ", "ア", 49, 1, 15},
 	{"Keyか", "か", "カ", 65, 1, 15},
 	{"Keyさ", "さ", "サ", 81, 1, 15},
@@ -164,8 +164,8 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyや", "や", "ヤ", 161, 1, 15},
 	{"Keyら", "ら", "ラ", 177, 1, 15},
 	{"Keyわ", "わ", "ワ", 193, 1, 15},
-	{"Keyー", "ー", "ー", 209, 1, 15},
-	{"KatakanaMode", "KatakanaMode", "KatakanaMode", 17, 17, 31},
+	{"Chouonpu", "ー", "ー", 209, 1, 15},
+	{"Katakana", "Katakana", "Katakana", 17, 17, 31},
 	{"Keyい", "い", "イ", 49, 17, 15},
 	{"Keyき", "き", "キ", 65, 17, 15},
 	{"Keyし", "し", "シ", 81, 17, 15},
@@ -174,7 +174,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyひ", "ひ", "ヒ", 129, 17, 15},
 	{"Keyみ", "み", "ミ", 145, 17, 15},
 	{"Keyり", "り", "リ", 177, 17, 15},
-	{"Key！", "！", "！", 209, 17, 15},
+	{"FullExclamation", "！", "！", 209, 17, 15},
 	{"Backspace", "Backspace", "Backspace", 225, 17, 30},
 	{"Dakuten", "Dakuten", "Dakuten", 17, 33, 31},
 	{"Keyう", "う", "ウ", 49, 33, 15},
@@ -187,7 +187,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyゆ", "ゆ", "ユ", 161, 33, 15},
 	{"Keyる", "る", "ル", 177, 33, 15},
 	{"Keyん", "ん", "ン", 193, 33, 15},
-	{"Key？", "？", "？", 209, 33, 15},
+	{"FullQuestion", "？", "？", 209, 33, 15},
 	{"Enter", "Enter", "Enter", 225, 33, 30},
 	{"Handakuten", "Handakuten", "Handakuten", 17, 49, 31},
 	{"Keyえ", "え", "エ", 49, 49, 15},
@@ -198,7 +198,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyへ", "へ", "ヘ", 129, 49, 15},
 	{"Keyめ", "め", "メ", 145, 49, 15},
 	{"Keyれ", "れ", "レ", 177, 49, 15},
-	{"Key、", "、", "、", 209, 49, 15},
+	{"Touten", "、", "、", 209, 49, 15},
 	{"ChangeSize", "ChangeSize", "ChangeSize", 17, 65, 31},
 	{"Keyお", "お", "オ", 49, 65, 15},
 	{"Keyこ", "こ", "コ", 65, 65, 15},
@@ -210,18 +210,132 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyよ", "よ", "ヨ", 161, 65, 15},
 	{"Keyろ", "ろ", "ロ", 177, 65, 15},
 	{"Keyを", "を", "ヲ", 193, 65, 15},
-	{"Key。", "。", "。", 209, 65, 15},
-	{"Space", "Space", "Space", 225, 65, 30},
+	{"Kuten", "。", "。", 209, 65, 15},
+	{"Space", " ", " ", 225, 65, 30}
 };
 
-const u8 KEY_CNT_SYMBOL = 0;
+const u8 KEY_CNT_SYMBOL = 58;
 const KeyDef boardSymbol[KEY_CNT_SYMBOL] = {
-	
+	{"Exclamation", "!", "", 33, 1, 15},
+	{"Question", "?", "", 49, 1, 15},
+	{"Ampersand", "&", "", 65, 1, 15},
+	{"DoublePrime", "″", "", 81, 1, 15},
+	{"Apostrophe", "'", "", 97, 1, 15},
+	{"FullTilde", "～", "", 113, 1, 15},
+	{"Colon", ":", "", 129, 1, 15},
+	{"Semicolon", ";", "", 145, 1, 15},
+	{"At", "@", "", 161, 1, 15},
+	{"Tilde", "~", "", 177, 1, 15},
+	{"Underscore", "_", "", 193, 1, 15},
+	{"Plus", "+", "", 33, 17, 15},
+	{"Minus", "-", "", 49, 17, 15},
+	{"Asterisk", "*", "", 65, 17, 15},
+	{"Slash", "/", "", 81, 17, 15},
+	{"Multiply", "×", "", 97, 17, 15},
+	{"Divide", "÷", "", 113, 17, 15},
+	{"Equals", "=", "", 129, 17, 15},
+	{"RightArrow", "→", "", 145, 17, 15},
+	{"LeftArrow", "←", "", 161, 17, 15},
+	{"UpArrow", "↑", "", 177, 17, 15},
+	{"DownArrow", "↓", "", 193, 17, 15},
+	{"Backspace", "Backspace", "", 225, 17, 30},
+	{"CornerBracketLeft", "「", "", 33, 33, 15},
+	{"CornerBracketRight", "」", "", 49, 33, 15},
+	{"QuoteLeft", "“", "", 65, 33, 15},
+	{"QuoteRight", "”", "", 81, 33, 15},
+	{"ParenthesisLeft", "(", "", 97, 33, 15},
+	{"ParenthesisRight", ")", "", 113, 33, 15},
+	{"LessThan", "<", "", 129, 33, 15},
+	{"GreaterThan", ">", "", 145, 33, 15},
+	{"CurlyBracketLeft", "{", "", 161, 33, 15},
+	{"CurlyBracketRight", "}", "", 177, 33, 15},
+	{"Bullet", "•", "", 193, 33, 15},
+	{"Enter", "Enter", "", 225, 33, 30},
+	{"Percent", "%", "", 33, 49, 15},
+	{"Reference", "※", "", 49, 49, 15},
+	{"Postal", "〒", "", 65, 49, 15},
+	{"Number", "#", "", 81, 49, 15},
+	{"Flat", "♭", "", 97, 49, 15},
+	{"EigthNote", "♪", "", 113, 49, 15},
+	{"PlusMinus", "±", "", 129, 49, 15},
+	{"Dollar", "$", "", 145, 49, 15},
+	{"Cent", "¢", "", 161, 49, 15},
+	{"Pound", "£", "", 177, 49, 15},
+	{"Backslash", "\\", "", 193, 49, 15},
+	{"Circumflex", "^", "", 33, 65, 15},
+	{"Degree", "°", "", 49, 65, 15},
+	{"VerticalLine", "｜", "", 65, 65, 15},
+	{"Solidus", "／", "", 81, 65, 15},
+	{"ReverseSolidus", "＼", "", 97, 65, 15},
+	{"Infinity", "∞", "", 113, 65, 15},
+	{"Therefore", "∴", "", 129, 65, 15},
+	{"Ellipsis", "…", "", 145, 65, 15},
+	{"TradeMark", "™", "", 161, 65, 15},
+	{"Copyright", "©", "", 177, 65, 15},
+	{"Registered", "®", "", 193, 65, 15},
+	{"Space", " ", "", 225, 65, 30}
 };
 
-const u8 KEY_CNT_PICTOGRAM = 0;
+const u8 KEY_CNT_PICTOGRAM = 58;
 const KeyDef boardPictogram[KEY_CNT_PICTOGRAM] = {
-	
+	{"Digit1", "1", "", 33, 1, 15},
+	{"Digit2", "2", "", 49, 1, 15},
+	{"Digit3", "3", "", 65, 1, 15},
+	{"Digit4", "4", "", 81, 1, 15},
+	{"Digit5", "5", "", 97, 1, 15},
+	{"Digit6", "6", "", 113, 1, 15},
+	{"Digit7", "7", "", 129, 1, 15},
+	{"Digit8", "8", "", 145, 1, 15},
+	{"Digit9", "9", "", 161, 1, 15},
+	{"Digit0", "0", "", 177, 1, 15},
+	{"Equals", "=", "", 193, 1, 15},
+	{"PictoHappy", "", "", 33, 17, 15},
+	{"PictoAngry", "", "", 49, 17, 15},
+	{"PictoSad", "", "", 65, 17, 15},
+	{"PictoBored", "", "", 81, 17, 15},
+	{"Sun", "", "", 97, 17, 15},
+	{"Cloud", "", "", 113, 17, 15},
+	{"Umbrella", "", "", 129, 17, 15},
+	{"Snowman", "", "", 145, 17, 15},
+	{"Envelope", "", "", 161, 17, 15},
+	{"Phone", "", "", 177, 17, 15},
+	{"AlarmClock", "", "", 193, 17, 15},
+	{"Backspace", "Backspace", "", 225, 17, 30},
+	{"ButtonA", "", "", 33, 33, 15},
+	{"ButtonB", "", "", 49, 33, 15},
+	{"ButtonX", "", "", 65, 33, 15},
+	{"ButtonY", "", "", 81, 33, 15},
+	{"ButtonL", "", "", 97, 33, 15},
+	{"ButtonR", "", "", 113, 33, 15},
+	{"D-Pad", "", "", 129, 33, 15},
+	{"SuitSpade", "", "", 145, 33, 15},
+	{"SuitDiamond", "", "", 161, 33, 15},
+	{"SuitHeart", "", "", 177, 33, 15},
+	{"SuitClub", "", "", 193, 33, 15},
+	{"Enter", "Enter", "", 225, 33, 30},
+	{"SquaredExclamation", "", "", 33, 49, 15},
+	{"SquaredQuestion", "", "", 49, 49, 15},
+	{"Plus", "+", "", 65, 49, 15},
+	{"Minus", "-", "", 81, 49, 15},
+	{"StarWhite", "☆", "", 97, 49, 15},
+	{"CircleWhite", "○", "", 113, 49, 15},
+	{"DiamondWhite", "±", "", 129, 49, 15},
+	{"SquareWhite", "□", "", 145, 49, 15},
+	{"TriangleUpWhite", "△", "", 161, 49, 15},
+	{"TriangleDownWhite", "▽", "", 177, 49, 15},
+	{"Bullseye", "◎", "", 193, 49, 15},
+	{"Right", "", "", 33, 65, 15},
+	{"Left", "", "", 49, 65, 15},
+	{"Up", "", "", 65, 65, 15},
+	{"Down", "", "", 81, 65, 15},
+	{"StarBlack", "★", "", 97, 65, 15},
+	{"CircleBlack", "●", "", 113, 65, 15},
+	{"DiamondBlack", "◆", "", 129, 65, 15},
+	{"SquareBlack", "■", "", 145, 65, 15},
+	{"TriangleUpBlack", "▲", "", 161, 65, 15},
+	{"TriangleDownBlack", "▼", "", 177, 65, 15},
+	{"Cross", "", "", 193, 65, 15},
+	{"Space", " ", "", 225, 65, 30}
 };
 
 const KeyDef* currentBoard = boardAlphanumeric;
