@@ -338,8 +338,9 @@ const KeyDef boardPictogram[KEY_CNT_PICTOGRAM] = {
 	{"Space", " ", "", 225, 65, 30}
 };
 
-const KeyDef* currentBoard = boardAlphanumeric;
-u8 currentBoardKeyCount = KEY_CNT_ALPHANUMERIC;
+u8 currentBoard = 0;
+const KeyDef* boards[5] = {boardAlphanumeric, boardLatinAccented, boardKana, boardSymbol, boardPictogram};
+const u8 boardSizes[5] = {KEY_CNT_ALPHANUMERIC, KEY_CNT_LATIN_ACCENTED, KEY_CNT_KANA, KEY_CNT_SYMBOL, KEY_CNT_PICTOGRAM};
 
 void keyboardInit() {
 	videoSetModeSub(MODE_3_2D);
@@ -357,8 +358,8 @@ void keyboardInit() {
 		}
 	}
 
-	for (u8 i = 0; i < currentBoardKeyCount; i++) {
-		KeyDef key = currentBoard[i];
+	for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
+		KeyDef key = boards[currentBoard][i];
 		for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
 			for (u8 x = 0; x < key.width; x++) {
 				gfxBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = COLOR_KEY_NORMAL;
@@ -377,33 +378,12 @@ void keyboardUpdate() {
 			 && pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
 			 && pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
 			) {
-				switch (i) {
-					case 0:
-						currentBoard = boardAlphanumeric;
-						currentBoardKeyCount = KEY_CNT_ALPHANUMERIC;
-						break;
-					case 1:
-						currentBoard = boardLatinAccented;
-						currentBoardKeyCount = KEY_CNT_LATIN_ACCENTED;
-						break;
-					case 2:
-						currentBoard = boardKana;
-						currentBoardKeyCount = KEY_CNT_KANA;
-						break;
-					case 3:
-						currentBoard = boardSymbol;
-						currentBoardKeyCount = KEY_CNT_SYMBOL;
-						break;
-					case 4:
-						currentBoard = boardPictogram;
-						currentBoardKeyCount = KEY_CNT_PICTOGRAM;
-						break;
-				}
+				currentBoard = i;
 
 				for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) if (i % SCREEN_WIDTH > 16) gfxBuffer[i] = COLOR_KEYBOARD_BACKDROP;
 
-				for (u8 i = 0; i < currentBoardKeyCount; i++) {
-					KeyDef key = currentBoard[i];
+				for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
+					KeyDef key = boards[currentBoard][i];
 					for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
 						for (u8 x = 0; x < key.width; x++) {
 							gfxBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = COLOR_KEY_NORMAL;
@@ -415,8 +395,8 @@ void keyboardUpdate() {
 			}
 		}
 
-		for (u8 i = 0; i < currentBoardKeyCount; i++) {
-			KeyDef key = currentBoard[i];
+		for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
+			KeyDef key = boards[currentBoard][i];
 			if (pos.px >= key.x && pos.px < key.x + key.width
 			 && pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
 			 && pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
