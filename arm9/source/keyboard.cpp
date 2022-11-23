@@ -164,7 +164,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyや", "や", "ヤ", 161, 1, 15},
 	{"Keyら", "ら", "ラ", 177, 1, 15},
 	{"Keyわ", "わ", "ワ", 193, 1, 15},
-	{"Chouonpu", "ー", "ー", 209, 1, 15},
+	{"LongVowel", "ー", "ー", 209, 1, 15},
 	{"Katakana", "Katakana", "Katakana", 17, 17, 31},
 	{"Keyい", "い", "イ", 49, 17, 15},
 	{"Keyき", "き", "キ", 65, 17, 15},
@@ -176,7 +176,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyり", "り", "リ", 177, 17, 15},
 	{"FullExclamation", "！", "！", 209, 17, 15},
 	{"Backspace", "Backspace", "Backspace", 225, 17, 30},
-	{"Dakuten", "Dakuten", "Dakuten", 17, 33, 31},
+	{"Voiced", "Voiced", "Voiced", 17, 33, 31},
 	{"Keyう", "う", "ウ", 49, 33, 15},
 	{"Keyく", "く", "ク", 65, 33, 15},
 	{"Keyす", "す", "ス", 81, 33, 15},
@@ -189,7 +189,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyん", "ん", "ン", 193, 33, 15},
 	{"FullQuestion", "？", "？", 209, 33, 15},
 	{"Enter", "Enter", "Enter", 225, 33, 30},
-	{"Handakuten", "Handakuten", "Handakuten", 17, 49, 31},
+	{"SemiVoiced", "SemiVoiced", "SemiVoiced", 17, 49, 31},
 	{"Keyえ", "え", "エ", 49, 49, 15},
 	{"Keyけ", "け", "ケ", 65, 49, 15},
 	{"Keyせ", "せ", "セ", 81, 49, 15},
@@ -198,8 +198,8 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyへ", "へ", "ヘ", 129, 49, 15},
 	{"Keyめ", "め", "メ", 145, 49, 15},
 	{"Keyれ", "れ", "レ", 177, 49, 15},
-	{"Touten", "、", "、", 209, 49, 15},
-	{"ChangeSize", "ChangeSize", "ChangeSize", 17, 65, 31},
+	{"FullComma", "、", "、", 209, 49, 15},
+	{"Size", "Size", "Size", 17, 65, 31},
 	{"Keyお", "お", "オ", 49, 65, 15},
 	{"Keyこ", "こ", "コ", 65, 65, 15},
 	{"Keyそ", "そ", "ソ", 81, 65, 15},
@@ -210,7 +210,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyよ", "よ", "ヨ", 161, 65, 15},
 	{"Keyろ", "ろ", "ロ", 177, 65, 15},
 	{"Keyを", "を", "ヲ", 193, 65, 15},
-	{"Kuten", "。", "。", 209, 65, 15},
+	{"FullStop", "。", "。", 209, 65, 15},
 	{"Space", " ", " ", 225, 65, 30}
 };
 
@@ -342,6 +342,8 @@ u8 currentBoard = 0;
 const KeyDef* boards[5] = {boardAlphanumeric, boardLatinAccented, boardKana, boardSymbol, boardPictogram};
 const u8 boardSizes[5] = {KEY_CNT_ALPHANUMERIC, KEY_CNT_LATIN_ACCENTED, KEY_CNT_KANA, KEY_CNT_SYMBOL, KEY_CNT_PICTOGRAM};
 
+bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
+
 void keyboardInit() {
 	videoSetModeSub(MODE_3_2D);
 	vramSetBankC(VRAM_C_SUB_BG);
@@ -379,6 +381,7 @@ void keyboardUpdate() {
 			 && pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
 			) {
 				currentBoard = i;
+				shiftToggle = ctrlToggle = altToggle = metaToggle = capsToggle = false;
 
 				for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) if (i % SCREEN_WIDTH > 16) gfxBuffer[i] = COLOR_KEYBOARD_BACKDROP;
 
@@ -401,9 +404,26 @@ void keyboardUpdate() {
 			 && pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
 			 && pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
 			) {
-				if (dependentEvents & keydown) {
-					if (dispatchKeyboardEvent(true, key.lower, key.code, 0, false, false, false, false, false)) return;
+				bool shifted = false;
+				if (strcmp(key.lower, "Shift") == 0) {
+					shiftToggle = !shiftToggle;
+					shifted = true;
 				}
+				else if (strcmp(key.lower, "CapsLock") == 0) {
+					capsToggle = !capsToggle;
+				}
+				else if (strcmp(key.lower, "Hiragana") == 0) {
+					shiftToggle = false;
+				}
+				else if (strcmp(key.lower, "Katakana") == 0) {
+					shiftToggle = true;
+				}
+
+				if (dependentEvents & keydown) {
+					if (dispatchKeyboardEvent(true, shiftToggle != capsToggle ? key.upper : key.lower, key.code, 0, false, false, false, false, false)) return;
+				}
+
+				if (currentBoard == 0 && !shifted) shiftToggle = false;
 				return;
 			}
 		}
@@ -444,5 +464,3 @@ void keyboardClearBuffer() {
 	keyboardEnterPressed = false;
 	keyboardEscapePressed = false;
 }
-
-bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
