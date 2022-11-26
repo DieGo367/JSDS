@@ -11,78 +11,17 @@ extern "C" {
 #include <string.h>
 #include <sys/iosupport.h>
 
+#include "font.hpp"
 #include "font_nftr.h"
 
 
-const u32 CHAR_RANGE = 0x10000;
-const u16 NO_TILE = 0xFFFF;
-const u16 REPLACEMENT_CHAR = 0xFFFD;
-
-u8 tileWidth = 0;
-u8 tileHeight = 0;
-u16 tileSize = 0;
-bool replace = false;
-
-u8 *tileData = NULL;
-u8 *widthData = NULL;
-u16 charMap[CHAR_RANGE] = {0};
 
 static u16 gfxBuffer[SCREEN_WIDTH * SCREEN_HEIGHT] = {0};
 
+NitroFont font = {0};
 u16 lineWidth = 0;
 u16 lineTop = 0;
 bool paused = false;
-
-#define getU16(src, offset) *((u16 *) (src + offset))
-#define getU32(src, offset) *((u32 *) (src + offset))
-
-void loadFont(u8 *data) {
-	u8 *finf = data + getU16(data, 0x0C);
-	u8 *cglp = data + getU32(finf, 0x10) - 8;
-	u8 *cwdh = data + getU32(finf, 0x14) - 8;
-
-	u8 encoding = finf[0x0F];
-	u8 bitdepth = cglp[0x0E];
-	if (encoding != 1 || bitdepth != 2) return;
-
-	tileWidth = cglp[0x08];
-	tileHeight = cglp[0x09];
-	tileSize = getU16(cglp, 0x0A);
-
-	tileData = cglp + 0x10;
-	widthData = cwdh + 0x10;
-	for (u32 i = 0; i < CHAR_RANGE; i++) charMap[i] = NO_TILE;
-	u32 nextCMAP = getU32(finf, 0x18);
-	while (nextCMAP) {
-		u8 *cmap = data + nextCMAP - 8;
-		u16 firstCodepoint = getU16(cmap, 0x08);
-		u16 lastCodepoint = getU16(cmap, 0x0A);
-		switch (getU32(cmap, 0x0C)) {
-			case 0: {
-				u16 tileNum = getU16(cmap, 0x14);
-				for (u16 codepoint = firstCodepoint; codepoint <= lastCodepoint; codepoint++) {
-					charMap[codepoint] = tileNum++;
-				}
-			} break;
-			case 1: {
-				u16 *tileNumPtr = (u16 *)(cmap + 0x14);
-				for (u16 codepoint = firstCodepoint; codepoint <= lastCodepoint; codepoint++) {
-					charMap[codepoint] = *(tileNumPtr++);
-				}
-			} break;
-			case 2: {
-				u16 pairs = getU16(cmap, 0x14);
-				u8 *pairData = cmap + 0x16;
-				while (pairs--) {
-					charMap[getU16(pairData, 0)] = getU16(pairData, 0x2);
-					pairData += 4;
-				}
-			} break;
-		}
-		nextCMAP = getU32(cmap, 0x10);
-	}
-	replace = charMap[REPLACEMENT_CHAR] != NO_TILE;
-}
 
 u16 colors[4] = {0};
 
@@ -115,11 +54,11 @@ u16 consoleGetBackground() { return colors[0]; }
 
 void newLine() {
 	lineWidth = 0;
-	lineTop += tileHeight;
+	lineTop += font.tileHeight;
 	if (lineTop >= SCREEN_HEIGHT) {
-		int rowCount = lineTop - tileHeight;
+		int rowCount = lineTop - font.tileHeight;
 		u32 *dst = (u32 *) gfxBuffer;
-		u32 *src = (u32 *) (gfxBuffer + (tileHeight * SCREEN_WIDTH));
+		u32 *src = (u32 *) (gfxBuffer + (font.tileHeight * SCREEN_WIDTH));
 		while (rowCount--) { // moves an entire row of bg data at a time.
 			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
 			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
@@ -154,51 +93,27 @@ void newLine() {
 			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
 			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
 		}
-		lineTop = SCREEN_HEIGHT - tileHeight;
-		memset(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * tileHeight * sizeof(u16));
+		lineTop = SCREEN_HEIGHT - font.tileHeight;
+		memset(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * font.tileHeight * sizeof(u16));
 	}
 }
 
-int printChar(u16 codepoint) {
-	if (!tileData || !widthData) return 0;
+int writeCodepoint(u16 codepoint) {
 	if (codepoint == '\n') {
 		newLine();
 		return 2;
 	}
 
-	u16 tileNum = charMap[codepoint];
-	if (tileNum == NO_TILE) {
-		if (replace) tileNum = charMap[REPLACEMENT_CHAR];
-		else return 0;
-	}
-
-	u8 *tile = tileData + tileNum * tileSize;
-	u8 *widths = widthData + tileNum * 3;
 	bool newLined = false;
-	if (lineWidth + widths[2] > SCREEN_WIDTH) {
+	u8 width = fontGetCharWidth(font, codepoint);
+	if (lineWidth + width > SCREEN_WIDTH) {
 		newLine();
 		newLined = true;
 	}
 
-	// this assumes character is in screen bounds (normal console behavior should ensure that)
-	for (u8 y = 0; y < tileHeight; y++) {
-		u16 bufY = lineTop + y;
-		u8 bufX = lineWidth;
-		for (u8 x = 0; x < widths[0]; x++) {
-			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[0];
-		}
-		// assuming 2bpp (or 4 pixels per byte) and that tileWidth is a multiple of 4
-		for (u8 x = 0; x < widths[1]; x += 4) {
-			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[(*tile & 0b11000000) >> 6];
-			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[(*tile & 0b00110000) >> 4];
-			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[(*tile & 0b00001100) >> 2];
-			gfxBuffer[bufX++ + bufY * SCREEN_WIDTH] = colors[*tile++ & 0b00000011];
-		}
-		tile += (tileWidth - widths[1]) / 4;
-	}
+	fontPrintChar(font, colors, codepoint, gfxBuffer, SCREEN_WIDTH, lineWidth, lineTop);
 
-	lineWidth += widths[2];
-	return true;
+	lineWidth += width;
 	return newLined ? 2 : 1;
 }
 
@@ -211,22 +126,22 @@ ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 		u8 ch = *message++;
 		if (ch & BIT(7)) {
 			if (amt >= 1 && (ch & 0xE0) == 0xC0 && (message[0] & 0xC0) == 0x80) {
-				status = printChar((ch & 0x1F) << 6 | (message[0] & 0x3F));
+				status = writeCodepoint((ch & 0x1F) << 6 | (message[0] & 0x3F));
 				amt--; message++;
 			}
 			else if (amt >= 2 && (ch & 0xF0) == 0xE0 && (message[0] & 0xC0) == 0x80 && (message[1] & 0xC0) == 0x80) {
-				status = printChar((ch & 0x0F) << 12 | (message[0] & 0x3F) << 6 | (message[1] & 0x3F));
+				status = writeCodepoint((ch & 0x0F) << 12 | (message[0] & 0x3F) << 6 | (message[1] & 0x3F));
 				amt -= 2;
 				message += 2;
 			}
 			else if (amt >= 3 && (ch & 0xF8) == 0xF0 && (message[0] & 0xC0) == 0x80 && (message[1] & 0xC0) == 0x80 && (message[2] & 0xC0) == 0x80) {
-				status = printChar(REPLACEMENT_CHAR);
+				status = writeCodepoint(REPLACEMENT_CHAR);
 				amt -= 3;
 				message += 3;
 			}
-			else status = printChar(REPLACEMENT_CHAR);
+			else status = writeCodepoint(REPLACEMENT_CHAR);
 		}
-		else status = printChar(ch);
+		else status = writeCodepoint(ch);
 		if (status > update) update = status;
 	}
 	if (!paused) {
@@ -234,7 +149,7 @@ ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 		else if (update == 1) dmaCopy(
 			gfxBuffer + (lineTop * SCREEN_WIDTH),
 			bgGetGfxPtr(3) + (lineTop * SCREEN_WIDTH),
-			SCREEN_WIDTH * tileHeight * sizeof(u16)
+			SCREEN_WIDTH * font.tileHeight * sizeof(u16)
 		);
 	}
 	return len;
@@ -259,7 +174,7 @@ void consoleInit() {
 	videoSetMode(MODE_3_2D);
 	vramSetBankA(VRAM_A_MAIN_BG);
 	bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-	loadFont((u8 *) font_nftr);
+	font = fontLoad(font_nftr);
 	consoleSetColor(0xFFFF);
 }
 
