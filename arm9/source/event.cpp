@@ -9,12 +9,12 @@ extern "C" {
 #include <stdlib.h>
 
 #include "api.hpp"
-#include "console.hpp"
 #include "error.hpp"
 #include "inline.hpp"
+#include "io/console.hpp"
+#include "io/keyboard.hpp"
 #include "input.hpp"
 #include "jerry/jerryscript.h"
-#include "keyboard.hpp"
 #include "logging.hpp"
 #include "storage.hpp"
 #include "timeouts.hpp"

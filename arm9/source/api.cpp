@@ -16,12 +16,12 @@ extern "C" {
 #include <vector>
 
 #include "abortsignal.hpp"
-#include "console.hpp"
 #include "error.hpp"
 #include "event.hpp"
 #include "inline.hpp"
+#include "io/console.hpp"
+#include "io/keyboard.hpp"
 #include "jerry/jerryscript.h"
-#include "keyboard.hpp"
 #include "logging.hpp"
 #include "storage.hpp"
 #include "timeouts.hpp"

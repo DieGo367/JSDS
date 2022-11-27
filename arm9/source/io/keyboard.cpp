@@ -4,9 +4,6 @@
 #include <nds/arm9/input.h>
 #include <string.h>
 
-#include "event.hpp"
-#include "input.hpp"
-
 
 
 const u8 KEYBOARD_HEIGHT = 80;
@@ -419,9 +416,9 @@ void keyboardUpdate() {
 					shiftToggle = true;
 				}
 
-				if (dependentEvents & keydown) {
-					if (dispatchKeyboardEvent(true, shiftToggle != capsToggle ? key.upper : key.lower, key.code, 0, false, false, false, false, false)) return;
-				}
+				// if (dependentEvents & keydown) {
+				// 	if (dispatchKeyboardEvent(true, shiftToggle != capsToggle ? key.upper : key.lower, key.code, 0, false, false, false, false, false)) return;
+				// }
 
 				if (currentBoard == 0 && !shifted) shiftToggle = false;
 				return;

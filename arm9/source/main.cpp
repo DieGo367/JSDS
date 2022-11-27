@@ -8,13 +8,13 @@
 #include <unistd.h>
 
 #include "api.hpp"
-#include "console.hpp"
 #include "error.hpp"
 #include "event.hpp"
 #include "inline.hpp"
+#include "io/console.hpp"
+#include "io/keyboard.hpp"
 #include "jerry/jerryscript.h"
 #include "jerry/jerryscript-port-default.h"
-#include "keyboard.hpp"
 #include "logging.hpp"
 #include "storage.hpp"
 #include "timeouts.hpp"
