@@ -164,3 +164,9 @@ bool dispatchKeyboardEvent(bool down, const char *key, const char *code, u8 loca
 	jerry_release_value(kbdEventArgs[1]);
 	return canceled;
 }
+
+void onKeyDown(const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
+	if (dependentEvents & keydown) {
+		dispatchKeyboardEvent(true, key, code, 0, shift, ctrl, alt, meta, caps);
+	}
+}

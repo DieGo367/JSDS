@@ -340,6 +340,8 @@ const KeyDef* boards[5] = {boardAlphanumeric, boardLatinAccented, boardKana, boa
 const u8 boardSizes[5] = {KEY_CNT_ALPHANUMERIC, KEY_CNT_LATIN_ACCENTED, KEY_CNT_KANA, KEY_CNT_SYMBOL, KEY_CNT_PICTOGRAM};
 
 bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
+void (*onPress) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
+
 
 void keyboardInit() {
 	videoSetModeSub(MODE_3_2D);
@@ -416,15 +418,17 @@ void keyboardUpdate() {
 					shiftToggle = true;
 				}
 
-				// if (dependentEvents & keydown) {
-				// 	if (dispatchKeyboardEvent(true, shiftToggle != capsToggle ? key.upper : key.lower, key.code, 0, false, false, false, false, false)) return;
-				// }
+				onPress(shiftToggle != capsToggle ? key.upper : key.lower, key.code, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
 
 				if (currentBoard == 0 && !shifted) shiftToggle = false;
 				return;
 			}
 		}
 	}
+}
+
+void keyboardSetPressHandler(void (*handler) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps)) {
+	onPress = handler;
 }
 
 bool kbdIsOpen = false;

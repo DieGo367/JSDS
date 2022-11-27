@@ -11,6 +11,7 @@
 #include "error.hpp"
 #include "event.hpp"
 #include "inline.hpp"
+#include "input.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
 #include "jerry/jerryscript.h"
@@ -70,6 +71,7 @@ int main(int argc, char **argv) {
 	fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
 	consoleInit();
 	keyboardInit();
+	keyboardSetPressHandler(onKeyDown);
 	fatInitDefault();
 	jerry_init(JERRY_INIT_EMPTY);
 	setErrorHandlers();
