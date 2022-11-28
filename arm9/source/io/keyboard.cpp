@@ -4,6 +4,8 @@
 #include <nds/arm9/input.h>
 #include <string.h>
 
+#include "font.hpp"
+
 
 
 const u8 KEYBOARD_HEIGHT = 80;
@@ -11,8 +13,9 @@ const u8 KEY_HEIGHT = 15;
 const u8 TEXT_HEIGHT = 16;
 static u16 gfxBuffer[SCREEN_WIDTH * KEYBOARD_HEIGHT] = {0};
 
-const u16 COLOR_KEYBOARD_BACKDROP = 0xDAD6;//0xF7BD;
-const u16 COLOR_KEY_NORMAL = 0xFFFF;//0xEB5A;
+const u16 COLOR_KEYBOARD_BACKDROP = 0xDAD6;;
+const u16 COLOR_KEY_NORMAL = 0xFFFF;;
+u16 keyFontPalette[4] = {0, 0xCA52, 0xA108, 0x8000};
 
 struct KeyDef {
 	char code[20];
@@ -342,11 +345,34 @@ const u8 boardSizes[5] = {KEY_CNT_ALPHANUMERIC, KEY_CNT_LATIN_ACCENTED, KEY_CNT_
 bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
 void (*onPress) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
 
+void drawSelectedBoard() {
+	for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
+		KeyDef key = boards[currentBoard][i];
+		for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
+			for (u8 x = 0; x < key.width; x++) {
+				gfxBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = COLOR_KEY_NORMAL;
+			}
+		}
+		u16 codepoint = 0;
+		const char *keyValue = shiftToggle !=  capsToggle ? key.upper : key.lower;
+		if (keyValue[0] & BIT(7)) {
+			if ((keyValue[0] & 0xE0) == 0xC0 && (keyValue[1] & 0xC0) == 0x80) {
+				codepoint = (keyValue[0] & 0x1F) << 6 | (keyValue[1] & 0x3F);
+			}
+			else if ((keyValue[0] & 0xF0) == 0xE0 && (keyValue[1] & 0xC0) == 0x80 && (keyValue[2] & 0xC0) == 0x80) {
+				codepoint = (keyValue[0] & 0x0F) << 12 | (keyValue[1] & 0x3F) << 6 | (keyValue[2] & 0x3F);
+			}
+		}
+		else codepoint = keyValue[0];
+		fontPrintChar(defaultFont, keyFontPalette, codepoint, gfxBuffer, SCREEN_WIDTH, key.x, key.y - 1);
+	}
+}
 
 void keyboardInit() {
 	videoSetModeSub(MODE_3_2D);
 	vramSetBankC(VRAM_C_SUB_BG);
 	bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+	if (defaultFont.tileWidth == 0) fontLoadDefault();
 
 	for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) gfxBuffer[i] = COLOR_KEYBOARD_BACKDROP;
 
@@ -359,14 +385,7 @@ void keyboardInit() {
 		}
 	}
 
-	for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
-		KeyDef key = boards[currentBoard][i];
-		for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
-			for (u8 x = 0; x < key.width; x++) {
-				gfxBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = COLOR_KEY_NORMAL;
-			}
-		}
-	}
+	drawSelectedBoard();
 }
 
 void keyboardUpdate() {
@@ -384,14 +403,7 @@ void keyboardUpdate() {
 
 				for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) if (i % SCREEN_WIDTH > 16) gfxBuffer[i] = COLOR_KEYBOARD_BACKDROP;
 
-				for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
-					KeyDef key = boards[currentBoard][i];
-					for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
-						for (u8 x = 0; x < key.width; x++) {
-							gfxBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = COLOR_KEY_NORMAL;
-						}
-					}
-				}
+				drawSelectedBoard();
 				dmaCopy(gfxBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxBuffer));
 				return;
 			}
@@ -404,6 +416,7 @@ void keyboardUpdate() {
 			 && pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
 			) {
 				bool shifted = false;
+				bool updateBoard = true;
 				if (strcmp(key.lower, "Shift") == 0) {
 					shiftToggle = !shiftToggle;
 					shifted = true;
@@ -417,10 +430,15 @@ void keyboardUpdate() {
 				else if (strcmp(key.lower, "Katakana") == 0) {
 					shiftToggle = true;
 				}
+				else updateBoard = shiftToggle;
 
 				onPress(shiftToggle != capsToggle ? key.upper : key.lower, key.code, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
 
 				if (currentBoard == 0 && !shifted) shiftToggle = false;
+				if (updateBoard) {
+					drawSelectedBoard();
+					dmaCopy(gfxBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxBuffer));
+				}
 				return;
 			}
 		}

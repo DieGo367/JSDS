@@ -8,6 +8,8 @@
 #define getU16(src, offset) *((u16 *) (src + offset))
 #define getU32(src, offset) *((u32 *) (src + offset))
 
+NitroFont defaultFont = {0};
+
 
 
 NitroFont fontLoad(const u8 *data) {
@@ -68,44 +70,51 @@ NitroFont fontLoad(const u8 *data) {
 	return font;
 }
 
+void fontLoadDefault() {
+	defaultFont = fontLoad(font_nftr);
+}
+
 u8 fontGetCharWidth(NitroFont font, u16 codepoint) {
-	if (!font.tileData || !font.widthData || font.encoding != 1 || font.bitdepth != 2) return 0;
+	if (!font.charMap || !font.widthData || font.encoding != 1) return 0;
 
 	u16 tileNum = font.charMap[codepoint];
-	if (tileNum == NO_TILE) {
-		if (font.replace) tileNum = font.charMap[REPLACEMENT_CHAR];
-		else return 0;
-	}
+	if (tileNum == NO_TILE) tileNum = font.charMap[REPLACEMENT_CHAR];
+	if (tileNum == NO_TILE) return 0;
 
 	u8 *widths = font.widthData + tileNum * 3;
 	return widths[2];
 }
 
+// this assumes character is in the buffer's bounds
 void fontPrintChar(NitroFont font, u16 *palette, u16 codepoint, u16 *buffer, u32 bufferWidth, u32 x, u32 y) {
-	if (!font.tileData || !font.widthData || font.encoding != 1 || font.bitdepth != 2) return;
+	if (!font.tileData || !font.widthData || !font.charMap || font.encoding != 1 || font.bitdepth != 2) return;
 
 	u16 tileNum = font.charMap[codepoint];
-	if (tileNum == NO_TILE) {
-		if (font.replace) tileNum = font.charMap[REPLACEMENT_CHAR];
-		else return;
-	}
+	if (tileNum == NO_TILE) tileNum = font.charMap[REPLACEMENT_CHAR];
+	if (tileNum == NO_TILE) return;
 
 	u8 *tile = font.tileData + tileNum * font.tileSize;
 	u8 *widths = font.widthData + tileNum * 3;
 
-	// this assumes character is in screen bounds (normal console behavior should ensure that)
 	for (u8 ty = 0; ty < font.tileHeight; ty++) {
 		u32 bufY = y + ty;
 		u32 bufX = x;
 		for (u8 tx = 0; tx < widths[0]; tx++) {
-			buffer[bufX++ + bufY * bufferWidth] = palette[0];
+			if (palette[0]) buffer[bufX + bufY * bufferWidth] = palette[0];
+			bufX++;
 		}
-		// assuming 2bpp (or 4 pixels per byte) and that tileWidth is a multiple of 4
+		// assuming that tileWidth is a multiple of 4
+		u16 color;
 		for (u8 tx = 0; tx < widths[1]; tx += 4) {
-			buffer[bufX++ + bufY * bufferWidth] = palette[(*tile & 0b11000000) >> 6];
-			buffer[bufX++ + bufY * bufferWidth] = palette[(*tile & 0b00110000) >> 4];
-			buffer[bufX++ + bufY * bufferWidth] = palette[(*tile & 0b00001100) >> 2];
-			buffer[bufX++ + bufY * bufferWidth] = palette[*tile++ & 0b00000011];
+			color = palette[(*tile & 0b11000000) >> 6];
+			if (color) buffer[bufX + bufY * bufferWidth] = color;
+			color = palette[(*tile & 0b00110000) >> 4];
+			if (color) buffer[bufX + 1 + bufY * bufferWidth] = color;
+			color = palette[(*tile & 0b00001100) >> 2];
+			if (color) buffer[bufX + 2 + bufY * bufferWidth] = color;
+			color = palette[*tile++ & 0b00000011];
+			if (color) buffer[bufX + 3 + bufY * bufferWidth] = color;
+			bufX += 4;
 		}
 		tile += (font.tileWidth - widths[1]) / 4;
 	}

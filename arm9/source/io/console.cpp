@@ -12,13 +12,11 @@ extern "C" {
 #include <sys/iosupport.h>
 
 #include "font.hpp"
-#include "font_nftr.h"
 
 
 
 static u16 gfxBuffer[SCREEN_WIDTH * SCREEN_HEIGHT] = {0};
 
-NitroFont font = {0};
 u16 lineWidth = 0;
 u16 lineTop = 0;
 bool paused = false;
@@ -54,11 +52,11 @@ u16 consoleGetBackground() { return colors[0]; }
 
 void newLine() {
 	lineWidth = 0;
-	lineTop += font.tileHeight;
+	lineTop += defaultFont.tileHeight;
 	if (lineTop >= SCREEN_HEIGHT) {
-		int rowCount = lineTop - font.tileHeight;
+		int rowCount = lineTop - defaultFont.tileHeight;
 		u32 *dst = (u32 *) gfxBuffer;
-		u32 *src = (u32 *) (gfxBuffer + (font.tileHeight * SCREEN_WIDTH));
+		u32 *src = (u32 *) (gfxBuffer + (defaultFont.tileHeight * SCREEN_WIDTH));
 		while (rowCount--) { // moves an entire row of bg data at a time.
 			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
 			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
@@ -93,8 +91,8 @@ void newLine() {
 			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
 			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
 		}
-		lineTop = SCREEN_HEIGHT - font.tileHeight;
-		memset(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * font.tileHeight * sizeof(u16));
+		lineTop = SCREEN_HEIGHT - defaultFont.tileHeight;
+		memset(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16));
 	}
 }
 
@@ -105,13 +103,13 @@ int writeCodepoint(u16 codepoint) {
 	}
 
 	bool newLined = false;
-	u8 width = fontGetCharWidth(font, codepoint);
+	u8 width = fontGetCharWidth(defaultFont, codepoint);
 	if (lineWidth + width > SCREEN_WIDTH) {
 		newLine();
 		newLined = true;
 	}
 
-	fontPrintChar(font, colors, codepoint, gfxBuffer, SCREEN_WIDTH, lineWidth, lineTop);
+	fontPrintChar(defaultFont, colors, codepoint, gfxBuffer, SCREEN_WIDTH, lineWidth, lineTop);
 
 	lineWidth += width;
 	return newLined ? 2 : 1;
@@ -149,7 +147,7 @@ ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 		else if (update == 1) dmaCopy(
 			gfxBuffer + (lineTop * SCREEN_WIDTH),
 			bgGetGfxPtr(3) + (lineTop * SCREEN_WIDTH),
-			SCREEN_WIDTH * font.tileHeight * sizeof(u16)
+			SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16)
 		);
 	}
 	return len;
@@ -174,7 +172,7 @@ void consoleInit() {
 	videoSetMode(MODE_3_2D);
 	vramSetBankA(VRAM_A_MAIN_BG);
 	bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-	font = fontLoad(font_nftr);
+	if (defaultFont.tileWidth == 0) fontLoadDefault();
 	consoleSetColor(0xFFFF);
 }
 
