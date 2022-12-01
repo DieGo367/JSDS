@@ -211,7 +211,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyろ", "ろ", "ロ", 177, 65, 15},
 	{"Keyを", "を", "ヲ", 193, 65, 15},
 	{"FullStop", "。", "。", 209, 65, 15},
-	{"Space", " ", " ", 225, 65, 30}
+	{"Space", "　", "　", 225, 65, 30}
 };
 
 const u8 KEY_CNT_SYMBOL = 58;
@@ -319,7 +319,7 @@ const KeyDef boardPictogram[KEY_CNT_PICTOGRAM] = {
 	{"Minus", "-", "", 81, 49, 15},
 	{"StarWhite", "☆", "", 97, 49, 15},
 	{"CircleWhite", "○", "", 113, 49, 15},
-	{"DiamondWhite", "±", "", 129, 49, 15},
+	{"DiamondWhite", "◇", "", 129, 49, 15},
 	{"SquareWhite", "□", "", 145, 49, 15},
 	{"TriangleUpWhite", "△", "", 161, 49, 15},
 	{"TriangleDownWhite", "▽", "", 177, 49, 15},
