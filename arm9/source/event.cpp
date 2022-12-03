@@ -288,7 +288,7 @@ void eventLoop() {
 				keyboardClearBuffer();
 			}
 		}
-		if (isKeyboardOpen()) keyboardUpdate();
+		keyboardUpdate();
 		storageUpdate();
 	}
 }

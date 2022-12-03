@@ -342,6 +342,7 @@ u8 currentBoard = 0;
 const KeyDef* boards[5] = {boardAlphanumeric, boardLatinAccented, boardKana, boardSymbol, boardPictogram};
 const u8 boardSizes[5] = {KEY_CNT_ALPHANUMERIC, KEY_CNT_LATIN_ACCENTED, KEY_CNT_KANA, KEY_CNT_SYMBOL, KEY_CNT_PICTOGRAM};
 
+bool showing = false;
 bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
 void (*onPress) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
 
@@ -389,6 +390,7 @@ void keyboardInit() {
 }
 
 void keyboardUpdate() {
+	if (!showing) return;
 	if (keysDown() & KEY_TOUCH) {
 		touchPosition pos;
 		touchRead(&pos);
@@ -443,26 +445,26 @@ void keyboardUpdate() {
 			}
 		}
 	}
+	else {
+
+	}
+}
+
+bool keyboardShow() {
+	if (showing) return false;
+	dmaCopy(gfxBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxBuffer));
+	showing = true;
+	return true;
+}
+bool keyboardHide() {
+	if (!showing) return false;
+	dmaFillHalfWords(0, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxBuffer));
+	showing = false;
+	return true;
 }
 
 void keyboardSetPressHandler(void (*handler) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps)) {
 	onPress = handler;
-}
-
-bool kbdIsOpen = false;
-void keyboardOpen(bool printInput) {
-	if (kbdIsOpen) return;
-	keyboardClearBuffer();
-	dmaCopy(gfxBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxBuffer));
-	kbdIsOpen = true;
-}
-void keyboardClose(bool clear) {
-	if (!kbdIsOpen) return;
-	dmaFillHalfWords(0, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxBuffer));
-	kbdIsOpen = false;
-}
-bool isKeyboardOpen() {
-	return kbdIsOpen;
 }
 
 const int keyboardBufferSize = 256;

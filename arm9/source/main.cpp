@@ -60,7 +60,7 @@ void runFile(const char *filename) {
 
 void repl() {
 	inREPL = true;
-	keyboardOpen(true);
+	keyboardShow();
 	storageLoad("/REPL");
 	eventLoop();
 }
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
 	else repl();
 
 	// cleanup
-	keyboardClose(false);
+	keyboardHide();
 	clearTasks();
 	clearTimeouts();
 	releaseReferences();
