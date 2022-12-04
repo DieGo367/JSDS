@@ -170,3 +170,9 @@ void onKeyDown(const char *key, const char *code, bool shift, bool ctrl, bool al
 		dispatchKeyboardEvent(true, key, code, 0, shift, ctrl, alt, meta, caps);
 	}
 }
+
+void onKeyUp(const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
+	if (dependentEvents & keyup) {
+		dispatchKeyboardEvent(false, key, code, 0, shift, ctrl, alt, meta, caps);
+	}
+}

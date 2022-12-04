@@ -343,8 +343,13 @@ const KeyDef* boards[5] = {boardAlphanumeric, boardLatinAccented, boardKana, boa
 const u8 boardSizes[5] = {KEY_CNT_ALPHANUMERIC, KEY_CNT_LATIN_ACCENTED, KEY_CNT_KANA, KEY_CNT_SYMBOL, KEY_CNT_PICTOGRAM};
 
 bool showing = false;
+KeyDef heldKey = {0};
+int keyHeldTime = 0;
+const int REPEAT_START = 30;
+const int REPEAT_INTERVAL = 5;
 bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
 void (*onPress) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
+void (*onRelease) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
 
 void drawSelectedBoard() {
 	for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
@@ -394,11 +399,12 @@ void keyboardUpdate() {
 	if (keysDown() & KEY_TOUCH) {
 		touchPosition pos;
 		touchRead(&pos);
+
 		for (u8 i = 0; i < KEY_CNT_MODE_SELECT; i++) {
 			KeyDef key = boardModeSelect[i];
 			if (pos.px >= key.x && pos.px < key.x + key.width
-			 && pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
-			 && pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
+			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
+			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
 			) {
 				currentBoard = i;
 				shiftToggle = ctrlToggle = altToggle = metaToggle = capsToggle = false;
@@ -414,39 +420,60 @@ void keyboardUpdate() {
 		for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
 			KeyDef key = boards[currentBoard][i];
 			if (pos.px >= key.x && pos.px < key.x + key.width
-			 && pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
-			 && pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
+			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
+			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
 			) {
-				bool shifted = false;
-				bool updateBoard = true;
-				if (strcmp(key.lower, "Shift") == 0) {
-					shiftToggle = !shiftToggle;
-					shifted = true;
-				}
-				else if (strcmp(key.lower, "CapsLock") == 0) {
-					capsToggle = !capsToggle;
-				}
-				else if (strcmp(key.lower, "Hiragana") == 0) {
-					shiftToggle = false;
-				}
-				else if (strcmp(key.lower, "Katakana") == 0) {
-					shiftToggle = true;
-				}
-				else updateBoard = shiftToggle;
-
 				onPress(shiftToggle != capsToggle ? key.upper : key.lower, key.code, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
-
-				if (currentBoard == 0 && !shifted) shiftToggle = false;
-				if (updateBoard) {
-					drawSelectedBoard();
-					dmaCopy(gfxBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxBuffer));
-				}
+				heldKey = key;
+				keyHeldTime = 1;
 				return;
 			}
 		}
 	}
-	else {
+	else if (keysHeld() & KEY_TOUCH) {
+		if (keyHeldTime == 0) return;
+		touchPosition pos;
+		touchRead(&pos);
+		
+		if (pos.px >= heldKey.x && pos.px < heldKey.x + heldKey.width
+			&& pos.py >= heldKey.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
+			&& pos.py < heldKey.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
+		) {
+			if (++keyHeldTime >= REPEAT_START && (keyHeldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
+				onPress(shiftToggle != capsToggle ? heldKey.upper : heldKey.lower, heldKey.code, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+				keyHeldTime = REPEAT_START + 1;
+			}
+		}
+		else keyHeldTime = 1;
+	}
+	else if (keyHeldTime > 0) {
+		bool shifted = false;
+		bool updateBoard = true;
+		if (strcmp(heldKey.lower, "Shift") == 0) {
+			shiftToggle = !shiftToggle;
+			shifted = true;
+		}
+		else if (strcmp(heldKey.lower, "CapsLock") == 0) {
+			capsToggle = !capsToggle;
+		}
+		else if (strcmp(heldKey.lower, "Hiragana") == 0) {
+			shiftToggle = false;
+		}
+		else if (strcmp(heldKey.lower, "Katakana") == 0) {
+			shiftToggle = true;
+		}
+		else updateBoard = shiftToggle;
 
+		onRelease(shiftToggle != capsToggle ? heldKey.upper : heldKey.lower, heldKey.code, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+
+		if (currentBoard == 0 && !shifted) shiftToggle = false;
+		if (updateBoard) {
+			drawSelectedBoard();
+			dmaCopy(gfxBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxBuffer));
+		}
+
+		keyHeldTime = 0;
+		return;
 	}
 }
 
@@ -465,6 +492,9 @@ bool keyboardHide() {
 
 void keyboardSetPressHandler(void (*handler) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps)) {
 	onPress = handler;
+}
+void keyboardSetReleaseHandler(void (*handler) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps)) {
+	onRelease = handler;
 }
 
 const int keyboardBufferSize = 256;

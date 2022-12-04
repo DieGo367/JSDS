@@ -72,6 +72,7 @@ int main(int argc, char **argv) {
 	consoleInit();
 	keyboardInit();
 	keyboardSetPressHandler(onKeyDown);
+	keyboardSetReleaseHandler(onKeyUp);
 	fatInitDefault();
 	jerry_init(JERRY_INIT_EMPTY);
 	setErrorHandlers();

@@ -12,6 +12,7 @@ bool keyboardShow();
 bool keyboardHide(); 
 
 void keyboardSetPressHandler(void (*handler) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps));
+void keyboardSetReleaseHandler(void (*handler) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps));
 
 extern bool keyboardEnterPressed;
 extern bool keyboardEscapePressed;
