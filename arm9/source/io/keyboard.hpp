@@ -5,20 +5,20 @@
 
 
 
+enum ComposeStatus { INACTIVE, COMPOSING, FINISHED };
+
 void keyboardInit();
 void keyboardUpdate();
 
 bool keyboardShow();
 bool keyboardHide(); 
 
-void keyboardSetPressHandler(void (*handler) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps));
-void keyboardSetReleaseHandler(void (*handler) (const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps));
+void keyboardSetPressHandler(void (*handler) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps));
+void keyboardSetReleaseHandler(void (*handler) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps));
 
-extern bool keyboardEnterPressed;
-extern bool keyboardEscapePressed;
-
-const char *keyboardBuffer();
-u8 keyboardBufferLen();
-void keyboardClearBuffer();
+void keyboardCompose();
+ComposeStatus keyboardComposeStatus();
+void keyboardComposeAccept(char **strPtr, int *strSize);
+void keyboardComposeCancel();
 
 #endif /* JSDS_KEYBOARD_HPP */

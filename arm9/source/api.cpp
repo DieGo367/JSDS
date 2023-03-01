@@ -102,33 +102,36 @@ static jerry_value_t confirmHandler(CALL_INFO) {
 
 static jerry_value_t promptHandler(CALL_INFO) {
 	consoleClear();
-	bool close = keyboardShow();
 	printf("============ Prompt ============");
 	if (argCount > 0) {
 		printValue(args[0]);
 		putchar('\n');
 	}
 	printf("========= (A) OK  (B) Cancel ===");
-	bool canceled = false;
+	keyboardCompose();
 	while (true) {
 		swiWaitForVBlank();
 		scanKeys();
 		u32 keys = keysDown();
-		if (keys & KEY_A || keyboardEnterPressed) break;
-		else if (keys & KEY_B || keyboardEscapePressed) {
-			canceled = true;
-			break;
+		if (keys & KEY_A || keyboardComposeStatus() == FINISHED) {
+			char *str;
+			int strSize;
+			keyboardComposeAccept(&str, &strSize);
+			jerry_value_t strVal = jerry_create_string_sz_from_utf8((jerry_char_t *) str, (jerry_size_t) strSize);
+			free(str);
+			keyboardUpdate();
+			consoleClear();
+			return strVal;
+		}
+		else if (keys & KEY_B) {
+			keyboardComposeCancel();
+			keyboardUpdate();
+			consoleClear();
+			if (argCount > 1) return jerry_value_to_string(args[1]);
+			else return null;
 		}
 		keyboardUpdate();
 	}
-	keyboardEnterPressed = false;
-	if (close) keyboardHide();
-	consoleClear();
-	if (canceled) {
-		if (argCount > 1) return jerry_value_to_string(args[1]);
-		else return null;
-	}
-	else return jerry_create_string_from_utf8((jerry_char_t *) keyboardBuffer());
 }
 
 static jerry_value_t atobHandler(CALL_INFO) {

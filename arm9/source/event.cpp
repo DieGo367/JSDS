@@ -276,16 +276,20 @@ void eventLoop() {
 		timeoutUpdate();
 		runTasks();
 		if (inREPL) {
-			if (keyboardEnterPressed) {
+			if (keyboardComposeStatus() == INACTIVE) keyboardCompose();
+			else if (keyboardComposeStatus() == FINISHED) {
 				putchar('\n');
+				char *inputStr;
+				int inputSize;
+				keyboardComposeAccept(&inputStr, &inputSize);
 				jerry_value_t parsedCode = jerry_parse(
 					(const jerry_char_t *) "REPL", 4,
-					(const jerry_char_t *) keyboardBuffer(), keyboardBufferLen(),
+					(const jerry_char_t *) inputStr, inputSize,
 					JERRY_PARSE_STRICT_MODE
 				);
+				free(inputStr);
 				queueTask(runParsedCodeTask, &parsedCode, 1);
 				jerry_release_value(parsedCode);
-				keyboardClearBuffer();
 			}
 		}
 		keyboardUpdate();

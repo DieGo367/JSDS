@@ -134,12 +134,24 @@ void stylusEvents() {
 	prevY = pos.py;
 }
 
-bool dispatchKeyboardEvent(bool down, const char *key, const char *code, u8 location, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
+bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 location, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
 	jerry_value_t kbdEventArgs[2] = {createString(down ? "keydown" : "keyup"), jerry_create_object()};
 	setProperty(kbdEventArgs[1], "cancelable", True);
 
-	jerry_value_t keyStr = createString(key);
-	jerry_value_t codeStr = createString(code);
+	jerry_value_t keyStr;
+	if (codepoint == 0 || codepoint == '\b' || codepoint == '\t' || codepoint == '\n') keyStr = createString(name);
+	else {
+		if (codepoint < 0x80) keyStr = createString((char *) &codepoint);
+		else if (codepoint < 0x800) {
+			char converted[3] = {(char) (0xC0 | codepoint >> 6), (char) (BIT(7) | (codepoint & 0x3F)), 0};
+			keyStr = createString(converted);
+		}
+		else {
+			char converted[4] = {(char) (0xE0 | codepoint >> 12), (char) (BIT(7) | (codepoint >> 6 & 0x3F)), (char) (BIT(7) | (codepoint & 0x3F)), 0};
+			keyStr = createString(converted);
+		}
+	}
+	jerry_value_t codeStr = createString(name);
 	jerry_value_t locationNum = jerry_create_number(location);
 	setProperty(kbdEventArgs[1], "key", keyStr);
 	setProperty(kbdEventArgs[1], "code", codeStr);
@@ -165,14 +177,14 @@ bool dispatchKeyboardEvent(bool down, const char *key, const char *code, u8 loca
 	return canceled;
 }
 
-void onKeyDown(const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
+void onKeyDown(const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
 	if (dependentEvents & keydown) {
-		dispatchKeyboardEvent(true, key, code, 0, shift, ctrl, alt, meta, caps);
+		dispatchKeyboardEvent(true, codepoint, name, 0, shift, ctrl, alt, meta, caps);
 	}
 }
 
-void onKeyUp(const char *key, const char *code, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
+void onKeyUp(const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
 	if (dependentEvents & keyup) {
-		dispatchKeyboardEvent(false, key, code, 0, shift, ctrl, alt, meta, caps);
+		dispatchKeyboardEvent(false, codepoint, name, 0, shift, ctrl, alt, meta, caps);
 	}
 }
