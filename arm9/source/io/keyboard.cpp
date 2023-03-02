@@ -7,7 +7,12 @@
 
 #include "font.hpp"
 
+#define lengthof(arr) sizeof(arr)/sizeof(*arr)
 
+
+
+const int REPEAT_START = 30;
+const int REPEAT_INTERVAL = 5;
 
 const u8 KEYBOARD_HEIGHT = 80;
 const u8 KEY_HEIGHT = 15;
@@ -48,8 +53,7 @@ struct KeyDef {
 	u8 width;
 };
 
-const u8 KEY_CNT_MODE_SELECT = 5;
-const KeyDef boardModeSelect[KEY_CNT_MODE_SELECT] = {
+const KeyDef boardModeSelect[] = {
 	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
 	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
 	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
@@ -57,8 +61,7 @@ const KeyDef boardModeSelect[KEY_CNT_MODE_SELECT] = {
 	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15}
 };
 
-const u8 KEY_CNT_ALPHANUMERIC = 53;
-const KeyDef boardAlphanumeric[KEY_CNT_ALPHANUMERIC] = {
+const KeyDef boardAlphanumeric[] = {
 	{"Backquote", '`', '~', 17, 1, 15},
 	{"Digit1", '1', '!', 33, 1, 15},
 	{"Digit2", '2', '@', 49, 1, 15},
@@ -113,9 +116,7 @@ const KeyDef boardAlphanumeric[KEY_CNT_ALPHANUMERIC] = {
 	{"Slash", '/', '?', 197, 49, 15},
 	{"Space", ' ', ' ', 81, 65, 95}
 };
-
-const u8 KEY_CNT_LATIN_ACCENTED = 55;
-const KeyDef boardLatinAccented[KEY_CNT_LATIN_ACCENTED] = {
+const KeyDef boardLatinAccented[] = {
 	{"Keyà", u'à', 0, 33, 1, 15},
 	{"Keyá", u'á', 0, 49, 1, 15},
 	{"Keyâ", u'â', 0, 65, 1, 15},
@@ -172,9 +173,7 @@ const KeyDef boardLatinAccented[KEY_CNT_LATIN_ACCENTED] = {
 	{"Key£", u'£', 0, 97, 65, 15},
 	{"Space", ' ', 0, 225, 65, 30}
 };
-
-const u8 KEY_CNT_KANA = 59;
-const KeyDef boardKana[KEY_CNT_KANA] = {
+const KeyDef boardKana[] = {
 	{"Hiragana", HIRAGANA, HIRAGANA, 17, 1, 31},
 	{"Keyあ", u'あ', u'ア', 49, 1, 15},
 	{"Keyか", u'か', u'カ', 65, 1, 15},
@@ -235,9 +234,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"FullStop", u'。', u'。', 209, 65, 15},
 	{"FullSpace", u'　', u'　', 225, 65, 30}
 };
-
-const u8 KEY_CNT_SYMBOL = 58;
-const KeyDef boardSymbol[KEY_CNT_SYMBOL] = {
+const KeyDef boardSymbol[] = {
 	{"Exclamation", '!', 0, 33, 1, 15},
 	{"Question", '?', 0, 49, 1, 15},
 	{"Ampersand", '&', 0, 65, 1, 15},
@@ -297,9 +294,7 @@ const KeyDef boardSymbol[KEY_CNT_SYMBOL] = {
 	{"Registered", u'®', 0, 193, 65, 15},
 	{"Space", ' ', 0, 225, 65, 30}
 };
-
-const u8 KEY_CNT_PICTOGRAM = 58;
-const KeyDef boardPictogram[KEY_CNT_PICTOGRAM] = {
+const KeyDef boardPictogram[] = {
 	{"Digit1", '1', 0, 33, 1, 15},
 	{"Digit2", '2', 0, 49, 1, 15},
 	{"Digit3", '3', 0, 65, 1, 15},
@@ -360,6 +355,9 @@ const KeyDef boardPictogram[KEY_CNT_PICTOGRAM] = {
 	{"Space", ' ', 0, 225, 65, 30}
 };
 
+const KeyDef* boards[5] = {boardAlphanumeric, boardLatinAccented, boardKana, boardSymbol, boardPictogram};
+const u8 boardSizes[5] = {lengthof(boardAlphanumeric), lengthof(boardLatinAccented), lengthof(boardKana), lengthof(boardSymbol), lengthof(boardPictogram)};
+
 // kana modifier key conversion maps
 const u16 voiceable[] = {u'か', u'き', u'く', u'け', u'こ', u'さ', u'し', u'す', u'せ', u'そ', u'た', u'ち', u'つ', u'っ', u'て', u'と', u'は', u'ひ', u'ふ', u'へ', u'ほ', u'ぱ', u'ぴ', u'ぷ', u'ぺ', u'ぽ', u'カ', u'ヵ', u'キ', u'ク', u'ケ', u'ヶ', u'コ', u'サ', u'シ', u'ス', u'セ', u'ソ', u'タ', u'チ', u'ツ', u'ッ', u'テ', u'ト', u'ハ', u'ヒ', u'フ', u'ヘ', u'ホ', u'パ', u'ピ', u'プ', u'ペ', u'ポ', u'ウ', u'ゥ'};
 const u16 voiced[]    = {u'が', u'ぎ', u'ぐ', u'げ', u'ご', u'ざ', u'じ', u'ず', u'ぜ', u'ぞ', u'だ', u'ぢ', u'づ', u'づ', u'で', u'ど', u'ば', u'び', u'ぶ', u'べ', u'ぼ', u'ば', u'び', u'ぶ', u'べ', u'ぼ', u'ガ', u'ガ', u'ギ', u'グ', u'ゲ', u'ゲ', u'ゴ', u'ザ', u'ジ', u'ズ', u'ゼ', u'ゾ', u'ダ', u'ヂ', u'ヅ', u'ヅ', u'デ', u'ド', u'バ', u'ビ', u'ブ', u'ベ', u'ボ', u'バ', u'ビ', u'ブ', u'ベ', u'ボ', u'ヴ', u'ヴ'};
@@ -368,22 +366,19 @@ const u16 semivoiced[]    = {u'ぱ', u'ぴ', u'ぷ', u'ぺ', u'ぽ', u'ぱ', u'�
 const u16 shrinkable[] = {u'あ', u'い', u'う', u'え', u'お', u'つ', u'づ', u'や', u'ゆ', u'よ', u'わ', u'ア', u'イ', u'ウ', u'ヴ', u'エ', u'オ', u'ツ', u'ヅ', u'ヤ', u'ユ', u'ヨ', u'ワ', u'カ', u'ガ', u'ケ', u'ゲ'};
 const u16 shrunk[]     = {u'ぁ', u'ぃ', u'ぅ', u'ぇ', u'ぉ', u'っ', u'っ', u'ゃ', u'ゅ', u'ょ', u'ゎ', u'ァ', u'ィ', u'ゥ', u'ゥ', u'ェ', u'ォ', u'ッ', u'ッ', u'ャ', u'ュ', u'ョ', u'ヮ', u'ヵ', u'ヵ', u'ヶ', u'ヶ'};
 
-u8 currentBoard = 0;
-const KeyDef* boards[5] = {boardAlphanumeric, boardLatinAccented, boardKana, boardSymbol, boardPictogram};
-const u8 boardSizes[5] = {KEY_CNT_ALPHANUMERIC, KEY_CNT_LATIN_ACCENTED, KEY_CNT_KANA, KEY_CNT_SYMBOL, KEY_CNT_PICTOGRAM};
-
 bool showing = false;
+u8 currentBoard = 0;
+KeyDef heldKey = {0};
+int keyHeldTime = 0;
+bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
 ComposeStatus composing = INACTIVE;
 bool closeOnAccept = false;
 u16 composition[256] = {0};
-u16 compositionPos = 0;
-KeyDef heldKey = {0};
-int keyHeldTime = 0;
-const int REPEAT_START = 30;
-const int REPEAT_INTERVAL = 5;
-bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
+u16 compIdx = 0;
 void (*onPress) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
 void (*onRelease) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
+
+
 
 void drawSelectedBoard() {
 	for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
@@ -401,7 +396,7 @@ void drawComposedText() {
 	for (int i = 0; i < SCREEN_WIDTH * TEXT_HEIGHT; i++) gfxCmpBuffer[i] = COLOR_COMPOSING_BACKDROP;
 	
 	int x = 0;
-	for (int i = 0; i < compositionPos; i++) {
+	for (int i = 0; i < compIdx; i++) {
 		int width = fontGetCharWidth(defaultFont, composition[i]);
 		int diff = x + width - SCREEN_WIDTH;
 		if (diff <= 0) {
@@ -428,7 +423,7 @@ void keyboardInit() {
 
 	for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) gfxKbdBuffer[i] = COLOR_KEYBOARD_BACKDROP;
 
-	for (u8 i = 0; i < KEY_CNT_MODE_SELECT; i++) {
+	for (u8 i = 0; i < lengthof(boardModeSelect); i++) {
 		KeyDef key = boardModeSelect[i];
 		for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
 			for (u8 x = 0; x < key.width; x++) {
@@ -448,12 +443,13 @@ void keyPress(u16 codepoint, const char *name) {
 			return;
 		}
 		else if (codepoint == BACKSPACE) {
-			if (compositionPos > 0) composition[--compositionPos] = 0;
+			if (compIdx > 0) composition[--compIdx] = 0;
+			else return;
 		}
 		else if (codepoint == VOICED) {
-			if (compositionPos == 0) return;
-			u16 *lastChar = composition + compositionPos - 1;
-			for (u32 i = 0; i < sizeof(voiceable) / sizeof(u16); i++) {
+			if (compIdx == 0) return;
+			u16 *lastChar = composition + compIdx - 1;
+			for (u32 i = 0; i < lengthof(voiceable); i++) {
 				if (voiceable[i] == *lastChar) {
 					*lastChar = voiced[i];
 					break;
@@ -465,9 +461,9 @@ void keyPress(u16 codepoint, const char *name) {
 			}
 		}
 		else if (codepoint == SEMI_VOICED) {
-			if (compositionPos == 0) return;
-			u16 *lastChar = composition + compositionPos - 1;
-			for (u32 i = 0; i < sizeof(semivoiceable) / sizeof(u16); i++) {
+			if (compIdx == 0) return;
+			u16 *lastChar = composition + compIdx - 1;
+			for (u32 i = 0; i < lengthof(semivoiceable); i++) {
 				if (semivoiceable[i] == *lastChar) {
 					*lastChar = semivoiced[i];
 					break;
@@ -479,9 +475,9 @@ void keyPress(u16 codepoint, const char *name) {
 			}
 		}
 		else if (codepoint == SIZE_CHANGE) {
-			if (compositionPos == 0) return;
-			u16 *lastChar = composition + compositionPos - 1;
-			for (u32 i = 0; i < sizeof(shrinkable) / sizeof(u16); i++) {
+			if (compIdx == 0) return;
+			u16 *lastChar = composition + compIdx - 1;
+			for (u32 i = 0; i < lengthof(shrinkable); i++) {
 				if (shrinkable[i] == *lastChar) {
 					*lastChar = shrunk[i];
 					break;
@@ -493,8 +489,8 @@ void keyPress(u16 codepoint, const char *name) {
 			}
 		}
 		else if (codepoint == TAB || codepoint >= ' ') {
-			if (compositionPos < sizeof(composition) / sizeof(u16)) {
-				composition[compositionPos++] = codepoint;
+			if (compIdx < lengthof(composition)) {
+				composition[compIdx++] = codepoint;
 			}
 			else return;
 		}
@@ -508,7 +504,7 @@ void keyboardUpdate() {
 		touchPosition pos;
 		touchRead(&pos);
 
-		for (u8 i = 0; i < KEY_CNT_MODE_SELECT; i++) {
+		for (u8 i = 0; i < lengthof(boardModeSelect); i++) {
 			KeyDef key = boardModeSelect[i];
 			if (pos.px >= key.x && pos.px < key.x + key.width
 			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
@@ -609,7 +605,7 @@ void keyboardSetReleaseHandler(void (*handler) (const u16 codepoint, const char 
 void keyboardCompose() {
 	composing = COMPOSING;
 	closeOnAccept = keyboardShow();
-	compositionPos = 0;
+	compIdx = 0;
 	drawComposedText();
 	dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }
@@ -619,10 +615,10 @@ ComposeStatus keyboardComposeStatus() {
 void keyboardComposeAccept(char **strPtr, int *strSize) {
 	composing = INACTIVE;
 	if (closeOnAccept) keyboardHide();
-	char *str = (char *) malloc(compositionPos * 3 + 1);
+	char *str = (char *) malloc(compIdx * 3 + 1);
 	*strPtr = str;
 	int size = 0;
-	for (int i = 0; i < compositionPos; i++) {
+	for (int i = 0; i < compIdx; i++) {
 		u16 codepoint = composition[i];
 		if (codepoint < 0x80) {
 			*(str++) = codepoint;
