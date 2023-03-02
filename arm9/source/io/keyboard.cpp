@@ -17,13 +17,10 @@ const int REPEAT_INTERVAL = 5;
 const u8 KEYBOARD_HEIGHT = 80;
 const u8 KEY_HEIGHT = 15;
 const u8 TEXT_HEIGHT = 16;
-static u16 gfxKbdBuffer[SCREEN_WIDTH * KEYBOARD_HEIGHT] = {0};
-static u16 gfxCmpBuffer[SCREEN_WIDTH * TEXT_HEIGHT] = {0};
 
 const u16 COLOR_KEYBOARD_BACKDROP = 0xDAD6;
 const u16 COLOR_KEY_NORMAL = 0xFFFF;
 const u16 COLOR_COMPOSING_BACKDROP = 0xFFFF;
-u16 keyFontPalette[4] = {0, 0xCA52, 0xA108, 0x8000};
 
 enum ControlKeys {
 	CAPS_LOCK = 1,
@@ -366,6 +363,11 @@ const u16 semivoiced[]    = {u'ぱ', u'ぴ', u'ぷ', u'ぺ', u'ぽ', u'ぱ', u'�
 const u16 shrinkable[] = {u'あ', u'い', u'う', u'え', u'お', u'つ', u'づ', u'や', u'ゆ', u'よ', u'わ', u'ア', u'イ', u'ウ', u'ヴ', u'エ', u'オ', u'ツ', u'ヅ', u'ヤ', u'ユ', u'ヨ', u'ワ', u'カ', u'ガ', u'ケ', u'ゲ'};
 const u16 shrunk[]     = {u'ぁ', u'ぃ', u'ぅ', u'ぇ', u'ぉ', u'っ', u'っ', u'ゃ', u'ゅ', u'ょ', u'ゎ', u'ァ', u'ィ', u'ゥ', u'ゥ', u'ェ', u'ォ', u'ッ', u'ッ', u'ャ', u'ュ', u'ョ', u'ヮ', u'ヵ', u'ヵ', u'ヶ', u'ヶ'};
 
+static u16 gfxKbdBuffer[SCREEN_WIDTH * KEYBOARD_HEIGHT] = {0};
+static u16 gfxCmpBuffer[SCREEN_WIDTH * TEXT_HEIGHT] = {0};
+u16 compositionBuffer[256] = {0};
+u16 keyFontPalette[4] = {0, 0xCA52, 0xA108, 0x8000};
+
 bool showing = false;
 u8 currentBoard = 0;
 KeyDef heldKey = {0};
@@ -373,8 +375,8 @@ int keyHeldTime = 0;
 bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
 ComposeStatus composing = INACTIVE;
 bool closeOnAccept = false;
-u16 composition[256] = {0};
-u16 compIdx = 0;
+u16 *compCursor = compositionBuffer;
+const u16 *compEnd = compositionBuffer + 255;
 void (*onPress) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
 void (*onRelease) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
 
@@ -396,11 +398,11 @@ void drawComposedText() {
 	for (int i = 0; i < SCREEN_WIDTH * TEXT_HEIGHT; i++) gfxCmpBuffer[i] = COLOR_COMPOSING_BACKDROP;
 	
 	int x = 0;
-	for (int i = 0; i < compIdx; i++) {
-		int width = fontGetCharWidth(defaultFont, composition[i]);
+	for (u16 *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
+		int width = fontGetCharWidth(defaultFont, *codePtr);
 		int diff = x + width - SCREEN_WIDTH;
 		if (diff <= 0) {
-			fontPrintChar(defaultFont, keyFontPalette, composition[i], gfxCmpBuffer, SCREEN_WIDTH, x, 0);
+			fontPrintChar(defaultFont, keyFontPalette, *codePtr, gfxCmpBuffer, SCREEN_WIDTH, x, 0);
 			x += width;
 		}
 		else {
@@ -409,10 +411,67 @@ void drawComposedText() {
 				u16 *px = gfxCmpBuffer + (j + 1) * SCREEN_WIDTH - width;
 				for (int k = 0; k < width; k++) *(px++) = COLOR_COMPOSING_BACKDROP;
 			}
-			fontPrintChar(defaultFont, keyFontPalette, composition[i], gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
+			fontPrintChar(defaultFont, keyFontPalette, *codePtr, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
 			x = SCREEN_WIDTH;
 		}
 	}
+}
+
+void composeKey(u16 codepoint) {
+	u16 *lastChar = compCursor - 1;
+	if (codepoint == ENTER) {
+		composing = FINISHED;
+		return;
+	}
+	else if (codepoint == BACKSPACE) {
+		if (compCursor == compositionBuffer) return;
+		*(--compCursor) = 0;
+	}
+	else if (codepoint == VOICED) {
+		if (compCursor == compositionBuffer) return;
+		for (u32 i = 0; i < lengthof(voiceable); i++) {
+			if (voiceable[i] == *lastChar) {
+				*lastChar = voiced[i];
+				break;
+			}
+			else if (voiced[i] == *lastChar) {
+				*lastChar = voiceable[i];
+				break;
+			}
+		}
+	}
+	else if (codepoint == SEMI_VOICED) {
+		if (compCursor == compositionBuffer) return;
+		for (u32 i = 0; i < lengthof(semivoiceable); i++) {
+			if (semivoiceable[i] == *lastChar) {
+				*lastChar = semivoiced[i];
+				break;
+			}
+			else if (semivoiced[i] == *lastChar) {
+				*lastChar = semivoiceable[i];
+				break;
+			}
+		}
+	}
+	else if (codepoint == SIZE_CHANGE) {
+		if (compCursor == compositionBuffer) return;
+		for (u32 i = 0; i < lengthof(shrinkable); i++) {
+			if (shrinkable[i] == *lastChar) {
+				*lastChar = shrunk[i];
+				break;
+			}
+			else if (shrunk[i] == *lastChar) {
+				*lastChar = shrinkable[i];
+				break;
+			}
+		}
+	}
+	else if (codepoint == TAB || codepoint >= ' ') {
+		if (compCursor == compEnd) return;
+		*(compCursor++) = codepoint;
+	}
+	drawComposedText();
+	dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }
 
 void keyboardInit() {
@@ -435,69 +494,6 @@ void keyboardInit() {
 	drawSelectedBoard();
 }
 
-void keyPress(u16 codepoint, const char *name) {
-	onPress(codepoint, name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
-	if (composing == COMPOSING) {
-		if (codepoint == ENTER) {
-			composing = FINISHED;
-			return;
-		}
-		else if (codepoint == BACKSPACE) {
-			if (compIdx > 0) composition[--compIdx] = 0;
-			else return;
-		}
-		else if (codepoint == VOICED) {
-			if (compIdx == 0) return;
-			u16 *lastChar = composition + compIdx - 1;
-			for (u32 i = 0; i < lengthof(voiceable); i++) {
-				if (voiceable[i] == *lastChar) {
-					*lastChar = voiced[i];
-					break;
-				}
-				else if (voiced[i] == *lastChar) {
-					*lastChar = voiceable[i];
-					break;
-				}
-			}
-		}
-		else if (codepoint == SEMI_VOICED) {
-			if (compIdx == 0) return;
-			u16 *lastChar = composition + compIdx - 1;
-			for (u32 i = 0; i < lengthof(semivoiceable); i++) {
-				if (semivoiceable[i] == *lastChar) {
-					*lastChar = semivoiced[i];
-					break;
-				}
-				else if (semivoiced[i] == *lastChar) {
-					*lastChar = semivoiceable[i];
-					break;
-				}
-			}
-		}
-		else if (codepoint == SIZE_CHANGE) {
-			if (compIdx == 0) return;
-			u16 *lastChar = composition + compIdx - 1;
-			for (u32 i = 0; i < lengthof(shrinkable); i++) {
-				if (shrinkable[i] == *lastChar) {
-					*lastChar = shrunk[i];
-					break;
-				}
-				else if (shrunk[i] == *lastChar) {
-					*lastChar = shrinkable[i];
-					break;
-				}
-			}
-		}
-		else if (codepoint == TAB || codepoint >= ' ') {
-			if (compIdx < lengthof(composition)) {
-				composition[compIdx++] = codepoint;
-			}
-			else return;
-		}
-		drawComposedText();
-		dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
-	}
-}
 void keyboardUpdate() {
 	if (!showing) return;
 	if (keysDown() & KEY_TOUCH) {
@@ -527,7 +523,8 @@ void keyboardUpdate() {
 			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
 			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
 			) {
-				keyPress(shiftToggle != capsToggle ? key.upper : key.lower, key.name);
+				u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+				if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
 				heldKey = key;
 				keyHeldTime = 1;
 				return;
@@ -544,8 +541,10 @@ void keyboardUpdate() {
 			&& pos.py < heldKey.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
 		) {
 			if (++keyHeldTime >= REPEAT_START && (keyHeldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
-				keyPress(shiftToggle != capsToggle ? heldKey.upper : heldKey.lower, heldKey.name);
-				keyHeldTime = REPEAT_START + 1;
+				u16 codepoint = shiftToggle != capsToggle ? heldKey.upper : heldKey.lower;
+				if (onPress != NULL) onPress(codepoint, heldKey.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+				if (composing == COMPOSING) composeKey(codepoint);
+				keyHeldTime = REPEAT_START;
 			}
 		}
 		else keyHeldTime = 1;
@@ -569,7 +568,8 @@ void keyboardUpdate() {
 		else updateBoard = shiftToggle;
 
 		u16 codepoint = shiftToggle != capsToggle ? heldKey.upper : heldKey.lower;
-		onRelease(codepoint, heldKey.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+		if (onRelease != NULL) onRelease(codepoint, heldKey.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+		if (composing == COMPOSING && keyHeldTime < REPEAT_START) composeKey(codepoint);
 
 		if (currentBoard == 0 && !shifted) shiftToggle = false;
 		if (updateBoard) {
@@ -605,7 +605,7 @@ void keyboardSetReleaseHandler(void (*handler) (const u16 codepoint, const char 
 void keyboardCompose() {
 	composing = COMPOSING;
 	closeOnAccept = keyboardShow();
-	compIdx = 0;
+	compCursor = compositionBuffer;
 	drawComposedText();
 	dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }
@@ -615,11 +615,11 @@ ComposeStatus keyboardComposeStatus() {
 void keyboardComposeAccept(char **strPtr, int *strSize) {
 	composing = INACTIVE;
 	if (closeOnAccept) keyboardHide();
-	char *str = (char *) malloc(compIdx * 3 + 1);
+	char *str = (char *) malloc((compCursor - compositionBuffer) * 3 + 1);
 	*strPtr = str;
 	int size = 0;
-	for (int i = 0; i < compIdx; i++) {
-		u16 codepoint = composition[i];
+	for (u16 *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
+		u16 codepoint = *codePtr;
 		if (codepoint < 0x80) {
 			*(str++) = codepoint;
 			size++;
