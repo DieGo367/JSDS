@@ -100,7 +100,7 @@ const KeyDef boardAlphanumeric[] = {
 	{"Semicolon", ';', ':', 189, 33, 15},
 	{"Quote", '\'', '"', 205, 33, 15},
 	{"Enter", '\n', '\n', 221, 33, 34},
-	{"Shift", SHIFT, SHIFT, 17, 49, 35},
+	{"ShiftLeft", SHIFT, SHIFT, 17, 49, 35},
 	{"KeyZ", 'z', 'Z', 53, 49, 15},
 	{"KeyX", 'x', 'X', 69, 49, 15},
 	{"KeyC", 'c', 'C', 85, 49, 15},
@@ -111,6 +111,7 @@ const KeyDef boardAlphanumeric[] = {
 	{"Comma", ',', '<', 165, 49, 15},
 	{"Period", '.', '>', 181, 49, 15},
 	{"Slash", '/', '?', 197, 49, 15},
+	{"ShiftRight", SHIFT, SHIFT, 213, 49, 42},
 	{"Space", ' ', ' ', 81, 65, 95}
 };
 const KeyDef boardLatinAccented[] = {
