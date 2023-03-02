@@ -20,6 +20,25 @@ const u16 COLOR_KEY_NORMAL = 0xFFFF;
 const u16 COLOR_COMPOSING_BACKDROP = 0xFFFF;
 u16 keyFontPalette[4] = {0, 0xCA52, 0xA108, 0x8000};
 
+enum ControlKeys {
+	CAPS_LOCK = 1,
+	SHIFT,
+	HIRAGANA,
+	KATAKANA,
+	VOICED,
+	SEMI_VOICED,
+	SIZE_CHANGE,
+	BACKSPACE,
+	TAB,
+	ENTER,
+	INPUT_ALPHANUMERIC,
+	INPUT_LATIN_ACCENTED,
+	INPUT_KANA,
+	INPUT_SYMBOL,
+	INPUT_PICTOGRAM,
+	CANCEL = 0x18
+};
+
 struct KeyDef {
 	char name[20];
 	u16 lower;
@@ -31,11 +50,11 @@ struct KeyDef {
 
 const u8 KEY_CNT_MODE_SELECT = 5;
 const KeyDef boardModeSelect[KEY_CNT_MODE_SELECT] = {
-	{"AlphNum", 0, 0, 1, 1, 15},
-	{"LatinAc", 0, 0, 1, 17, 15},
-	{"Kana", 0, 0, 1, 33, 15},
-	{"Punct", 0, 0, 1, 49, 15},
-	{"Picture", 0, 0, 1, 65, 15}
+	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
+	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
+	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
+	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15}
 };
 
 const u8 KEY_CNT_ALPHANUMERIC = 53;
@@ -68,7 +87,7 @@ const KeyDef boardAlphanumeric[KEY_CNT_ALPHANUMERIC] = {
 	{"BracketLeft", '[', '{', 201, 17, 15},
 	{"BracketRight", ']', '}', 217, 17, 15},
 	{"Backslash", '\\', '|', 233, 17, 22},
-	{"CapsLock", 0, 0, 17, 33, 27},
+	{"CapsLock", CAPS_LOCK, CAPS_LOCK, 17, 33, 27},
 	{"KeyA", 'a', 'A', 45, 33, 15},
 	{"KeyS", 's', 'S', 61, 33, 15},
 	{"KeyD", 'd', 'D', 77, 33, 15},
@@ -81,7 +100,7 @@ const KeyDef boardAlphanumeric[KEY_CNT_ALPHANUMERIC] = {
 	{"Semicolon", ';', ':', 189, 33, 15},
 	{"Quote", '\'', '"', 205, 33, 15},
 	{"Enter", '\n', '\n', 221, 33, 34},
-	{"Shift", 0, 0, 17, 49, 35},
+	{"Shift", SHIFT, SHIFT, 17, 49, 35},
 	{"KeyZ", 'z', 'Z', 53, 49, 15},
 	{"KeyX", 'x', 'X', 69, 49, 15},
 	{"KeyC", 'c', 'C', 85, 49, 15},
@@ -156,7 +175,7 @@ const KeyDef boardLatinAccented[KEY_CNT_LATIN_ACCENTED] = {
 
 const u8 KEY_CNT_KANA = 59;
 const KeyDef boardKana[KEY_CNT_KANA] = {
-	{"Hiragana", 0, 0, 17, 1, 31},
+	{"Hiragana", HIRAGANA, HIRAGANA, 17, 1, 31},
 	{"Keyあ", u'あ', u'ア', 49, 1, 15},
 	{"Keyか", u'か', u'カ', 65, 1, 15},
 	{"Keyさ", u'さ', u'サ', 81, 1, 15},
@@ -168,7 +187,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyら", u'ら', u'ラ', 177, 1, 15},
 	{"Keyわ", u'わ', u'ワ', 193, 1, 15},
 	{"LongVowel", u'ー', u'ー', 209, 1, 15},
-	{"Katakana", 0, 0, 17, 17, 31},
+	{"Katakana", KATAKANA, KATAKANA, 17, 17, 31},
 	{"Keyい", u'い', u'イ', 49, 17, 15},
 	{"Keyき", u'き', u'キ', 65, 17, 15},
 	{"Keyし", u'し', u'シ', 81, 17, 15},
@@ -179,7 +198,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyり", u'り', u'リ', 177, 17, 15},
 	{"FullExclamation", u'！', u'！', 209, 17, 15},
 	{"Backspace", '\b', '\b', 225, 17, 30},
-	{"Voiced", 0, 0, 17, 33, 31},
+	{"Voiced", VOICED, VOICED, 17, 33, 31},
 	{"Keyう", u'う', u'ウ', 49, 33, 15},
 	{"Keyく", u'く', u'ク', 65, 33, 15},
 	{"Keyす", u'す', u'ス', 81, 33, 15},
@@ -192,7 +211,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyん", u'ん', u'ン', 193, 33, 15},
 	{"FullQuestion", u'？', u'？', 209, 33, 15},
 	{"Enter", '\n', '\n', 225, 33, 30},
-	{"SemiVoiced", 0, 0, 17, 49, 31},
+	{"SemiVoiced", SEMI_VOICED, SEMI_VOICED, 17, 49, 31},
 	{"Keyえ", u'え', u'エ', 49, 49, 15},
 	{"Keyけ", u'け', u'ケ', 65, 49, 15},
 	{"Keyせ", u'せ', u'セ', 81, 49, 15},
@@ -202,7 +221,7 @@ const KeyDef boardKana[KEY_CNT_KANA] = {
 	{"Keyめ", u'め', u'メ', 145, 49, 15},
 	{"Keyれ", u'れ', u'レ', 177, 49, 15},
 	{"FullComma", u'、', u'、', 209, 49, 15},
-	{"Size", 0, 0, 17, 65, 31},
+	{"SizeChange", SIZE_CHANGE, SIZE_CHANGE, 17, 65, 31},
 	{"Keyお", u'お', u'オ', 49, 65, 15},
 	{"Keyこ", u'こ', u'コ', 65, 65, 15},
 	{"Keyそ", u'そ', u'ソ', 81, 65, 15},
@@ -424,60 +443,63 @@ void keyboardInit() {
 void keyPress(u16 codepoint, const char *name) {
 	onPress(codepoint, name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
 	if (composing == COMPOSING) {
-		if (codepoint == '\n') composing = FINISHED;
-		else {
-			if (codepoint == '\b') {
-				if (compositionPos > 0) composition[--compositionPos] = 0;
+		if (codepoint == ENTER) {
+			composing = FINISHED;
+			return;
+		}
+		else if (codepoint == BACKSPACE) {
+			if (compositionPos > 0) composition[--compositionPos] = 0;
+		}
+		else if (codepoint == VOICED) {
+			if (compositionPos == 0) return;
+			u16 *lastChar = composition + compositionPos - 1;
+			for (u32 i = 0; i < sizeof(voiceable) / sizeof(u16); i++) {
+				if (voiceable[i] == *lastChar) {
+					*lastChar = voiced[i];
+					break;
+				}
+				else if (voiced[i] == *lastChar) {
+					*lastChar = voiceable[i];
+					break;
+				}
 			}
-			else if (codepoint == 0) {
-				if (compositionPos == 0) return;
-				u16 *lastChar = composition + compositionPos - 1;
-
-				if (strcmp(name, "Voiced") == 0) {
-					for (u32 i = 0; i < sizeof(voiceable) / sizeof(u16); i++) {
-						if (voiceable[i] == *lastChar) {
-							*lastChar = voiced[i];
-							break;
-						}
-						else if (voiced[i] == *lastChar) {
-							*lastChar = voiceable[i];
-							break;
-						}
-					}
+		}
+		else if (codepoint == SEMI_VOICED) {
+			if (compositionPos == 0) return;
+			u16 *lastChar = composition + compositionPos - 1;
+			for (u32 i = 0; i < sizeof(semivoiceable) / sizeof(u16); i++) {
+				if (semivoiceable[i] == *lastChar) {
+					*lastChar = semivoiced[i];
+					break;
 				}
-				else if (strcmp(name, "SemiVoiced") == 0) {
-					for (u32 i = 0; i < sizeof(semivoiceable) / sizeof(u16); i++) {
-						if (semivoiceable[i] == *lastChar) {
-							*lastChar = semivoiced[i];
-							break;
-						}
-						else if (semivoiced[i] == *lastChar) {
-							*lastChar = semivoiceable[i];
-							break;
-						}
-					}
+				else if (semivoiced[i] == *lastChar) {
+					*lastChar = semivoiceable[i];
+					break;
 				}
-				else if (strcmp(name, "Size") == 0) {
-					for (u32 i = 0; i < sizeof(shrinkable) / sizeof(u16); i++) {
-						if (shrinkable[i] == *lastChar) {
-							*lastChar = shrunk[i];
-							break;
-						}
-						else if (shrunk[i] == *lastChar) {
-							*lastChar = shrinkable[i];
-							break;
-						}
-					}
-				}
-				else return;
 			}
-			else if (compositionPos < sizeof(composition) / sizeof(u16)) {
+		}
+		else if (codepoint == SIZE_CHANGE) {
+			if (compositionPos == 0) return;
+			u16 *lastChar = composition + compositionPos - 1;
+			for (u32 i = 0; i < sizeof(shrinkable) / sizeof(u16); i++) {
+				if (shrinkable[i] == *lastChar) {
+					*lastChar = shrunk[i];
+					break;
+				}
+				else if (shrunk[i] == *lastChar) {
+					*lastChar = shrinkable[i];
+					break;
+				}
+			}
+		}
+		else if (codepoint == TAB || codepoint >= ' ') {
+			if (compositionPos < sizeof(composition) / sizeof(u16)) {
 				composition[compositionPos++] = codepoint;
 			}
 			else return;
-			drawComposedText();
-			dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 		}
+		drawComposedText();
+		dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 	}
 }
 void keyboardUpdate() {
@@ -535,17 +557,17 @@ void keyboardUpdate() {
 	else if (keyHeldTime > 0) {
 		bool shifted = false;
 		bool updateBoard = true;
-		if (strcmp(heldKey.name, "Shift") == 0) {
+		if (heldKey.lower == SHIFT) {
 			shiftToggle = !shiftToggle;
 			shifted = true;
 		}
-		else if (strcmp(heldKey.name, "CapsLock") == 0) {
+		else if (heldKey.lower == CAPS_LOCK) {
 			capsToggle = !capsToggle;
 		}
-		else if (strcmp(heldKey.name, "Hiragana") == 0) {
+		else if (heldKey.lower == HIRAGANA) {
 			shiftToggle = false;
 		}
-		else if (strcmp(heldKey.name, "Katakana") == 0) {
+		else if (heldKey.lower == KATAKANA) {
 			shiftToggle = true;
 		}
 		else updateBoard = shiftToggle;

@@ -139,7 +139,7 @@ bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 
 	setProperty(kbdEventArgs[1], "cancelable", True);
 
 	jerry_value_t keyStr;
-	if (codepoint == 0 || codepoint == '\b' || codepoint == '\t' || codepoint == '\n') keyStr = createString(name);
+	if (codepoint < ' ') keyStr = createString(name);
 	else {
 		if (codepoint < 0x80) keyStr = createString((char *) &codepoint);
 		else if (codepoint < 0x800) {
