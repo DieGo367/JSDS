@@ -50,15 +50,12 @@ struct KeyDef {
 	u8 width;
 };
 
-const KeyDef boardModeSelect[] = {
+const KeyDef boardAlphanumeric[] = {
 	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
 	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
 	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
 	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
-	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15}
-};
-
-const KeyDef boardAlphanumeric[] = {
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15},
 	{"Backquote", '`', '~', 17, 1, 15},
 	{"Digit1", '1', '!', 33, 1, 15},
 	{"Digit2", '2', '@', 49, 1, 15},
@@ -115,6 +112,11 @@ const KeyDef boardAlphanumeric[] = {
 	{"Space", ' ', ' ', 81, 65, 95}
 };
 const KeyDef boardLatinAccented[] = {
+	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
+	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
+	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
+	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15},
 	{"Keyà", u'à', 0, 33, 1, 15},
 	{"Keyá", u'á', 0, 49, 1, 15},
 	{"Keyâ", u'â', 0, 65, 1, 15},
@@ -172,6 +174,11 @@ const KeyDef boardLatinAccented[] = {
 	{"Space", ' ', 0, 225, 65, 30}
 };
 const KeyDef boardKana[] = {
+	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
+	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
+	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
+	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15},
 	{"Hiragana", HIRAGANA, HIRAGANA, 17, 1, 31},
 	{"Keyあ", u'あ', u'ア', 49, 1, 15},
 	{"Keyか", u'か', u'カ', 65, 1, 15},
@@ -233,6 +240,11 @@ const KeyDef boardKana[] = {
 	{"FullSpace", u'　', u'　', 225, 65, 30}
 };
 const KeyDef boardSymbol[] = {
+	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
+	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
+	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
+	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15},
 	{"Exclamation", '!', 0, 33, 1, 15},
 	{"Question", '?', 0, 49, 1, 15},
 	{"Ampersand", '&', 0, 65, 1, 15},
@@ -293,6 +305,11 @@ const KeyDef boardSymbol[] = {
 	{"Space", ' ', 0, 225, 65, 30}
 };
 const KeyDef boardPictogram[] = {
+	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
+	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
+	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
+	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15},
 	{"Digit1", '1', 0, 33, 1, 15},
 	{"Digit2", '2', 0, 49, 1, 15},
 	{"Digit3", '3', 0, 65, 1, 15},
@@ -384,6 +401,7 @@ void (*onRelease) (const u16 codepoint, const char *name, bool shift, bool ctrl,
 
 
 void drawSelectedBoard() {
+	for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) gfxKbdBuffer[i] = COLOR_KEYBOARD_BACKDROP;
 	for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
 		KeyDef key = boards[currentBoard][i];
 		for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
@@ -480,18 +498,6 @@ void keyboardInit() {
 	vramSetBankC(VRAM_C_SUB_BG);
 	bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
 	if (defaultFont.tileWidth == 0) fontLoadDefault();
-
-	for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) gfxKbdBuffer[i] = COLOR_KEYBOARD_BACKDROP;
-
-	for (u8 i = 0; i < lengthof(boardModeSelect); i++) {
-		KeyDef key = boardModeSelect[i];
-		for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
-			for (u8 x = 0; x < key.width; x++) {
-				gfxKbdBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = COLOR_KEY_NORMAL;
-			}
-		}
-	}
-
 	drawSelectedBoard();
 }
 
@@ -500,23 +506,6 @@ void keyboardUpdate() {
 	if (keysDown() & KEY_TOUCH) {
 		touchPosition pos;
 		touchRead(&pos);
-
-		for (u8 i = 0; i < lengthof(boardModeSelect); i++) {
-			KeyDef key = boardModeSelect[i];
-			if (pos.px >= key.x && pos.px < key.x + key.width
-			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
-			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
-			) {
-				currentBoard = i;
-				shiftToggle = ctrlToggle = altToggle = metaToggle = capsToggle = false;
-
-				for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) if (i % SCREEN_WIDTH > 16) gfxKbdBuffer[i] = COLOR_KEYBOARD_BACKDROP;
-
-				drawSelectedBoard();
-				dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
-				return;
-			}
-		}
 
 		for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
 			KeyDef key = boards[currentBoard][i];
@@ -565,6 +554,10 @@ void keyboardUpdate() {
 		}
 		else if (heldKey.lower == KATAKANA) {
 			shiftToggle = true;
+		}
+		else if (heldKey.lower >= INPUT_ALPHANUMERIC && heldKey.lower <= INPUT_PICTOGRAM) {
+			currentBoard = heldKey.lower - INPUT_ALPHANUMERIC;
+			shiftToggle = ctrlToggle = altToggle = metaToggle = capsToggle = false;
 		}
 		else updateBoard = shiftToggle;
 
