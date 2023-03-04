@@ -15,6 +15,8 @@ extern "C" {
 
 
 
+const int TAB_SIZE = 2;
+
 static u16 gfxBuffer[SCREEN_WIDTH * SCREEN_HEIGHT] = {0};
 
 u16 lineWidth = 0;
@@ -99,6 +101,12 @@ void newLine() {
 int writeCodepoint(u16 codepoint) {
 	if (codepoint == '\n') {
 		newLine();
+		return 2;
+	}
+	else if (codepoint == '\t') {
+		u8 tabWidth = fontGetCharWidth(defaultFont, ' ') * TAB_SIZE;
+		lineWidth = (lineWidth / tabWidth + 1) * tabWidth;
+		if (lineWidth > SCREEN_WIDTH) newLine();
 		return 2;
 	}
 

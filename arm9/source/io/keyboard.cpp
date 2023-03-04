@@ -423,10 +423,15 @@ void drawComposedText() {
 	
 	int x = 0;
 	for (u16 *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
-		int width = fontGetCharWidth(defaultFont, *codePtr);
+		u16 codepoint = *codePtr;
+		int width = fontGetCharWidth(defaultFont, codepoint);
+		if (codepoint == '\t') {
+			width = fontGetCharWidth(defaultFont, ' ') * 3;
+			codepoint = ' ';
+		}
 		int diff = x + width - SCREEN_WIDTH;
 		if (diff <= 0) {
-			fontPrintChar(defaultFont, keyFontPalette, *codePtr, gfxCmpBuffer, SCREEN_WIDTH, x, 0);
+			fontPrintChar(defaultFont, keyFontPalette, codepoint, gfxCmpBuffer, SCREEN_WIDTH, x, 0);
 			x += width;
 		}
 		else {
@@ -435,7 +440,7 @@ void drawComposedText() {
 				u16 *px = gfxCmpBuffer + (j + 1) * SCREEN_WIDTH - width;
 				for (int k = 0; k < width; k++) *(px++) = COLOR_COMPOSING_BACKDROP;
 			}
-			fontPrintChar(defaultFont, keyFontPalette, *codePtr, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
+			fontPrintChar(defaultFont, keyFontPalette, codepoint, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
 			x = SCREEN_WIDTH;
 		}
 	}

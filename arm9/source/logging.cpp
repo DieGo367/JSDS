@@ -14,7 +14,7 @@ const u8 MAX_PRINT_RECURSION = 0;
 int indent = 0;
 void logIndentAdd() { indent++; }
 void logIndentRemove() { indent = indent > 0 ? indent - 1 : 0; }
-void logIndent() { for (int i = 0; i < indent; i++) putchar(' '); }
+void logIndent() { for (int i = 0; i < indent; i++) putchar('\t'); }
 
 u16 valueToColor(const char *str, u16 noneColor) {
 	char *endptr = NULL;
