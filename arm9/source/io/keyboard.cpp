@@ -7,6 +7,9 @@
 
 #include "font.hpp"
 
+#include "keyboard_nftr.h"
+// #include "font_nftr.h"
+
 #define lengthof(arr) sizeof(arr)/sizeof(*arr)
 
 
@@ -384,6 +387,7 @@ const u16 shrunk[]     = {u'ぁ', u'ぃ', u'ぅ', u'ぇ', u'ぉ', u'っ', u'っ'
 static u16 gfxKbdBuffer[SCREEN_WIDTH * KEYBOARD_HEIGHT] = {0};
 static u16 gfxCmpBuffer[SCREEN_WIDTH * TEXT_HEIGHT] = {0};
 u16 compositionBuffer[256] = {0};
+NitroFont keyFont = {0};
 u16 keyFontPalette[4] = {0, 0xCA52, 0xA108, 0x8000};
 
 bool showing = false;
@@ -410,7 +414,8 @@ void drawSelectedBoard() {
 			}
 		}
 		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
-		fontPrintChar(defaultFont, keyFontPalette, codepoint, gfxKbdBuffer, SCREEN_WIDTH, key.x, key.y - 1);
+		u8 charWidth = fontGetCharWidth(keyFont, codepoint);
+		fontPrintChar(keyFont, keyFontPalette, codepoint, gfxKbdBuffer, SCREEN_WIDTH, key.x + (key.width - charWidth) / 2, key.y);
 	}
 }
 void drawComposedText() {
@@ -498,6 +503,7 @@ void keyboardInit() {
 	vramSetBankC(VRAM_C_SUB_BG);
 	bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
 	if (defaultFont.tileWidth == 0) fontLoadDefault();
+	keyFont = fontLoad(keyboard_nftr);
 	drawSelectedBoard();
 }
 

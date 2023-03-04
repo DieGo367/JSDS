@@ -97,25 +97,16 @@ void fontPrintChar(NitroFont font, u16 *palette, u16 codepoint, u16 *buffer, u32
 	u8 *widths = font.widthData + tileNum * 3;
 
 	for (u8 ty = 0; ty < font.tileHeight; ty++) {
-		u32 bufY = y + ty;
-		u32 bufX = x;
-		for (u8 tx = 0; tx < widths[0]; tx++) {
-			if (palette[0]) buffer[bufX + bufY * bufferWidth] = palette[0];
-			bufX++;
+		u16 *buf = buffer + x + (y + ty) * bufferWidth;
+
+		if (palette[0]) for (u8 i = 0; i < widths[0]; i++) {
+			*(buf++) = palette[0];
 		}
-		// assuming that tileWidth is a multiple of 4
-		u16 color;
-		for (u8 tx = 0; tx < widths[1]; tx += 4) {
-			color = palette[(*tile & 0b11000000) >> 6];
-			if (color) buffer[bufX + bufY * bufferWidth] = color;
-			color = palette[(*tile & 0b00110000) >> 4];
-			if (color) buffer[bufX + 1 + bufY * bufferWidth] = color;
-			color = palette[(*tile & 0b00001100) >> 2];
-			if (color) buffer[bufX + 2 + bufY * bufferWidth] = color;
-			color = palette[*tile++ & 0b00000011];
-			if (color) buffer[bufX + 3 + bufY * bufferWidth] = color;
-			bufX += 4;
+		else buf += widths[0];
+
+		for (u16 tx = 0, pixel = ty * font.tileWidth; tx < widths[1]; tx++, pixel++, buf++) {
+			u16 color = palette[*(tile + pixel / 4) >> ((3 - pixel % 4) * 2) & 0b11];
+			if (color) *buf = color;
 		}
-		tile += (font.tileWidth - widths[1]) / 4;
 	}
 }
