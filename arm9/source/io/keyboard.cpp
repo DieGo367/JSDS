@@ -21,9 +21,14 @@ const u8 KEYBOARD_HEIGHT = 80;
 const u8 KEY_HEIGHT = 15;
 const u8 TEXT_HEIGHT = 16;
 
-const u16 COLOR_KEYBOARD_BACKDROP = 0xDAD6;
-const u16 COLOR_KEY_NORMAL = 0xFFFF;
+const u16 COLOR_KEYBOARD_BACKDROP = 0xB9CE;
 const u16 COLOR_COMPOSING_BACKDROP = 0xFFFF;
+const u16 PALETTE_FONT_KEY[] = {0, 0, 0, 0x9CE7};
+const u16 PALETTE_FONT_COMPOSITION[4] = {0, 0xCA52, 0xA108, 0x8000};
+const u16 PALETTE_KEY_NORMAL[] = {0xEB5A, 0xFFFF, 0xAD6B};
+const u16 PALETTE_KEY_SPECIAL[] = {0xD294, 0xF7BD, 0x98C6};
+const u16 PALETTE_KEY_CANCEL[] = {0xDADD, 0xF7BE, 0xAD74};
+enum KEY_STATES {NEUTRAL = 0, HIGHLIGHTED, PRESSED};
 
 enum ControlKeys {
 	CAPS_LOCK = 1,
@@ -388,11 +393,10 @@ static u16 gfxKbdBuffer[SCREEN_WIDTH * KEYBOARD_HEIGHT] = {0};
 static u16 gfxCmpBuffer[SCREEN_WIDTH * TEXT_HEIGHT] = {0};
 u16 compositionBuffer[256] = {0};
 NitroFont keyFont = {0};
-u16 keyFontPalette[4] = {0, 0xCA52, 0xA108, 0x8000};
 
 bool showing = false;
 u8 currentBoard = 0;
-KeyDef heldKey = {0};
+int heldKeyIdx = -1;
 int keyHeldTime = 0;
 bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
 ComposeStatus composing = INACTIVE;
@@ -404,19 +408,33 @@ void (*onRelease) (const u16 codepoint, const char *name, bool shift, bool ctrl,
 
 
 
+void drawSingleKey(KeyDef key, u8 palIdx) {
+	for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
+		for (u8 x = 0; x < key.width; x++) {
+			gfxKbdBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL)[palIdx];
+		}
+	}
+	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+	u8 charWidth = fontGetCharWidth(keyFont, codepoint);
+	fontPrintChar(keyFont, PALETTE_FONT_KEY, codepoint, gfxKbdBuffer, SCREEN_WIDTH, key.x + (key.width - charWidth) / 2, key.y);
+	for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
+		dmaCopy(gfxKbdBuffer + key.x + (key.y + y) * SCREEN_WIDTH, bgGetGfxPtr(7) + key.x + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT + (key.y + y))), key.width * sizeof(u16));
+	}
+}
 void drawSelectedBoard() {
 	for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) gfxKbdBuffer[i] = COLOR_KEYBOARD_BACKDROP;
-	for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
+	for (int i = 0; i < boardSizes[currentBoard]; i++) {
 		KeyDef key = boards[currentBoard][i];
 		for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
 			for (u8 x = 0; x < key.width; x++) {
-				gfxKbdBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = COLOR_KEY_NORMAL;
+				gfxKbdBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL)[NEUTRAL];
 			}
 		}
 		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 		u8 charWidth = fontGetCharWidth(keyFont, codepoint);
-		fontPrintChar(keyFont, keyFontPalette, codepoint, gfxKbdBuffer, SCREEN_WIDTH, key.x + (key.width - charWidth) / 2, key.y);
+		fontPrintChar(keyFont, PALETTE_FONT_KEY, codepoint, gfxKbdBuffer, SCREEN_WIDTH, key.x + (key.width - charWidth) / 2, key.y);
 	}
+	dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
 }
 void drawComposedText() {
 	for (int i = 0; i < SCREEN_WIDTH * TEXT_HEIGHT; i++) gfxCmpBuffer[i] = COLOR_COMPOSING_BACKDROP;
@@ -431,7 +449,7 @@ void drawComposedText() {
 		}
 		int diff = x + width - SCREEN_WIDTH;
 		if (diff <= 0) {
-			fontPrintChar(defaultFont, keyFontPalette, codepoint, gfxCmpBuffer, SCREEN_WIDTH, x, 0);
+			fontPrintChar(defaultFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, x, 0);
 			x += width;
 		}
 		else {
@@ -440,10 +458,11 @@ void drawComposedText() {
 				u16 *px = gfxCmpBuffer + (j + 1) * SCREEN_WIDTH - width;
 				for (int k = 0; k < width; k++) *(px++) = COLOR_COMPOSING_BACKDROP;
 			}
-			fontPrintChar(defaultFont, keyFontPalette, codepoint, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
+			fontPrintChar(defaultFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
 			x = SCREEN_WIDTH;
 		}
 	}
+	dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }
 
 void composeKey(u16 codepoint) {
@@ -509,7 +528,6 @@ void keyboardInit() {
 	bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
 	if (defaultFont.tileWidth == 0) fontLoadDefault();
 	keyFont = fontLoad(keyboard_nftr);
-	drawSelectedBoard();
 }
 
 void keyboardUpdate() {
@@ -518,7 +536,7 @@ void keyboardUpdate() {
 		touchPosition pos;
 		touchRead(&pos);
 
-		for (u8 i = 0; i < boardSizes[currentBoard]; i++) {
+		for (int i = 0; i < boardSizes[currentBoard]; i++) {
 			KeyDef key = boards[currentBoard][i];
 			if (pos.px >= key.x && pos.px < key.x + key.width
 			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
@@ -526,8 +544,9 @@ void keyboardUpdate() {
 			) {
 				u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 				if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
-				heldKey = key;
+				heldKeyIdx = i;
 				keyHeldTime = 1;
+				drawSingleKey(key, PRESSED);
 				return;
 			}
 		}
@@ -537,13 +556,14 @@ void keyboardUpdate() {
 		touchPosition pos;
 		touchRead(&pos);
 		
-		if (pos.px >= heldKey.x && pos.px < heldKey.x + heldKey.width
-			&& pos.py >= heldKey.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
-			&& pos.py < heldKey.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
+		KeyDef key = boards[currentBoard][heldKeyIdx];
+		if (pos.px >= key.x && pos.px < key.x + key.width
+			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
+			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
 		) {
 			if (++keyHeldTime >= REPEAT_START && (keyHeldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
-				u16 codepoint = shiftToggle != capsToggle ? heldKey.upper : heldKey.lower;
-				if (onPress != NULL) onPress(codepoint, heldKey.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+				u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+				if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
 				if (composing == COMPOSING) composeKey(codepoint);
 				keyHeldTime = REPEAT_START;
 			}
@@ -551,45 +571,35 @@ void keyboardUpdate() {
 		else keyHeldTime = 1;
 	}
 	else if (keyHeldTime > 0) {
-		bool shifted = false;
+		KeyDef key = boards[currentBoard][heldKeyIdx];
 		bool updateBoard = true;
-		if (heldKey.lower == SHIFT) {
-			shiftToggle = !shiftToggle;
-			shifted = true;
-		}
-		else if (heldKey.lower == CAPS_LOCK) {
-			capsToggle = !capsToggle;
-		}
-		else if (heldKey.lower == HIRAGANA) {
-			shiftToggle = false;
-		}
-		else if (heldKey.lower == KATAKANA) {
-			shiftToggle = true;
-		}
-		else if (heldKey.lower >= INPUT_ALPHANUMERIC && heldKey.lower <= INPUT_PICTOGRAM) {
-			currentBoard = heldKey.lower - INPUT_ALPHANUMERIC;
+		if (key.lower == SHIFT) shiftToggle = !shiftToggle;
+		else if (key.lower == CAPS_LOCK) capsToggle = !capsToggle;
+		else if (key.lower == HIRAGANA) shiftToggle = false;
+		else if (key.lower == KATAKANA) shiftToggle = true;
+		else if (key.lower >= INPUT_ALPHANUMERIC && key.lower <= INPUT_PICTOGRAM) {
+			currentBoard = key.lower - INPUT_ALPHANUMERIC;
 			shiftToggle = ctrlToggle = altToggle = metaToggle = capsToggle = false;
 		}
-		else updateBoard = shiftToggle;
-
-		u16 codepoint = shiftToggle != capsToggle ? heldKey.upper : heldKey.lower;
-		if (onRelease != NULL) onRelease(codepoint, heldKey.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+		else updateBoard = false;
+		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+		if (onRelease != NULL) onRelease(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
 		if (composing == COMPOSING && keyHeldTime < REPEAT_START) composeKey(codepoint);
-
-		if (currentBoard == 0 && !shifted) shiftToggle = false;
-		if (updateBoard) {
-			drawSelectedBoard();
-			dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
+		if (currentBoard == 0 && key.lower != SHIFT) {
+			shiftToggle = false;
+			updateBoard = true;
 		}
-
+		heldKeyIdx = -1;
 		keyHeldTime = 0;
+		if (updateBoard) drawSelectedBoard();
+		else drawSingleKey(key, NEUTRAL);
 		return;
 	}
 }
 
 bool keyboardShow() {
 	if (showing) return false;
-	dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
+	drawSelectedBoard();
 	showing = true;
 	return true;
 }
@@ -612,7 +622,6 @@ void keyboardCompose() {
 	closeOnAccept = keyboardShow();
 	compCursor = compositionBuffer;
 	drawComposedText();
-	dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }
 ComposeStatus keyboardComposeStatus() {
 	return composing;

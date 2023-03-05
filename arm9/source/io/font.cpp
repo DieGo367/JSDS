@@ -86,7 +86,7 @@ u8 fontGetCharWidth(NitroFont font, u16 codepoint) {
 }
 
 // this assumes character is in the buffer's bounds
-void fontPrintChar(NitroFont font, u16 *palette, u16 codepoint, u16 *buffer, u32 bufferWidth, u32 x, u32 y) {
+void fontPrintChar(NitroFont font, const u16 *palette, u16 codepoint, u16 *buffer, u32 bufferWidth, u32 x, u32 y) {
 	if (!font.tileData || !font.widthData || !font.charMap || font.encoding != 1 || font.bitdepth != 2) return;
 
 	u16 tileNum = font.charMap[codepoint];
