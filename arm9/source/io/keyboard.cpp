@@ -8,7 +8,6 @@
 #include "font.hpp"
 
 #include "keyboard_nftr.h"
-// #include "font_nftr.h"
 
 #define lengthof(arr) sizeof(arr)/sizeof(*arr)
 
@@ -20,6 +19,8 @@ const int REPEAT_INTERVAL = 5;
 const u8 KEYBOARD_HEIGHT = 80;
 const u8 KEY_HEIGHT = 15;
 const u8 TEXT_HEIGHT = 16;
+const u8 SPACE_BAR_WIDTH = 95;
+const u8 TALL_ENTER_HEIGHT = 31;
 
 const u16 COLOR_KEYBOARD_BACKDROP = 0xB9CE;
 const u16 COLOR_COMPOSING_BACKDROP = 0xFFFF;
@@ -55,327 +56,326 @@ struct KeyDef {
 	u16 upper;
 	u8 x;
 	u8 y;
-	u8 width;
 };
 
 const KeyDef boardAlphanumeric[] = {
-	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
-	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
-	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
-	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
-	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15},
-	{"Backquote", '`', '~', 17, 1, 15},
-	{"Digit1", '1', '!', 33, 1, 15},
-	{"Digit2", '2', '@', 49, 1, 15},
-	{"Digit3", '3', '#', 65, 1, 15},
-	{"Digit4", '4', '$', 81, 1, 15},
-	{"Digit5", '5', '%', 97, 1, 15},
-	{"Digit6", '6', '^', 113, 1, 15},
-	{"Digit7", '7', '&', 129, 1, 15},
-	{"Digit8", '8', '*', 145, 1, 15},
-	{"Digit9", '9', '(', 161, 1, 15},
-	{"Digit0", '0', ')', 177, 1, 15},
-	{"Minus", '-', '_', 193, 1, 15},
-	{"Equal", '=', '+', 209, 1, 15},
-	{"Backspace", '\b', '\b', 225, 1, 30},
-	{"Tab", '\t', '\t', 17, 17, 23},
-	{"KeyQ", 'q', 'Q', 41, 17, 15},
-	{"KeyW", 'w', 'W', 57, 17, 15},
-	{"KeyE", 'e', 'E', 73, 17, 15},
-	{"KeyR", 'r', 'R', 89, 17, 15},
-	{"KeyT", 't', 'T', 105, 17, 15},
-	{"KeyY", 'y', 'Y', 121, 17, 15},
-	{"KeyU", 'u', 'U', 137, 17, 15},
-	{"KeyI", 'i', 'I', 153, 17, 15},
-	{"KeyO", 'o', 'O', 169, 17, 15},
-	{"KeyP", 'p', 'P', 185, 17, 15},
-	{"BracketLeft", '[', '{', 201, 17, 15},
-	{"BracketRight", ']', '}', 217, 17, 15},
-	{"Backslash", '\\', '|', 233, 17, 22},
-	{"CapsLock", CAPS_LOCK, CAPS_LOCK, 17, 33, 27},
-	{"KeyA", 'a', 'A', 45, 33, 15},
-	{"KeyS", 's', 'S', 61, 33, 15},
-	{"KeyD", 'd', 'D', 77, 33, 15},
-	{"KeyF", 'f', 'F', 93, 33, 15},
-	{"KeyG", 'g', 'G', 109, 33, 15},
-	{"KeyH", 'h', 'H', 125, 33, 15},
-	{"KeyJ", 'j', 'J', 141, 33, 15},
-	{"KeyK", 'k', 'K', 157, 33, 15},
-	{"KeyL", 'l', 'L', 173, 33, 15},
-	{"Semicolon", ';', ':', 189, 33, 15},
-	{"Quote", '\'', '"', 205, 33, 15},
-	{"Enter", '\n', '\n', 221, 33, 34},
-	{"ShiftLeft", SHIFT, SHIFT, 17, 49, 35},
-	{"KeyZ", 'z', 'Z', 53, 49, 15},
-	{"KeyX", 'x', 'X', 69, 49, 15},
-	{"KeyC", 'c', 'C', 85, 49, 15},
-	{"KeyV", 'v', 'V', 101, 49, 15},
-	{"KeyB", 'b', 'B', 117, 49, 15},
-	{"KeyN", 'n', 'N', 133, 49, 15},
-	{"KeyM", 'm', 'M', 149, 49, 15},
-	{"Comma", ',', '<', 165, 49, 15},
-	{"Period", '.', '>', 181, 49, 15},
-	{"Slash", '/', '?', 197, 49, 15},
-	{"ShiftRight", SHIFT, SHIFT, 213, 49, 42},
-	{"Space", ' ', ' ', 81, 65, 95}
+	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1},
+	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17},
+	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33},
+	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49},
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65},
+	{"Backquote", '`', '~', 17, 1},
+	{"Digit1", '1', '!', 33, 1},
+	{"Digit2", '2', '@', 49, 1},
+	{"Digit3", '3', '#', 65, 1},
+	{"Digit4", '4', '$', 81, 1},
+	{"Digit5", '5', '%', 97, 1},
+	{"Digit6", '6', '^', 113, 1},
+	{"Digit7", '7', '&', 129, 1},
+	{"Digit8", '8', '*', 145, 1},
+	{"Digit9", '9', '(', 161, 1},
+	{"Digit0", '0', ')', 177, 1},
+	{"Minus", '-', '_', 193, 1},
+	{"Equal", '=', '+', 209, 1},
+	{"Backspace", '\b', '\b', 225, 1},
+	{"Tab", '\t', '\t', 17, 17},
+	{"KeyQ", 'q', 'Q', 41, 17},
+	{"KeyW", 'w', 'W', 57, 17},
+	{"KeyE", 'e', 'E', 73, 17},
+	{"KeyR", 'r', 'R', 89, 17},
+	{"KeyT", 't', 'T', 105, 17},
+	{"KeyY", 'y', 'Y', 121, 17},
+	{"KeyU", 'u', 'U', 137, 17},
+	{"KeyI", 'i', 'I', 153, 17},
+	{"KeyO", 'o', 'O', 169, 17},
+	{"KeyP", 'p', 'P', 185, 17},
+	{"BracketLeft", '[', '{', 201, 17},
+	{"BracketRight", ']', '}', 217, 17},
+	{"Backslash", '\\', '|', 233, 17},
+	{"CapsLock", CAPS_LOCK, CAPS_LOCK, 17, 33},
+	{"KeyA", 'a', 'A', 45, 33},
+	{"KeyS", 's', 'S', 61, 33},
+	{"KeyD", 'd', 'D', 77, 33},
+	{"KeyF", 'f', 'F', 93, 33},
+	{"KeyG", 'g', 'G', 109, 33},
+	{"KeyH", 'h', 'H', 125, 33},
+	{"KeyJ", 'j', 'J', 141, 33},
+	{"KeyK", 'k', 'K', 157, 33},
+	{"KeyL", 'l', 'L', 173, 33},
+	{"Semicolon", ';', ':', 189, 33},
+	{"Quote", '\'', '"', 205, 33},
+	{"Enter", '\n', '\n', 221, 33},
+	{"ShiftLeft", SHIFT, SHIFT, 17, 49},
+	{"KeyZ", 'z', 'Z', 53, 49},
+	{"KeyX", 'x', 'X', 69, 49},
+	{"KeyC", 'c', 'C', 85, 49},
+	{"KeyV", 'v', 'V', 101, 49},
+	{"KeyB", 'b', 'B', 117, 49},
+	{"KeyN", 'n', 'N', 133, 49},
+	{"KeyM", 'm', 'M', 149, 49},
+	{"Comma", ',', '<', 165, 49},
+	{"Period", '.', '>', 181, 49},
+	{"Slash", '/', '?', 197, 49},
+	{"ShiftRight", SHIFT, SHIFT, 213, 49},
+	{"Space", ' ', ' ', 81, 65}
 };
 const KeyDef boardLatinAccented[] = {
-	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
-	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
-	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
-	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
-	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15},
-	{"Keyà", u'à', 0, 33, 1, 15},
-	{"Keyá", u'á', 0, 49, 1, 15},
-	{"Keyâ", u'â', 0, 65, 1, 15},
-	{"Keyä", u'ä', 0, 81, 1, 15},
-	{"Keyè", u'è', 0, 97, 1, 15},
-	{"Keyé", u'é', 0, 113, 1, 15},
-	{"Keyê", u'ê', 0, 129, 1, 15},
-	{"Keyë", u'ë', 0, 145, 1, 15},
-	{"Keyì", u'ì', 0, 161, 1, 15},
-	{"Keyí", u'í', 0, 177, 1, 15},
-	{"Keyî", u'î', 0, 193, 1, 15},
-	{"Keyï", u'ï', 0, 209, 1, 15},
-	{"Keyò", u'ò', 0, 33, 17, 15},
-	{"Keyó", u'ó', 0, 49, 17, 15},
-	{"Keyô", u'ô', 0, 65, 17, 15},
-	{"Keyö", u'ö', 0, 81, 17, 15},
-	{"Keyœ", u'œ', 0, 97, 17, 15},
-	{"Keyù", u'ù', 0, 113, 17, 15},
-	{"Keyú", u'ú', 0, 129, 17, 15},
-	{"Keyû", u'û', 0, 145, 17, 15},
-	{"Keyü", u'ü', 0, 161, 17, 15},
-	{"Keyç", u'ç', 0, 177, 17, 15},
-	{"Keyñ", u'ñ', 0, 193, 17, 15},
-	{"Keyß", u'ß', 0, 209, 17, 15},
-	{"Backspace", '\b', 0, 225, 17, 30},
-	{"KeyÀ", u'À', 0, 33, 33, 15},
-	{"KeyÁ", u'Á', 0, 49, 33, 15},
-	{"KeyÂ", u'Â', 0, 65, 33, 15},
-	{"KeyÄ", u'Ä', 0, 81, 33, 15},
-	{"KeyÈ", u'È', 0, 97, 33, 15},
-	{"KeyÉ", u'É', 0, 113, 33, 15},
-	{"KeyÊ", u'Ê', 0, 129, 33, 15},
-	{"KeyË", u'Ë', 0, 145, 33, 15},
-	{"KeyÌ", u'Ì', 0, 161, 33, 15},
-	{"KeyÍ", u'Í', 0, 177, 33, 15},
-	{"KeyÎ", u'Î', 0, 193, 33, 15},
-	{"KeyÏ", u'Ï', 0, 209, 33, 15},
-	{"Enter", '\n', 0, 225, 33, 30},
-	{"KeyÒ", u'Ò', 0, 33, 49, 15},
-	{"KeyÓ", u'Ó', 0, 49, 49, 15},
-	{"KeyÔ", u'Ô', 0, 65, 49, 15},
-	{"KeyÖ", u'Ö', 0, 81, 49, 15},
-	{"KeyŒ", u'Œ', 0, 97, 49, 15},
-	{"KeyÙ", u'Ù', 0, 113, 49, 15},
-	{"KeyÚ", u'Ú', 0, 129, 49, 15},
-	{"KeyÛ", u'Û', 0, 145, 49, 15},
-	{"KeyÜ", u'Ü', 0, 161, 49, 15},
-	{"KeyÇ", u'Ç', 0, 177, 49, 15},
-	{"KeyÑ", u'Ñ', 0, 193, 49, 15},
-	{"Key¡", u'¡', 0, 33, 65, 15},
-	{"Key¿", u'¿', 0, 49, 65, 15},
-	{"Key€", u'€', 0, 65, 65, 15},
-	{"Key¢", u'¢', 0, 81, 65, 15},
-	{"Key£", u'£', 0, 97, 65, 15},
-	{"Space", ' ', 0, 225, 65, 30}
+	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1},
+	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17},
+	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33},
+	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49},
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65},
+	{"Keyà", u'à', 0, 33, 1},
+	{"Keyá", u'á', 0, 49, 1},
+	{"Keyâ", u'â', 0, 65, 1},
+	{"Keyä", u'ä', 0, 81, 1},
+	{"Keyè", u'è', 0, 97, 1},
+	{"Keyé", u'é', 0, 113, 1},
+	{"Keyê", u'ê', 0, 129, 1},
+	{"Keyë", u'ë', 0, 145, 1},
+	{"Keyì", u'ì', 0, 161, 1},
+	{"Keyí", u'í', 0, 177, 1},
+	{"Keyî", u'î', 0, 193, 1},
+	{"Keyï", u'ï', 0, 209, 1},
+	{"Keyò", u'ò', 0, 33, 17},
+	{"Keyó", u'ó', 0, 49, 17},
+	{"Keyô", u'ô', 0, 65, 17},
+	{"Keyö", u'ö', 0, 81, 17},
+	{"Keyœ", u'œ', 0, 97, 17},
+	{"Keyù", u'ù', 0, 113, 17},
+	{"Keyú", u'ú', 0, 129, 17},
+	{"Keyû", u'û', 0, 145, 17},
+	{"Keyü", u'ü', 0, 161, 17},
+	{"Keyç", u'ç', 0, 177, 17},
+	{"Keyñ", u'ñ', 0, 193, 17},
+	{"Keyß", u'ß', 0, 209, 17},
+	{"Backspace", '\b', 0, 225, 17},
+	{"KeyÀ", u'À', 0, 33, 33},
+	{"KeyÁ", u'Á', 0, 49, 33},
+	{"KeyÂ", u'Â', 0, 65, 33},
+	{"KeyÄ", u'Ä', 0, 81, 33},
+	{"KeyÈ", u'È', 0, 97, 33},
+	{"KeyÉ", u'É', 0, 113, 33},
+	{"KeyÊ", u'Ê', 0, 129, 33},
+	{"KeyË", u'Ë', 0, 145, 33},
+	{"KeyÌ", u'Ì', 0, 161, 33},
+	{"KeyÍ", u'Í', 0, 177, 33},
+	{"KeyÎ", u'Î', 0, 193, 33},
+	{"KeyÏ", u'Ï', 0, 209, 33},
+	{"Enter", '\n', 0, 225, 33},
+	{"KeyÒ", u'Ò', 0, 33, 49},
+	{"KeyÓ", u'Ó', 0, 49, 49},
+	{"KeyÔ", u'Ô', 0, 65, 49},
+	{"KeyÖ", u'Ö', 0, 81, 49},
+	{"KeyŒ", u'Œ', 0, 97, 49},
+	{"KeyÙ", u'Ù', 0, 113, 49},
+	{"KeyÚ", u'Ú', 0, 129, 49},
+	{"KeyÛ", u'Û', 0, 145, 49},
+	{"KeyÜ", u'Ü', 0, 161, 49},
+	{"KeyÇ", u'Ç', 0, 177, 49},
+	{"KeyÑ", u'Ñ', 0, 193, 49},
+	{"Key¡", u'¡', 0, 33, 65},
+	{"Key¿", u'¿', 0, 49, 65},
+	{"Key€", u'€', 0, 65, 65},
+	{"Key¢", u'¢', 0, 81, 65},
+	{"Key£", u'£', 0, 97, 65},
+	{"Space", ' ', 0, 225, 65}
 };
 const KeyDef boardKana[] = {
-	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
-	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
-	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
-	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
-	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15},
-	{"Hiragana", HIRAGANA, HIRAGANA, 17, 1, 31},
-	{"Keyあ", u'あ', u'ア', 49, 1, 15},
-	{"Keyか", u'か', u'カ', 65, 1, 15},
-	{"Keyさ", u'さ', u'サ', 81, 1, 15},
-	{"Keyた", u'た', u'タ', 97, 1, 15},
-	{"Keyな", u'な', u'ナ', 113, 1, 15},
-	{"Keyは", u'は', u'ハ', 129, 1, 15},
-	{"Keyま", u'ま', u'マ', 145, 1, 15},
-	{"Keyや", u'や', u'ヤ', 161, 1, 15},
-	{"Keyら", u'ら', u'ラ', 177, 1, 15},
-	{"Keyわ", u'わ', u'ワ', 193, 1, 15},
-	{"LongVowel", u'ー', u'ー', 209, 1, 15},
-	{"Katakana", KATAKANA, KATAKANA, 17, 17, 31},
-	{"Keyい", u'い', u'イ', 49, 17, 15},
-	{"Keyき", u'き', u'キ', 65, 17, 15},
-	{"Keyし", u'し', u'シ', 81, 17, 15},
-	{"Keyち", u'ち', u'チ', 97, 17, 15},
-	{"Keyに", u'に', u'ニ', 113, 17, 15},
-	{"Keyひ", u'ひ', u'ヒ', 129, 17, 15},
-	{"Keyみ", u'み', u'ミ', 145, 17, 15},
-	{"Keyり", u'り', u'リ', 177, 17, 15},
-	{"FullExclamation", u'！', u'！', 209, 17, 15},
-	{"Backspace", '\b', '\b', 225, 17, 30},
-	{"Voiced", VOICED, VOICED, 17, 33, 31},
-	{"Keyう", u'う', u'ウ', 49, 33, 15},
-	{"Keyく", u'く', u'ク', 65, 33, 15},
-	{"Keyす", u'す', u'ス', 81, 33, 15},
-	{"Keyつ", u'つ', u'ツ', 97, 33, 15},
-	{"Keyぬ", u'ぬ', u'ヌ', 113, 33, 15},
-	{"Keyふ", u'ふ', u'フ', 129, 33, 15},
-	{"Keyむ", u'む', u'ム', 145, 33, 15},
-	{"Keyゆ", u'ゆ', u'ユ', 161, 33, 15},
-	{"Keyる", u'る', u'ル', 177, 33, 15},
-	{"Keyん", u'ん', u'ン', 193, 33, 15},
-	{"FullQuestion", u'？', u'？', 209, 33, 15},
-	{"Enter", '\n', '\n', 225, 33, 30},
-	{"SemiVoiced", SEMI_VOICED, SEMI_VOICED, 17, 49, 31},
-	{"Keyえ", u'え', u'エ', 49, 49, 15},
-	{"Keyけ", u'け', u'ケ', 65, 49, 15},
-	{"Keyせ", u'せ', u'セ', 81, 49, 15},
-	{"Keyて", u'て', u'テ', 97, 49, 15},
-	{"Keyね", u'ね', u'ネ', 113, 49, 15},
-	{"Keyへ", u'へ', u'ヘ', 129, 49, 15},
-	{"Keyめ", u'め', u'メ', 145, 49, 15},
-	{"Keyれ", u'れ', u'レ', 177, 49, 15},
-	{"FullComma", u'、', u'、', 209, 49, 15},
-	{"SizeChange", SIZE_CHANGE, SIZE_CHANGE, 17, 65, 31},
-	{"Keyお", u'お', u'オ', 49, 65, 15},
-	{"Keyこ", u'こ', u'コ', 65, 65, 15},
-	{"Keyそ", u'そ', u'ソ', 81, 65, 15},
-	{"Keyと", u'と', u'ト', 97, 65, 15},
-	{"Keyの", u'の', u'ノ', 113, 65, 15},
-	{"Keyほ", u'ほ', u'ホ', 129, 65, 15},
-	{"Keyも", u'も', u'モ', 145, 65, 15},
-	{"Keyよ", u'よ', u'ヨ', 161, 65, 15},
-	{"Keyろ", u'ろ', u'ロ', 177, 65, 15},
-	{"Keyを", u'を', u'ヲ', 193, 65, 15},
-	{"FullStop", u'。', u'。', 209, 65, 15},
-	{"FullSpace", u'　', u'　', 225, 65, 30}
+	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1},
+	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17},
+	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33},
+	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49},
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65},
+	{"Hiragana", HIRAGANA, HIRAGANA, 17, 1},
+	{"Keyあ", u'あ', u'ア', 49, 1},
+	{"Keyか", u'か', u'カ', 65, 1},
+	{"Keyさ", u'さ', u'サ', 81, 1},
+	{"Keyた", u'た', u'タ', 97, 1},
+	{"Keyな", u'な', u'ナ', 113, 1},
+	{"Keyは", u'は', u'ハ', 129, 1},
+	{"Keyま", u'ま', u'マ', 145, 1},
+	{"Keyや", u'や', u'ヤ', 161, 1},
+	{"Keyら", u'ら', u'ラ', 177, 1},
+	{"Keyわ", u'わ', u'ワ', 193, 1},
+	{"LongVowel", u'ー', u'ー', 209, 1},
+	{"Katakana", KATAKANA, KATAKANA, 17, 17},
+	{"Keyい", u'い', u'イ', 49, 17},
+	{"Keyき", u'き', u'キ', 65, 17},
+	{"Keyし", u'し', u'シ', 81, 17},
+	{"Keyち", u'ち', u'チ', 97, 17},
+	{"Keyに", u'に', u'ニ', 113, 17},
+	{"Keyひ", u'ひ', u'ヒ', 129, 17},
+	{"Keyみ", u'み', u'ミ', 145, 17},
+	{"Keyり", u'り', u'リ', 177, 17},
+	{"FullExclamation", u'！', u'！', 209, 17},
+	{"Backspace", '\b', '\b', 225, 17},
+	{"Voiced", VOICED, VOICED, 17, 33},
+	{"Keyう", u'う', u'ウ', 49, 33},
+	{"Keyく", u'く', u'ク', 65, 33},
+	{"Keyす", u'す', u'ス', 81, 33},
+	{"Keyつ", u'つ', u'ツ', 97, 33},
+	{"Keyぬ", u'ぬ', u'ヌ', 113, 33},
+	{"Keyふ", u'ふ', u'フ', 129, 33},
+	{"Keyむ", u'む', u'ム', 145, 33},
+	{"Keyゆ", u'ゆ', u'ユ', 161, 33},
+	{"Keyる", u'る', u'ル', 177, 33},
+	{"Keyん", u'ん', u'ン', 193, 33},
+	{"FullQuestion", u'？', u'？', 209, 33},
+	{"Enter", '\n', '\n', 225, 33},
+	{"SemiVoiced", SEMI_VOICED, SEMI_VOICED, 17, 49},
+	{"Keyえ", u'え', u'エ', 49, 49},
+	{"Keyけ", u'け', u'ケ', 65, 49},
+	{"Keyせ", u'せ', u'セ', 81, 49},
+	{"Keyて", u'て', u'テ', 97, 49},
+	{"Keyね", u'ね', u'ネ', 113, 49},
+	{"Keyへ", u'へ', u'ヘ', 129, 49},
+	{"Keyめ", u'め', u'メ', 145, 49},
+	{"Keyれ", u'れ', u'レ', 177, 49},
+	{"FullComma", u'、', u'、', 209, 49},
+	{"SizeChange", SIZE_CHANGE, SIZE_CHANGE, 17, 65},
+	{"Keyお", u'お', u'オ', 49, 65},
+	{"Keyこ", u'こ', u'コ', 65, 65},
+	{"Keyそ", u'そ', u'ソ', 81, 65},
+	{"Keyと", u'と', u'ト', 97, 65},
+	{"Keyの", u'の', u'ノ', 113, 65},
+	{"Keyほ", u'ほ', u'ホ', 129, 65},
+	{"Keyも", u'も', u'モ', 145, 65},
+	{"Keyよ", u'よ', u'ヨ', 161, 65},
+	{"Keyろ", u'ろ', u'ロ', 177, 65},
+	{"Keyを", u'を', u'ヲ', 193, 65},
+	{"FullStop", u'。', u'。', 209, 65},
+	{"FullSpace", u'　', u'　', 225, 65}
 };
 const KeyDef boardSymbol[] = {
-	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
-	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
-	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
-	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
-	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15},
-	{"Exclamation", '!', 0, 33, 1, 15},
-	{"Question", '?', 0, 49, 1, 15},
-	{"Ampersand", '&', 0, 65, 1, 15},
-	{"DoublePrime", u'″', 0, 81, 1, 15},
-	{"Apostrophe", '\'', 0, 97, 1, 15},
-	{"FullTilde", u'～', 0, 113, 1, 15},
-	{"Colon", ':', 0, 129, 1, 15},
-	{"Semicolon", ';', 0, 145, 1, 15},
-	{"At", '@', 0, 161, 1, 15},
-	{"Tilde", '~', 0, 177, 1, 15},
-	{"Underscore", '_', 0, 193, 1, 15},
-	{"Plus", '+', 0, 33, 17, 15},
-	{"Minus", '-', 0, 49, 17, 15},
-	{"Asterisk", '*', 0, 65, 17, 15},
-	{"Slash", '/', 0, 81, 17, 15},
-	{"Multiply", u'×', 0, 97, 17, 15},
-	{"Divide", u'÷', 0, 113, 17, 15},
-	{"Equals", '=', 0, 129, 17, 15},
-	{"RightArrow", u'→', 0, 145, 17, 15},
-	{"LeftArrow", u'←', 0, 161, 17, 15},
-	{"UpArrow", u'↑', 0, 177, 17, 15},
-	{"DownArrow", u'↓', 0, 193, 17, 15},
-	{"Backspace", '\b', 0, 225, 17, 30},
-	{"CornerBracketLeft", u'「', 0, 33, 33, 15},
-	{"CornerBracketRight", u'」', 0, 49, 33, 15},
-	{"QuoteLeft", u'“', 0, 65, 33, 15},
-	{"QuoteRight", u'”', 0, 81, 33, 15},
-	{"ParenthesisLeft", '(', 0, 97, 33, 15},
-	{"ParenthesisRight", ')', 0, 113, 33, 15},
-	{"LessThan", '<', 0, 129, 33, 15},
-	{"GreaterThan", '>', 0, 145, 33, 15},
-	{"CurlyBracketLeft", '{', 0, 161, 33, 15},
-	{"CurlyBracketRight", '}', 0, 177, 33, 15},
-	{"Bullet", u'•', 0, 193, 33, 15},
-	{"Enter", '\n', 0, 225, 33, 30},
-	{"Percent", '%', 0, 33, 49, 15},
-	{"Reference", u'※', 0, 49, 49, 15},
-	{"Postal", u'〒', 0, 65, 49, 15},
-	{"Number", '#', 0, 81, 49, 15},
-	{"Flat", u'♭', 0, 97, 49, 15},
-	{"EigthNote", u'♪', 0, 113, 49, 15},
-	{"PlusMinus", u'±', 0, 129, 49, 15},
-	{"Dollar", '$', 0, 145, 49, 15},
-	{"Cent", u'¢', 0, 161, 49, 15},
-	{"Pound", u'£', 0, 177, 49, 15},
-	{"Backslash", '\\', 0, 193, 49, 15},
-	{"Circumflex", '^', 0, 33, 65, 15},
-	{"Degree", u'°', 0, 49, 65, 15},
-	{"VerticalLine", u'｜', 0, 65, 65, 15},
-	{"Solidus", u'／', 0, 81, 65, 15},
-	{"ReverseSolidus", u'＼', 0, 97, 65, 15},
-	{"Infinity", u'∞', 0, 113, 65, 15},
-	{"Therefore", u'∴', 0, 129, 65, 15},
-	{"Ellipsis", u'…', 0, 145, 65, 15},
-	{"TradeMark", u'™', 0, 161, 65, 15},
-	{"Copyright", u'©', 0, 177, 65, 15},
-	{"Registered", u'®', 0, 193, 65, 15},
-	{"Space", ' ', 0, 225, 65, 30}
+	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1},
+	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17},
+	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33},
+	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49},
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65},
+	{"Exclamation", '!', 0, 33, 1},
+	{"Question", '?', 0, 49, 1},
+	{"Ampersand", '&', 0, 65, 1},
+	{"DoublePrime", u'″', 0, 81, 1},
+	{"Apostrophe", '\'', 0, 97, 1},
+	{"FullTilde", u'～', 0, 113, 1},
+	{"Colon", ':', 0, 129, 1},
+	{"Semicolon", ';', 0, 145, 1},
+	{"At", '@', 0, 161, 1},
+	{"Tilde", '~', 0, 177, 1},
+	{"Underscore", '_', 0, 193, 1},
+	{"Plus", '+', 0, 33, 17},
+	{"Minus", '-', 0, 49, 17},
+	{"Asterisk", '*', 0, 65, 17},
+	{"Slash", '/', 0, 81, 17},
+	{"Multiply", u'×', 0, 97, 17},
+	{"Divide", u'÷', 0, 113, 17},
+	{"Equals", '=', 0, 129, 17},
+	{"RightArrow", u'→', 0, 145, 17},
+	{"LeftArrow", u'←', 0, 161, 17},
+	{"UpArrow", u'↑', 0, 177, 17},
+	{"DownArrow", u'↓', 0, 193, 17},
+	{"Backspace", '\b', 0, 225, 17},
+	{"CornerBracketLeft", u'「', 0, 33, 33},
+	{"CornerBracketRight", u'」', 0, 49, 33},
+	{"QuoteLeft", u'“', 0, 65, 33},
+	{"QuoteRight", u'”', 0, 81, 33},
+	{"ParenthesisLeft", '(', 0, 97, 33},
+	{"ParenthesisRight", ')', 0, 113, 33},
+	{"LessThan", '<', 0, 129, 33},
+	{"GreaterThan", '>', 0, 145, 33},
+	{"CurlyBracketLeft", '{', 0, 161, 33},
+	{"CurlyBracketRight", '}', 0, 177, 33},
+	{"Bullet", u'•', 0, 193, 33},
+	{"Enter", '\n', 0, 225, 33},
+	{"Percent", '%', 0, 33, 49},
+	{"Reference", u'※', 0, 49, 49},
+	{"Postal", u'〒', 0, 65, 49},
+	{"Number", '#', 0, 81, 49},
+	{"Flat", u'♭', 0, 97, 49},
+	{"EigthNote", u'♪', 0, 113, 49},
+	{"PlusMinus", u'±', 0, 129, 49},
+	{"Dollar", '$', 0, 145, 49},
+	{"Cent", u'¢', 0, 161, 49},
+	{"Pound", u'£', 0, 177, 49},
+	{"Backslash", '\\', 0, 193, 49},
+	{"Circumflex", '^', 0, 33, 65},
+	{"Degree", u'°', 0, 49, 65},
+	{"VerticalLine", u'｜', 0, 65, 65},
+	{"Solidus", u'／', 0, 81, 65},
+	{"ReverseSolidus", u'＼', 0, 97, 65},
+	{"Infinity", u'∞', 0, 113, 65},
+	{"Therefore", u'∴', 0, 129, 65},
+	{"Ellipsis", u'…', 0, 145, 65},
+	{"TradeMark", u'™', 0, 161, 65},
+	{"Copyright", u'©', 0, 177, 65},
+	{"Registered", u'®', 0, 193, 65},
+	{"Space", ' ', 0, 225, 65}
 };
 const KeyDef boardPictogram[] = {
-	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1, 15},
-	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17, 15},
-	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33, 15},
-	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49, 15},
-	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65, 15},
-	{"Digit1", '1', 0, 33, 1, 15},
-	{"Digit2", '2', 0, 49, 1, 15},
-	{"Digit3", '3', 0, 65, 1, 15},
-	{"Digit4", '4', 0, 81, 1, 15},
-	{"Digit5", '5', 0, 97, 1, 15},
-	{"Digit6", '6', 0, 113, 1, 15},
-	{"Digit7", '7', 0, 129, 1, 15},
-	{"Digit8", '8', 0, 145, 1, 15},
-	{"Digit9", '9', 0, 161, 1, 15},
-	{"Digit0", '0', 0, 177, 1, 15},
-	{"Equals", '=', 0, 193, 1, 15},
-	{"PictoHappy", u'', 0, 33, 17, 15},
-	{"PictoAngry", u'', 0, 49, 17, 15},
-	{"PictoSad", u'', 0, 65, 17, 15},
-	{"PictoExpressionless", u'', 0, 81, 17, 15},
-	{"Sun", u'', 0, 97, 17, 15},
-	{"Cloud", u'', 0, 113, 17, 15},
-	{"Umbrella", u'', 0, 129, 17, 15},
-	{"Snowman", u'', 0, 145, 17, 15},
-	{"Envelope", u'', 0, 161, 17, 15},
-	{"Phone", u'', 0, 177, 17, 15},
-	{"AlarmClock", u'', 0, 193, 17, 15},
-	{"Backspace", '\b', 0, 225, 17, 30},
-	{"ButtonA", u'', 0, 33, 33, 15},
-	{"ButtonB", u'', 0, 49, 33, 15},
-	{"ButtonX", u'', 0, 65, 33, 15},
-	{"ButtonY", u'', 0, 81, 33, 15},
-	{"ButtonL", u'', 0, 97, 33, 15},
-	{"ButtonR", u'', 0, 113, 33, 15},
-	{"D-Pad", u'', 0, 129, 33, 15},
-	{"SuitSpade", u'', 0, 145, 33, 15},
-	{"SuitDiamond", u'', 0, 161, 33, 15},
-	{"SuitHeart", u'', 0, 177, 33, 15},
-	{"SuitClub", u'', 0, 193, 33, 15},
-	{"Enter", '\n', 0, 225, 33, 30},
-	{"SquaredExclamation", u'', 0, 33, 49, 15},
-	{"SquaredQuestion", u'', 0, 49, 49, 15},
-	{"Plus", '+', 0, 65, 49, 15},
-	{"Minus", '-', 0, 81, 49, 15},
-	{"StarWhite", u'☆', 0, 97, 49, 15},
-	{"CircleWhite", u'○', 0, 113, 49, 15},
-	{"DiamondWhite", u'◇', 0, 129, 49, 15},
-	{"SquareWhite", u'□', 0, 145, 49, 15},
-	{"TriangleUpWhite", u'△', 0, 161, 49, 15},
-	{"TriangleDownWhite", u'▽', 0, 177, 49, 15},
-	{"Bullseye", u'◎', 0, 193, 49, 15},
-	{"Right", u'', 0, 33, 65, 15},
-	{"Left", u'', 0, 49, 65, 15},
-	{"Up", u'', 0, 65, 65, 15},
-	{"Down", u'', 0, 81, 65, 15},
-	{"StarBlack", u'★', 0, 97, 65, 15},
-	{"CircleBlack", u'●', 0, 113, 65, 15},
-	{"DiamondBlack", u'◆', 0, 129, 65, 15},
-	{"SquareBlack", u'■', 0, 145, 65, 15},
-	{"TriangleUpBlack", u'▲', 0, 161, 65, 15},
-	{"TriangleDownBlack", u'▼', 0, 177, 65, 15},
-	{"Cross", u'', 0, 193, 65, 15},
-	{"Space", ' ', 0, 225, 65, 30}
+	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1},
+	{"InputLatinAccented", INPUT_LATIN_ACCENTED, INPUT_LATIN_ACCENTED, 1, 17},
+	{"InputKana", INPUT_KANA, INPUT_KANA, 1, 33},
+	{"InputSymbol", INPUT_SYMBOL, INPUT_SYMBOL, 1, 49},
+	{"InputPictogram", INPUT_PICTOGRAM, INPUT_PICTOGRAM, 1, 65},
+	{"Digit1", '1', 0, 33, 1},
+	{"Digit2", '2', 0, 49, 1},
+	{"Digit3", '3', 0, 65, 1},
+	{"Digit4", '4', 0, 81, 1},
+	{"Digit5", '5', 0, 97, 1},
+	{"Digit6", '6', 0, 113, 1},
+	{"Digit7", '7', 0, 129, 1},
+	{"Digit8", '8', 0, 145, 1},
+	{"Digit9", '9', 0, 161, 1},
+	{"Digit0", '0', 0, 177, 1},
+	{"Equals", '=', 0, 193, 1},
+	{"PictoHappy", u'', 0, 33, 17},
+	{"PictoAngry", u'', 0, 49, 17},
+	{"PictoSad", u'', 0, 65, 17},
+	{"PictoExpressionless", u'', 0, 81, 17},
+	{"Sun", u'', 0, 97, 17},
+	{"Cloud", u'', 0, 113, 17},
+	{"Umbrella", u'', 0, 129, 17},
+	{"Snowman", u'', 0, 145, 17},
+	{"Envelope", u'', 0, 161, 17},
+	{"Phone", u'', 0, 177, 17},
+	{"AlarmClock", u'', 0, 193, 17},
+	{"Backspace", '\b', 0, 225, 17},
+	{"ButtonA", u'', 0, 33, 33},
+	{"ButtonB", u'', 0, 49, 33},
+	{"ButtonX", u'', 0, 65, 33},
+	{"ButtonY", u'', 0, 81, 33},
+	{"ButtonL", u'', 0, 97, 33},
+	{"ButtonR", u'', 0, 113, 33},
+	{"DPad", u'', 0, 129, 33},
+	{"SuitSpade", u'', 0, 145, 33},
+	{"SuitDiamond", u'', 0, 161, 33},
+	{"SuitHeart", u'', 0, 177, 33},
+	{"SuitClub", u'', 0, 193, 33},
+	{"Enter", '\n', 0, 225, 33},
+	{"SquaredExclamation", u'', 0, 33, 49},
+	{"SquaredQuestion", u'', 0, 49, 49},
+	{"Plus", '+', 0, 65, 49},
+	{"Minus", '-', 0, 81, 49},
+	{"StarWhite", u'☆', 0, 97, 49},
+	{"CircleWhite", u'○', 0, 113, 49},
+	{"DiamondWhite", u'◇', 0, 129, 49},
+	{"SquareWhite", u'□', 0, 145, 49},
+	{"TriangleUpWhite", u'△', 0, 161, 49},
+	{"TriangleDownWhite", u'▽', 0, 177, 49},
+	{"Bullseye", u'◎', 0, 193, 49},
+	{"Right", u'', 0, 33, 65},
+	{"Left", u'', 0, 49, 65},
+	{"Up", u'', 0, 65, 65},
+	{"Down", u'', 0, 81, 65},
+	{"StarBlack", u'★', 0, 97, 65},
+	{"CircleBlack", u'●', 0, 113, 65},
+	{"DiamondBlack", u'◆', 0, 129, 65},
+	{"SquareBlack", u'■', 0, 145, 65},
+	{"TriangleUpBlack", u'▲', 0, 161, 65},
+	{"TriangleDownBlack", u'▼', 0, 177, 65},
+	{"Cross", u'', 0, 193, 65},
+	{"Space", ' ', 0, 225, 65}
 };
 
 const KeyDef* boards[5] = {boardAlphanumeric, boardLatinAccented, boardKana, boardSymbol, boardPictogram};
@@ -408,31 +408,45 @@ void (*onRelease) (const u16 codepoint, const char *name, bool shift, bool ctrl,
 
 
 
-void drawSingleKey(KeyDef key, u8 palIdx) {
-	for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
-		for (u8 x = 0; x < key.width; x++) {
+u8 calcKeyWidth(KeyDef key, KeyDef nextKey) {
+	if (currentBoard == 0) {
+		if (key.lower == ' ') return SPACE_BAR_WIDTH;
+		if (key.lower == '\\') return SCREEN_WIDTH - key.x - 1;
+	}
+	if (key.x == 1 || (key.lower > ' ' && key.lower != u'　')) return KEY_HEIGHT;
+	if (nextKey.x > key.x) return nextKey.x - key.x - 1;
+	return SCREEN_WIDTH - key.x - 1;
+}
+void renderKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
+	for (u8 y = 0; y < keyHeight && key.y + y < KEYBOARD_HEIGHT-1; y++) {
+		for (u8 x = 0; x < keyWidth; x++) {
 			gfxKbdBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL)[palIdx];
 		}
 	}
 	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
-	u8 charWidth = fontGetCharWidth(keyFont, codepoint);
-	fontPrintChar(keyFont, PALETTE_FONT_KEY, codepoint, gfxKbdBuffer, SCREEN_WIDTH, key.x + (key.width - charWidth) / 2, key.y);
-	for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
-		dmaCopy(gfxKbdBuffer + key.x + (key.y + y) * SCREEN_WIDTH, bgGetGfxPtr(7) + key.x + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT + (key.y + y))), key.width * sizeof(u16));
+	if (codepoint == '\n' && currentBoard > 0) {
+		// hardcoded set of extra tiles that form the tall enter graphic
+		fontPrintChar(keyFont, PALETTE_FONT_KEY, 0x1E, gfxKbdBuffer, SCREEN_WIDTH, key.x + (keyWidth - fontGetCharWidth(keyFont, 0x1E)) / 2, key.y);
+		fontPrintChar(keyFont, PALETTE_FONT_KEY, 0x1F, gfxKbdBuffer, SCREEN_WIDTH, key.x + (keyWidth - fontGetCharWidth(keyFont, 0x1F)) / 2, key.y + keyFont.tileHeight);
+	}
+	else {
+		u8 charWidth = fontGetCharWidth(keyFont, codepoint);
+		fontPrintChar(keyFont, PALETTE_FONT_KEY, codepoint, gfxKbdBuffer, SCREEN_WIDTH, key.x + (keyWidth - charWidth) / 2, key.y);
+	}
+}
+void drawSingleKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
+	renderKey(key, keyWidth, keyHeight, palIdx);
+	for (u8 y = 0; y < keyHeight && key.y + y < KEYBOARD_HEIGHT-1; y++) {
+		dmaCopy(gfxKbdBuffer + key.x + (key.y + y) * SCREEN_WIDTH, bgGetGfxPtr(7) + key.x + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT + (key.y + y))), keyWidth * sizeof(u16));
 	}
 }
 void drawSelectedBoard() {
 	for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) gfxKbdBuffer[i] = COLOR_KEYBOARD_BACKDROP;
 	for (int i = 0; i < boardSizes[currentBoard]; i++) {
 		KeyDef key = boards[currentBoard][i];
-		for (u8 y = 0; y < KEY_HEIGHT && key.y + y < KEYBOARD_HEIGHT-1; y++) {
-			for (u8 x = 0; x < key.width; x++) {
-				gfxKbdBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL)[NEUTRAL];
-			}
-		}
-		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
-		u8 charWidth = fontGetCharWidth(keyFont, codepoint);
-		fontPrintChar(keyFont, PALETTE_FONT_KEY, codepoint, gfxKbdBuffer, SCREEN_WIDTH, key.x + (key.width - charWidth) / 2, key.y);
+		u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
+		u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
+		renderKey(key, keyWidth, keyHeight, NEUTRAL);
 	}
 	dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
 }
@@ -538,15 +552,17 @@ void keyboardUpdate() {
 
 		for (int i = 0; i < boardSizes[currentBoard]; i++) {
 			KeyDef key = boards[currentBoard][i];
-			if (pos.px >= key.x && pos.px < key.x + key.width
+			u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
+			u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
+			if (pos.px >= key.x && pos.px < key.x + keyWidth
 			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
-			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
+			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + keyHeight
 			) {
 				u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 				if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
 				heldKeyIdx = i;
 				keyHeldTime = 1;
-				drawSingleKey(key, PRESSED);
+				drawSingleKey(key, keyWidth, keyHeight, PRESSED);
 				return;
 			}
 		}
@@ -557,9 +573,11 @@ void keyboardUpdate() {
 		touchRead(&pos);
 		
 		KeyDef key = boards[currentBoard][heldKeyIdx];
-		if (pos.px >= key.x && pos.px < key.x + key.width
+		u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(heldKeyIdx + 1) % boardSizes[currentBoard]]);
+		u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
+		if (pos.px >= key.x && pos.px < key.x + keyWidth
 			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
-			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + KEY_HEIGHT
+			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + keyHeight
 		) {
 			if (++keyHeldTime >= REPEAT_START && (keyHeldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
 				u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
@@ -592,7 +610,11 @@ void keyboardUpdate() {
 		heldKeyIdx = -1;
 		keyHeldTime = 0;
 		if (updateBoard) drawSelectedBoard();
-		else drawSingleKey(key, NEUTRAL);
+		else {
+			u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(heldKeyIdx + 1) % boardSizes[currentBoard]]);
+			u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
+			drawSingleKey(key, keyWidth, keyHeight, NEUTRAL);
+		}
 		return;
 	}
 }
