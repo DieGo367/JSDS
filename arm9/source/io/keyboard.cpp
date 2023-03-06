@@ -402,9 +402,13 @@ NitroFont keyFont = {0};
 bool showing = false;
 u8 currentBoard = 0;
 bool cancelEnabled = false;
-int heldKeyIdx = -1;
-int keyHeldTime = 0;
 bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
+enum HoldMode { NO_HOLD, TOUCHING, A_PRESS, B_PRESS, D_PAD_PRESS};
+HoldMode heldMode = TOUCHING;
+int heldTime = 0;
+int heldKeyIdx = -1;
+int heldDir = 0;
+int highlightedKeyIdx = -1;
 ComposeStatus composing = INACTIVE;
 bool closeOnAccept = false;
 u16 *compCursor = compositionBuffer;
@@ -423,6 +427,19 @@ u8 calcKeyWidth(KeyDef key, KeyDef nextKey) {
 	if (nextKey.x > key.x) return nextKey.x - key.x - 1;
 	return SCREEN_WIDTH - key.x - 1;
 }
+u8 calcKeyHeight(KeyDef key) {
+	return key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
+}
+bool inKeyBounds(u8 x, u8 y, KeyDef key, u8 keyWidth, u8 keyHeight) {
+	return x >= key.x && x < key.x + keyWidth && y >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) && y < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + keyHeight;
+}
+bool keyIsActive(KeyDef key) {
+	return (shiftToggle && (key.lower == SHIFT || key.lower == KATAKANA))
+		|| (capsToggle && key.lower == CAPS_LOCK)
+		|| (!shiftToggle && key.lower == HIRAGANA)
+		|| (currentBoard == key.lower - INPUT_ALPHANUMERIC);
+}
+
 void renderKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
 	if (key.lower == CANCEL && !cancelEnabled) return;
 	u16 color = (key.lower == CANCEL ? PALETTE_KEY_CANCEL : (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL))[palIdx];
@@ -453,14 +470,8 @@ void drawSelectedBoard() {
 	for (int i = 0; i < boardSizes[currentBoard]; i++) {
 		KeyDef key = boards[currentBoard][i];
 		u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
-		u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
-		bool active = (
-			(shiftToggle && (key.lower == SHIFT || key.lower == KATAKANA))
-		 || (capsToggle && key.lower == CAPS_LOCK)
-		 || (!shiftToggle && key.lower == HIRAGANA)
-		 || (currentBoard == key.lower - INPUT_ALPHANUMERIC)
-		);
-		renderKey(key, keyWidth, keyHeight, active ? ACTIVE : NEUTRAL);
+		u8 keyHeight = calcKeyHeight(key);
+		renderKey(key, keyWidth, keyHeight, i == highlightedKeyIdx ? HIGHLIGHTED : (keyIsActive(key) ? ACTIVE : NEUTRAL));
 	}
 	dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
 }
@@ -554,6 +565,78 @@ void composeKey(u16 codepoint) {
 	dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }
 
+void pressKey(KeyDef key, u8 keyWidth, u8 keyHeight, int idx, HoldMode mode) {
+	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+	if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+	heldKeyIdx = idx;
+	heldTime = 1;
+	heldMode = mode;
+	if (mode != B_PRESS) drawSingleKey(key, keyWidth, keyHeight, PRESSED);
+}
+void holdKey(KeyDef key) {
+	if (++heldTime >= REPEAT_START && (heldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
+		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+		if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+		if (composing == COMPOSING) composeKey(codepoint);
+		heldTime = REPEAT_START;
+	}
+}
+void releaseKey() {
+	KeyDef key = boards[currentBoard][heldKeyIdx];
+	KeyDef nextKey = boards[currentBoard][(heldKeyIdx + 1) % boardSizes[currentBoard]];
+	bool updateBoard = true;
+	if (key.lower == SHIFT) shiftToggle = !shiftToggle;
+	else if (key.lower == CAPS_LOCK) capsToggle = !capsToggle;
+	else if (key.lower == HIRAGANA) shiftToggle = false;
+	else if (key.lower == KATAKANA) shiftToggle = true;
+	else if (key.lower >= INPUT_ALPHANUMERIC && key.lower <= INPUT_PICTOGRAM) {
+		currentBoard = key.lower - INPUT_ALPHANUMERIC;
+		shiftToggle = ctrlToggle = altToggle = metaToggle = capsToggle = false;
+	}
+	else updateBoard = false;
+	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+	if (onRelease != NULL) onRelease(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+	if (composing == COMPOSING && heldTime < REPEAT_START) composeKey(codepoint);
+	if (currentBoard == 0 && key.lower != SHIFT) {
+		shiftToggle = false;
+		updateBoard = true;
+	}
+	if (updateBoard) drawSelectedBoard();
+	else if (heldMode != B_PRESS) drawSingleKey(key, calcKeyWidth(key, nextKey), calcKeyHeight(key), heldKeyIdx == highlightedKeyIdx ? HIGHLIGHTED : NEUTRAL);
+	heldKeyIdx = -1;
+	heldTime = 0;
+	heldMode = NO_HOLD;
+}
+void moveHighlight(u32 dpadState) {
+	KeyDef key = boards[currentBoard][highlightedKeyIdx];
+	u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(highlightedKeyIdx + 1) % boardSizes[currentBoard]]);
+	u8 keyHeight = calcKeyHeight(key);
+	u8 x = key.x + keyWidth / 2;
+	u8 y = SCREEN_HEIGHT - KEYBOARD_HEIGHT + key.y + keyHeight / 2;
+	while (true) {
+		if (dpadState & KEY_LEFT) x -= KEY_HEIGHT, (y%2 ? 0 : y--);
+		if (dpadState & KEY_RIGHT) x += KEY_HEIGHT, (y%2 ? 0 : y--);
+		if (dpadState & KEY_UP) y -= KEY_HEIGHT, x--;
+		if (dpadState & KEY_DOWN) y += KEY_HEIGHT, x++;
+		if (y < SCREEN_HEIGHT - KEYBOARD_HEIGHT) y += KEYBOARD_HEIGHT;
+		else if (y > SCREEN_HEIGHT) y -= KEYBOARD_HEIGHT;
+		for (int i = 0; i < boardSizes[currentBoard]; i++) {
+			if (i == highlightedKeyIdx) continue;
+			KeyDef testKey = boards[currentBoard][i];
+			if (testKey.lower == CANCEL && !cancelEnabled) continue;
+			u8 testKeyWidth = calcKeyWidth(testKey, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
+			u8 testKeyHeight = calcKeyHeight(testKey);
+			if (inKeyBounds(x, y, testKey, testKeyWidth, testKeyHeight)) {
+				highlightedKeyIdx = i;
+				drawSingleKey(key, keyWidth, keyHeight, keyIsActive(key) ? ACTIVE : NEUTRAL);
+				drawSingleKey(testKey, testKeyWidth, testKeyHeight, HIGHLIGHTED);
+				return;
+			}
+		}
+	}
+}
+
+
 void keyboardInit() {
 	videoSetModeSub(MODE_3_2D);
 	vramSetBankC(VRAM_C_SUB_BG);
@@ -561,81 +644,92 @@ void keyboardInit() {
 	if (defaultFont.tileWidth == 0) fontLoadDefault();
 	keyFont = fontLoad(keyboard_nftr);
 }
-
 void keyboardUpdate() {
 	if (!showing) return;
-	if (keysDown() & KEY_TOUCH) {
-		touchPosition pos;
-		touchRead(&pos);
+	if (heldMode == NO_HOLD) {
+		u32 down = keysDown();
+		if (down & KEY_TOUCH) {
+			touchPosition pos;
+			touchRead(&pos);
 
-		for (int i = 0; i < boardSizes[currentBoard]; i++) {
-			KeyDef key = boards[currentBoard][i];
-			if (key.lower == CANCEL && !cancelEnabled) continue;
-			u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
-			u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
-			if (pos.px >= key.x && pos.px < key.x + keyWidth
-			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
-			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + keyHeight
-			) {
-				u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
-				if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
-				heldKeyIdx = i;
-				keyHeldTime = 1;
-				drawSingleKey(key, keyWidth, keyHeight, PRESSED);
-				return;
+			for (int i = 0; i < boardSizes[currentBoard]; i++) {
+				KeyDef key = boards[currentBoard][i];
+				if (key.lower == CANCEL && !cancelEnabled) continue;
+				u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
+				u8 keyHeight = calcKeyHeight(key);
+				if (inKeyBounds(pos.px, pos.py, key, keyWidth, keyHeight)) {
+					pressKey(key, keyWidth, keyHeight, i, TOUCHING);
+					if (highlightedKeyIdx != -1) {
+						KeyDef highlightedKey = boards[currentBoard][highlightedKeyIdx];
+						u8 highlightWidth = calcKeyWidth(highlightedKey, boards[currentBoard][(highlightedKeyIdx + 1) % boardSizes[currentBoard]]);
+						u8 highlightHeight = calcKeyHeight(highlightedKey);
+						drawSingleKey(highlightedKey, highlightWidth, highlightHeight, keyIsActive(highlightedKey) ? ACTIVE : NEUTRAL);
+						highlightedKeyIdx = -1;
+					}
+				}
 			}
 		}
-	}
-	else if (keysHeld() & KEY_TOUCH) {
-		if (keyHeldTime == 0) return;
-		touchPosition pos;
-		touchRead(&pos);
-		
-		KeyDef key = boards[currentBoard][heldKeyIdx];
-		u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(heldKeyIdx + 1) % boardSizes[currentBoard]]);
-		u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
-		if (pos.px >= key.x && pos.px < key.x + keyWidth
-			&& pos.py >= key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT)
-			&& pos.py < key.y + (SCREEN_HEIGHT - KEYBOARD_HEIGHT) + keyHeight
-		) {
-			if (++keyHeldTime >= REPEAT_START && (keyHeldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
-				u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
-				if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
-				if (composing == COMPOSING) composeKey(codepoint);
-				keyHeldTime = REPEAT_START;
+		else if (down & KEY_B) {
+			for (int i = 0; i < boardSizes[currentBoard]; i++) {
+				KeyDef key = boards[currentBoard][i];
+				if (key.lower == BACKSPACE) return pressKey(key, 0, 0, i, B_PRESS);
 			}
 		}
-		else keyHeldTime = 1;
+		else if (highlightedKeyIdx == -1) {
+			if (down & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
+				heldMode = D_PAD_PRESS;
+				heldTime = 0;
+				heldDir = (down & KEY_UP) ? KEY_UP : ((down & KEY_DOWN) ? KEY_DOWN : ((down & KEY_LEFT) ? KEY_LEFT : KEY_RIGHT));
+				highlightedKeyIdx = 0;
+				drawSingleKey(boards[currentBoard][0], calcKeyWidth(boards[currentBoard][0], boards[currentBoard][1]), KEY_HEIGHT, HIGHLIGHTED);
+			}
+		}
+		else if (down & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
+			heldMode = D_PAD_PRESS;
+			heldTime = 0;
+			heldDir = (down & KEY_UP) ? KEY_UP : ((down & KEY_DOWN) ? KEY_DOWN : ((down & KEY_LEFT) ? KEY_LEFT : KEY_RIGHT));
+			moveHighlight(down);
+		}
+		else if (down & KEY_A) {
+			KeyDef key = boards[currentBoard][highlightedKeyIdx];
+			u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(highlightedKeyIdx + 1) % boardSizes[currentBoard]]);
+			u8 keyHeight = calcKeyHeight(key);
+			pressKey(key, keyWidth, keyHeight, highlightedKeyIdx, A_PRESS);
+		}
 	}
-	else if (keyHeldTime > 0) {
-		KeyDef key = boards[currentBoard][heldKeyIdx];
-		KeyDef nextKey = boards[currentBoard][(heldKeyIdx + 1) % boardSizes[currentBoard]];
-		bool updateBoard = true;
-		if (key.lower == SHIFT) shiftToggle = !shiftToggle;
-		else if (key.lower == CAPS_LOCK) capsToggle = !capsToggle;
-		else if (key.lower == HIRAGANA) shiftToggle = false;
-		else if (key.lower == KATAKANA) shiftToggle = true;
-		else if (key.lower >= INPUT_ALPHANUMERIC && key.lower <= INPUT_PICTOGRAM) {
-			currentBoard = key.lower - INPUT_ALPHANUMERIC;
-			shiftToggle = ctrlToggle = altToggle = metaToggle = capsToggle = false;
+	else if (heldMode == TOUCHING) {
+		if (keysHeld() & KEY_TOUCH) {
+			touchPosition pos;
+			touchRead(&pos);
+			
+			KeyDef key = boards[currentBoard][heldKeyIdx];
+			u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(heldKeyIdx + 1) % boardSizes[currentBoard]]);
+			u8 keyHeight = calcKeyHeight(key);
+			if (inKeyBounds(pos.px, pos.py, key, keyWidth, keyHeight)) holdKey(key);
+			else heldTime = 0;
 		}
-		else updateBoard = false;
-		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
-		if (onRelease != NULL) onRelease(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
-		if (composing == COMPOSING && keyHeldTime < REPEAT_START) composeKey(codepoint);
-		if (currentBoard == 0 && key.lower != SHIFT) {
-			shiftToggle = false;
-			updateBoard = true;
-		}
-		heldKeyIdx = -1;
-		keyHeldTime = 0;
-		if (updateBoard) drawSelectedBoard();
+		else releaseKey();
+	}
+	else if (heldMode == A_PRESS) {
+		if (keysHeld() & KEY_A) holdKey(boards[currentBoard][heldKeyIdx]);
 		else {
-			u8 keyWidth = calcKeyWidth(key, nextKey);
-			u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
-			drawSingleKey(key, keyWidth, keyHeight, NEUTRAL);
+			releaseKey();
+			if (boards[currentBoard][highlightedKeyIdx].lower == CANCEL) highlightedKeyIdx = -1;
 		}
-		return;
+	}
+	else if (heldMode == B_PRESS) {
+		if (keysHeld() & KEY_B) holdKey(boards[currentBoard][heldKeyIdx]);
+		else releaseKey();
+	}
+	else if (heldMode == D_PAD_PRESS) {
+		u32 heldButtons = keysHeld();
+		if (heldButtons & heldDir) {
+			if (++heldTime >= REPEAT_START && (heldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
+				moveHighlight(heldButtons);
+				heldTime = REPEAT_START;
+			}
+		}
+		else heldMode = NO_HOLD;
 	}
 }
 
