@@ -107,13 +107,14 @@ static jerry_value_t promptHandler(CALL_INFO) {
 		printValue(args[0]);
 		putchar('\n');
 	}
-	printf("========= (A) OK  (B) Cancel ===");
-	keyboardCompose();
+	printf("================================");
+	keyboardCompose(true);
 	while (true) {
 		swiWaitForVBlank();
 		scanKeys();
-		u32 keys = keysDown();
-		if (keys & KEY_A || keyboardComposeStatus() == FINISHED) {
+		keyboardUpdate();
+		ComposeStatus status = keyboardComposeStatus();
+		if (status == FINISHED) {
 			char *str;
 			int strSize;
 			keyboardComposeAccept(&str, &strSize);
@@ -123,14 +124,12 @@ static jerry_value_t promptHandler(CALL_INFO) {
 			consoleClear();
 			return strVal;
 		}
-		else if (keys & KEY_B) {
-			keyboardComposeCancel();
+		else if (status == INACTIVE) {
 			keyboardUpdate();
 			consoleClear();
 			if (argCount > 1) return jerry_value_to_string(args[1]);
 			else return null;
 		}
-		keyboardUpdate();
 	}
 }
 

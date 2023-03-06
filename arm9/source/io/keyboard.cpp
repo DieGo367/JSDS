@@ -117,7 +117,8 @@ const KeyDef boardAlphanumeric[] = {
 	{"Period", '.', '>', 181, 49},
 	{"Slash", '/', '?', 197, 49},
 	{"ShiftRight", SHIFT, SHIFT, 213, 49},
-	{"Space", ' ', ' ', 81, 65}
+	{"Space", ' ', ' ', 81, 65},
+	{"Cancel", CANCEL, CANCEL, 213, 65}
 };
 const KeyDef boardLatinAccented[] = {
 	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1},
@@ -179,7 +180,8 @@ const KeyDef boardLatinAccented[] = {
 	{"Key€", u'€', 0, 65, 65},
 	{"Key¢", u'¢', 0, 81, 65},
 	{"Key£", u'£', 0, 97, 65},
-	{"Space", ' ', 0, 225, 65}
+	{"Space", ' ', 0, 225, 65},
+	{"Cancel", CANCEL, CANCEL, 225, 1}
 };
 const KeyDef boardKana[] = {
 	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1},
@@ -245,7 +247,8 @@ const KeyDef boardKana[] = {
 	{"Keyろ", u'ろ', u'ロ', 177, 65},
 	{"Keyを", u'を', u'ヲ', 193, 65},
 	{"FullStop", u'。', u'。', 209, 65},
-	{"FullSpace", u'　', u'　', 225, 65}
+	{"FullSpace", u'　', u'　', 225, 65},
+	{"Cancel", CANCEL, CANCEL, 225, 1}
 };
 const KeyDef boardSymbol[] = {
 	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1},
@@ -310,7 +313,8 @@ const KeyDef boardSymbol[] = {
 	{"TradeMark", u'™', 0, 161, 65},
 	{"Copyright", u'©', 0, 177, 65},
 	{"Registered", u'®', 0, 193, 65},
-	{"Space", ' ', 0, 225, 65}
+	{"Space", ' ', 0, 225, 65},
+	{"Cancel", CANCEL, CANCEL, 225, 1}
 };
 const KeyDef boardPictogram[] = {
 	{"InputAlphaNumeric", INPUT_ALPHANUMERIC, INPUT_ALPHANUMERIC, 1, 1},
@@ -375,7 +379,8 @@ const KeyDef boardPictogram[] = {
 	{"TriangleUpBlack", u'▲', 0, 161, 65},
 	{"TriangleDownBlack", u'▼', 0, 177, 65},
 	{"Cross", u'', 0, 193, 65},
-	{"Space", ' ', 0, 225, 65}
+	{"Space", ' ', 0, 225, 65},
+	{"Cancel", CANCEL, CANCEL, 225, 1}
 };
 
 const KeyDef* boards[5] = {boardAlphanumeric, boardLatinAccented, boardKana, boardSymbol, boardPictogram};
@@ -396,6 +401,7 @@ NitroFont keyFont = {0};
 
 bool showing = false;
 u8 currentBoard = 0;
+bool cancelEnabled = false;
 int heldKeyIdx = -1;
 int keyHeldTime = 0;
 bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
@@ -418,7 +424,8 @@ u8 calcKeyWidth(KeyDef key, KeyDef nextKey) {
 	return SCREEN_WIDTH - key.x - 1;
 }
 void renderKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
-	u16 color = (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL)[palIdx];
+	if (key.lower == CANCEL && !cancelEnabled) return;
+	u16 color = (key.lower == CANCEL ? PALETTE_KEY_CANCEL : (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL))[palIdx];
 	for (u8 y = 0; y < keyHeight && key.y + y < KEYBOARD_HEIGHT-1; y++) {
 		for (u8 x = 0; x < keyWidth; x++) {
 			gfxKbdBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = color;
@@ -492,6 +499,10 @@ void composeKey(u16 codepoint) {
 		composing = FINISHED;
 		return;
 	}
+	else if (codepoint == CANCEL) {
+		keyboardComposeCancel();
+		return;
+	}
 	else if (codepoint == BACKSPACE) {
 		if (compCursor == compositionBuffer) return;
 		*(--compCursor) = 0;
@@ -559,6 +570,7 @@ void keyboardUpdate() {
 
 		for (int i = 0; i < boardSizes[currentBoard]; i++) {
 			KeyDef key = boards[currentBoard][i];
+			if (key.lower == CANCEL && !cancelEnabled) continue;
 			u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
 			u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
 			if (pos.px >= key.x && pos.px < key.x + keyWidth
@@ -647,9 +659,14 @@ void keyboardSetReleaseHandler(void (*handler) (const u16 codepoint, const char 
 	onRelease = handler;
 }
 
-void keyboardCompose() {
+void keyboardCompose(bool allowCancel) {
 	composing = COMPOSING;
-	closeOnAccept = keyboardShow();
+	closeOnAccept = !showing;
+	if (!showing || cancelEnabled != allowCancel) {
+		cancelEnabled = allowCancel;
+		showing = true;
+		drawSelectedBoard();
+	}
 	compCursor = compositionBuffer;
 	drawComposedText();
 }
@@ -658,7 +675,9 @@ ComposeStatus keyboardComposeStatus() {
 }
 void keyboardComposeAccept(char **strPtr, int *strSize) {
 	composing = INACTIVE;
+	cancelEnabled = false;
 	if (closeOnAccept) keyboardHide();
+	else drawSelectedBoard();
 	char *str = (char *) malloc((compCursor - compositionBuffer) * 3 + 1);
 	*strPtr = str;
 	int size = 0;
@@ -686,6 +705,8 @@ void keyboardComposeAccept(char **strPtr, int *strSize) {
 }
 void keyboardComposeCancel() {
 	composing = INACTIVE;
+	cancelEnabled = false;
 	if (closeOnAccept) keyboardHide();
+	else drawSelectedBoard();
 	dmaFillHalfWords(0, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }

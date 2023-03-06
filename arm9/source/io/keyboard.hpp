@@ -16,7 +16,7 @@ bool keyboardHide();
 void keyboardSetPressHandler(void (*handler) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps));
 void keyboardSetReleaseHandler(void (*handler) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps));
 
-void keyboardCompose();
+void keyboardCompose(bool allowCancel);
 ComposeStatus keyboardComposeStatus();
 void keyboardComposeAccept(char **strPtr, int *strSize);
 void keyboardComposeCancel();

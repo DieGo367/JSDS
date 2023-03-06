@@ -276,7 +276,7 @@ void eventLoop() {
 		timeoutUpdate();
 		runTasks();
 		if (inREPL) {
-			if (keyboardComposeStatus() == INACTIVE) keyboardCompose();
+			if (keyboardComposeStatus() == INACTIVE) keyboardCompose(false);
 			else if (keyboardComposeStatus() == FINISHED) {
 				putchar('\n');
 				char *inputStr;
