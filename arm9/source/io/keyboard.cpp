@@ -25,11 +25,11 @@ const u8 TALL_ENTER_HEIGHT = 31;
 const u16 COLOR_KEYBOARD_BACKDROP = 0xB9CE;
 const u16 COLOR_COMPOSING_BACKDROP = 0xFFFF;
 const u16 PALETTE_FONT_KEY[] = {0, 0, 0, 0x9CE7};
-const u16 PALETTE_FONT_COMPOSITION[4] = {0, 0xCA52, 0xA108, 0x8000};
+const u16 PALETTE_FONT_COMPOSITION[] = {0, 0xCA52, 0xA108, 0x8000};
 const u16 PALETTE_KEY_NORMAL[] = {0xEB5A, 0xFFFF, 0xAD6B};
-const u16 PALETTE_KEY_SPECIAL[] = {0xD294, 0xF7BD, 0x98C6};
+const u16 PALETTE_KEY_SPECIAL[] = {0xD294, 0xF7BD, 0x98C6, 0xDEF7};
 const u16 PALETTE_KEY_CANCEL[] = {0xDADD, 0xF7BE, 0xAD74};
-enum KEY_STATES {NEUTRAL = 0, HIGHLIGHTED, PRESSED};
+enum KEY_STATES {NEUTRAL = 0, HIGHLIGHTED, PRESSED, ACTIVE};
 
 enum ControlKeys {
 	CAPS_LOCK = 1,
@@ -418,9 +418,10 @@ u8 calcKeyWidth(KeyDef key, KeyDef nextKey) {
 	return SCREEN_WIDTH - key.x - 1;
 }
 void renderKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
+	u16 color = (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL)[palIdx];
 	for (u8 y = 0; y < keyHeight && key.y + y < KEYBOARD_HEIGHT-1; y++) {
 		for (u8 x = 0; x < keyWidth; x++) {
-			gfxKbdBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL)[palIdx];
+			gfxKbdBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = color;
 		}
 	}
 	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
@@ -446,7 +447,8 @@ void drawSelectedBoard() {
 		KeyDef key = boards[currentBoard][i];
 		u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
 		u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
-		renderKey(key, keyWidth, keyHeight, NEUTRAL);
+		bool active = (shiftToggle && (key.lower == SHIFT || key.lower == KATAKANA)) || (capsToggle && key.lower == CAPS_LOCK) || (!shiftToggle && key.lower == HIRAGANA);
+		renderKey(key, keyWidth, keyHeight, active ? ACTIVE : NEUTRAL);
 	}
 	dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
 }
