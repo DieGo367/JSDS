@@ -607,17 +607,17 @@ void releaseKey() {
 	heldTime = 0;
 	heldMode = NO_HOLD;
 }
-void moveHighlight(u32 dpadState) {
+void moveHighlight() {
 	KeyDef key = boards[currentBoard][highlightedKeyIdx];
 	u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(highlightedKeyIdx + 1) % boardSizes[currentBoard]]);
 	u8 keyHeight = calcKeyHeight(key);
 	u8 x = key.x + keyWidth / 2;
 	u8 y = SCREEN_HEIGHT - KEYBOARD_HEIGHT + key.y + keyHeight / 2;
 	while (true) {
-		if (dpadState & KEY_LEFT) x -= KEY_HEIGHT, (y%2 ? 0 : y--);
-		if (dpadState & KEY_RIGHT) x += KEY_HEIGHT, (y%2 ? 0 : y--);
-		if (dpadState & KEY_UP) y -= KEY_HEIGHT, x--;
-		if (dpadState & KEY_DOWN) y += KEY_HEIGHT, x++;
+		if (heldDir == KEY_DOWN) y += KEY_HEIGHT, x++;
+		else if (heldDir == KEY_UP) y -= KEY_HEIGHT, x--;
+		else if (heldDir == KEY_RIGHT) x += KEY_HEIGHT, (y%2 ? 0 : y--);
+		else if (heldDir == KEY_LEFT) x -= KEY_HEIGHT, (y%2 ? 0 : y--);
 		if (y < SCREEN_HEIGHT - KEYBOARD_HEIGHT) y += KEYBOARD_HEIGHT;
 		else if (y > SCREEN_HEIGHT) y -= KEYBOARD_HEIGHT;
 		for (int i = 0; i < boardSizes[currentBoard]; i++) {
@@ -679,7 +679,7 @@ void keyboardUpdate() {
 			if (down & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
 				heldMode = D_PAD_PRESS;
 				heldTime = 0;
-				heldDir = (down & KEY_UP) ? KEY_UP : ((down & KEY_DOWN) ? KEY_DOWN : ((down & KEY_LEFT) ? KEY_LEFT : KEY_RIGHT));
+				heldDir = (down & KEY_DOWN) ? KEY_DOWN : ((down & KEY_UP) ? KEY_UP : ((down & KEY_RIGHT) ? KEY_RIGHT : KEY_LEFT));
 				highlightedKeyIdx = 0;
 				drawSingleKey(boards[currentBoard][0], calcKeyWidth(boards[currentBoard][0], boards[currentBoard][1]), KEY_HEIGHT, HIGHLIGHTED);
 			}
@@ -687,8 +687,8 @@ void keyboardUpdate() {
 		else if (down & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
 			heldMode = D_PAD_PRESS;
 			heldTime = 0;
-			heldDir = (down & KEY_UP) ? KEY_UP : ((down & KEY_DOWN) ? KEY_DOWN : ((down & KEY_LEFT) ? KEY_LEFT : KEY_RIGHT));
-			moveHighlight(down);
+			heldDir = (down & KEY_DOWN) ? KEY_DOWN : ((down & KEY_UP) ? KEY_UP : ((down & KEY_RIGHT) ? KEY_RIGHT : KEY_LEFT));
+			moveHighlight();
 		}
 		else if (down & KEY_A) {
 			KeyDef key = boards[currentBoard][highlightedKeyIdx];
@@ -711,7 +711,13 @@ void keyboardUpdate() {
 		else releaseKey();
 	}
 	else if (heldMode == A_PRESS) {
-		if (keysHeld() & KEY_A) holdKey(boards[currentBoard][heldKeyIdx]);
+		if (keysHeld() & KEY_A) {
+			holdKey(boards[currentBoard][heldKeyIdx]);
+			if (heldTime == REPEAT_START && boards[currentBoard][highlightedKeyIdx].lower == CANCEL) {
+				releaseKey();
+				highlightedKeyIdx = -1;
+			}
+		}
 		else {
 			releaseKey();
 			if (boards[currentBoard][highlightedKeyIdx].lower == CANCEL) highlightedKeyIdx = -1;
@@ -723,13 +729,45 @@ void keyboardUpdate() {
 	}
 	else if (heldMode == D_PAD_PRESS) {
 		u32 heldButtons = keysHeld();
-		if (heldButtons & heldDir) {
-			if (++heldTime >= REPEAT_START && (heldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
-				moveHighlight(heldButtons);
+		u32 down = keysDown();
+		if (heldButtons & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
+			if (down & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
+				heldDir = (down & KEY_DOWN) ? KEY_DOWN : ((down & KEY_UP) ? KEY_UP : ((down & KEY_RIGHT) ? KEY_RIGHT : KEY_LEFT));
+				heldTime = 0;
+				moveHighlight();
+			}
+			else if (keysUp() & heldDir) {
+				heldDir = (heldButtons & KEY_DOWN) ? KEY_DOWN : ((heldButtons & KEY_UP) ? KEY_UP : ((heldButtons & KEY_RIGHT) ? KEY_RIGHT : KEY_LEFT));
+				heldTime = 0;
+				moveHighlight();
+			}
+			else if (++heldTime >= REPEAT_START && (heldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
 				heldTime = REPEAT_START;
+				moveHighlight();
 			}
 		}
 		else heldMode = NO_HOLD;
+		// allow initiating A and B presses during D-Pad movement
+		HoldMode tempMode = heldMode;
+		int tempTime = heldTime;
+		if (down & KEY_A) {
+			KeyDef key = boards[currentBoard][highlightedKeyIdx];
+			u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(highlightedKeyIdx + 1) % boardSizes[currentBoard]]);
+			u8 keyHeight = calcKeyHeight(key);
+			pressKey(key, keyWidth, keyHeight, highlightedKeyIdx, A_PRESS);
+			releaseKey();
+		}
+		else if (down & KEY_B) {
+			for (int i = 0; i < boardSizes[currentBoard]; i++) {
+				KeyDef key = boards[currentBoard][i];
+				if (key.lower == BACKSPACE) {
+					pressKey(key, 0, 0, i, B_PRESS);
+					releaseKey();
+				}
+			}
+		}
+		heldMode = tempMode;
+		heldTime = tempTime;
 	}
 }
 
