@@ -447,7 +447,12 @@ void drawSelectedBoard() {
 		KeyDef key = boards[currentBoard][i];
 		u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
 		u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
-		bool active = (shiftToggle && (key.lower == SHIFT || key.lower == KATAKANA)) || (capsToggle && key.lower == CAPS_LOCK) || (!shiftToggle && key.lower == HIRAGANA);
+		bool active = (
+			(shiftToggle && (key.lower == SHIFT || key.lower == KATAKANA))
+		 || (capsToggle && key.lower == CAPS_LOCK)
+		 || (!shiftToggle && key.lower == HIRAGANA)
+		 || (currentBoard == key.lower - INPUT_ALPHANUMERIC)
+		);
 		renderKey(key, keyWidth, keyHeight, active ? ACTIVE : NEUTRAL);
 	}
 	dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
@@ -592,6 +597,7 @@ void keyboardUpdate() {
 	}
 	else if (keyHeldTime > 0) {
 		KeyDef key = boards[currentBoard][heldKeyIdx];
+		KeyDef nextKey = boards[currentBoard][(heldKeyIdx + 1) % boardSizes[currentBoard]];
 		bool updateBoard = true;
 		if (key.lower == SHIFT) shiftToggle = !shiftToggle;
 		else if (key.lower == CAPS_LOCK) capsToggle = !capsToggle;
@@ -613,7 +619,7 @@ void keyboardUpdate() {
 		keyHeldTime = 0;
 		if (updateBoard) drawSelectedBoard();
 		else {
-			u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(heldKeyIdx + 1) % boardSizes[currentBoard]]);
+			u8 keyWidth = calcKeyWidth(key, nextKey);
 			u8 keyHeight = key.lower == ENTER && currentBoard > 0 ? TALL_ENTER_HEIGHT : KEY_HEIGHT;
 			drawSingleKey(key, keyWidth, keyHeight, NEUTRAL);
 		}
