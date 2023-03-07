@@ -1,17 +1,12 @@
 #include "console.hpp"
 
 #include <nds/arm9/background.h>
-#include <nds/arm9/cache.h>
 #include <nds/arm9/video.h>
-extern "C" {
-#include <nds/debug.h>
-}
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/iosupport.h>
 
 #include "font.hpp"
+#include "../tonccpy.h"
 
 
 
@@ -70,7 +65,7 @@ void newLine() {
 		lineTop -= SCREEN_HEIGHT;
 		filled = true;
 	}
-	if (filled) memset(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16));
+	if (filled) toncset16(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * defaultFont.tileHeight);
 }
 
 bool writeCodepoint(u16 codepoint) {
@@ -172,7 +167,7 @@ void consoleResume() {
 	consoleDraw();
 }
 void consoleClear() {
-	memset(gfxBuffer, 0, sizeof(gfxBuffer));
+	toncset(gfxBuffer, 0, sizeof(gfxBuffer));
 	if (!paused) dmaFillWords(0, bgGetGfxPtr(3), sizeof(gfxBuffer));
 	lineWidth = lineTop = 0;
 	filled = false;

@@ -25,6 +25,7 @@ extern "C" {
 #include "logging.hpp"
 #include "storage.hpp"
 #include "timeouts.hpp"
+#include "tonccpy.h"
 
 
 
@@ -1817,7 +1818,7 @@ static jerry_value_t TextEncoderEncodeIntoHandler(CALL_INFO) {
 	}
 
 	if (copy != NULL) {
-		memcpy(dest, copy, written);
+		tonccpy(dest, copy, written);
 		free(copy);
 	}
 
