@@ -96,8 +96,9 @@ void fontPrintChar(NitroFont font, const u16 *palette, u16 codepoint, u16 *buffe
 	u8 *tile = font.tileData + tileNum * font.tileSize;
 	u8 *widths = font.widthData + tileNum * 3;
 
-	for (u8 ty = 0; ty < font.tileHeight; ty++) {
-		u16 *buf = buffer + x + (y + ty) * bufferWidth;
+	buffer += x + y * bufferWidth;
+	for (u8 ty = 0; ty < font.tileHeight; ty++, buffer += bufferWidth) {
+		u16 *buf = buffer;
 
 		if (palette[0]) for (u8 i = 0; i < widths[0]; i++) {
 			*(buf++) = palette[0];
