@@ -441,7 +441,7 @@ static void tableValuePrint(jerry_value_t value, u8 width) {
 void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 	consolePause();
 	if (!jerry_value_is_object(args[0])) {
-		printf("%*s", indent, "");
+		logIndent();
 		logLiteral(args[0]);
 		putchar('\n');
 		consoleResume();
@@ -547,7 +547,8 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 			jerry_release_value(colKey);
 		}
 		// print top row: "i" and keys
-		printf("%*s%-*s", indent, "", idxColWidth, "i");
+		logIndent();
+		printf("%-*s", idxColWidth, "i");
 		for (u32 colIdx = 0; colIdx < sharedKeyCount; colIdx++) {
 			jerry_value_t key = jerry_get_property_by_index(sharedKeys, colIdx);
 			char *keyStr = getString(key);
@@ -555,8 +556,9 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 			free(keyStr);
 			jerry_release_value(key);
 		}
+		putchar('\n');
 		// print separator line
-		printf("\n%*s", indent, "");
+		logIndent();
 		for (u8 i = 0; i < idxColWidth; i++) putchar('-');
 		for (u32 colIdx = 0; colIdx < sharedKeyCount; colIdx++) {
 			putchar('+');
@@ -567,7 +569,8 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 		for (u32 rowIdx = 0; rowIdx < keyCount; rowIdx++) {
 			jerry_value_t rowKey = jerry_get_property_by_index(keys, rowIdx);
 			char *keyStr = getString(rowKey);
-			printf("%*s%-*s", indent, "", idxColWidth, keyStr);
+			logIndent();
+			printf("%-*s", idxColWidth, keyStr);
 			free(keyStr);
 			jerry_value_t obj = jerry_get_property(args[0], rowKey);
 			for (u32 colIdx = 0; colIdx < sharedKeyCount; colIdx++) {
@@ -586,9 +589,10 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 	// print a key/value table
 	else {
 		// print top row: "i" and "Value"
-		printf("%*s%-*s|%-*.*s\n", indent, "", idxColWidth, "i", valueColWidth, valueColWidth, "Value");
+		logIndent();
+		printf("%-*s|%-*.*s\n", idxColWidth, "i", valueColWidth, valueColWidth, "Value");
 		// print separator line
-		printf("%*s", indent, "");
+		logIndent();
 		for (u8 i = 0; i < idxColWidth; i++) putchar('-');
 		putchar('+');
 		for (u8 i = 0; i < valueColWidth; i++) putchar('-');
@@ -598,7 +602,8 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 			// print key
 			jerry_value_t key = jerry_get_property_by_index(keys, i);
 			char *keyStr = getString(key);
-			printf("%*s%-*s|", indent, "", idxColWidth, keyStr);
+			logIndent();
+			printf("%-*s|", idxColWidth, keyStr);
 			free(keyStr);
 			// print value
 			jerry_value_t value = jerry_get_property(args[0], key);
