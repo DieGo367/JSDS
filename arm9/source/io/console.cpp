@@ -61,8 +61,8 @@ void consoleDraw() {
 void newLine() {
 	lineWidth = 0;
 	lineTop += defaultFont.tileHeight;
-	if (lineTop >= SCREEN_HEIGHT) {
-		lineTop -= SCREEN_HEIGHT;
+	if (lineTop + defaultFont.tileHeight > SCREEN_HEIGHT) {
+		lineTop = 0;
 		filled = true;
 	}
 	if (filled) toncset16(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * defaultFont.tileHeight);
@@ -125,9 +125,9 @@ ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 	}
 	if (!paused) {
 		if (fullUpdate) consoleDraw();
-		else dmaCopyWords(1,
+		else dmaCopyWords(0,
 			gfxBuffer + (lineTop * SCREEN_WIDTH),
-			bgGetGfxPtr(3) + (lineTop * SCREEN_WIDTH),
+			bgGetGfxPtr(3) + (filled ? SCREEN_HEIGHT - defaultFont.tileHeight : lineTop) * SCREEN_WIDTH,
 			SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16)
 		);
 	}
