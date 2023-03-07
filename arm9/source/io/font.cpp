@@ -100,10 +100,8 @@ void fontPrintChar(NitroFont font, const u16 *palette, u16 codepoint, u16 *buffe
 	for (u8 ty = 0; ty < font.tileHeight; ty++, buffer += bufferWidth) {
 		u16 *buf = buffer;
 
-		if (palette[0]) for (u8 i = 0; i < widths[0]; i++) {
-			*(buf++) = palette[0];
-		}
-		else buf += widths[0];
+		if (palette[0]) toncset16(buf, palette[0], widths[0]);
+		buf += widths[0];
 
 		for (u16 tx = 0, pixel = ty * font.tileWidth; tx < widths[1]; tx++, pixel++, buf++) {
 			u16 color = palette[*(tile + pixel / 4) >> ((3 - pixel % 4) * 2) & 0b11];

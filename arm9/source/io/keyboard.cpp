@@ -6,8 +6,8 @@
 #include <string.h>
 
 #include "font.hpp"
-
 #include "keyboard_nftr.h"
+#include "../tonccpy.h"
 
 #define lengthof(arr) sizeof(arr)/sizeof(*arr)
 
@@ -444,9 +444,7 @@ void renderKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
 	if (key.lower == CANCEL && !cancelEnabled) return;
 	u16 color = (key.lower == CANCEL ? PALETTE_KEY_CANCEL : (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL))[palIdx];
 	for (u8 y = 0; y < keyHeight && key.y + y < KEYBOARD_HEIGHT-1; y++) {
-		for (u8 x = 0; x < keyWidth; x++) {
-			gfxKbdBuffer[key.x + x + (key.y + y) * SCREEN_WIDTH] = color;
-		}
+		toncset16(gfxKbdBuffer + key.x + (key.y + y) * SCREEN_WIDTH, color, keyWidth);
 	}
 	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 	if (codepoint == '\n' && currentBoard > 0) {
@@ -466,7 +464,7 @@ void drawSingleKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
 	}
 }
 void drawSelectedBoard() {
-	for (int i = 0; i < SCREEN_WIDTH * KEYBOARD_HEIGHT; i++) gfxKbdBuffer[i] = COLOR_KEYBOARD_BACKDROP;
+	toncset16(gfxKbdBuffer, COLOR_KEYBOARD_BACKDROP, SCREEN_WIDTH * KEYBOARD_HEIGHT);
 	for (int i = 0; i < boardSizes[currentBoard]; i++) {
 		KeyDef key = boards[currentBoard][i];
 		u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
@@ -476,8 +474,7 @@ void drawSelectedBoard() {
 	dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
 }
 void drawComposedText() {
-	for (int i = 0; i < SCREEN_WIDTH * TEXT_HEIGHT; i++) gfxCmpBuffer[i] = COLOR_COMPOSING_BACKDROP;
-	
+	toncset16(gfxCmpBuffer, COLOR_COMPOSING_BACKDROP, SCREEN_WIDTH * TEXT_HEIGHT);
 	int x = 0;
 	for (u16 *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
 		u16 codepoint = *codePtr;
@@ -494,8 +491,8 @@ void drawComposedText() {
 		else {
 			for (int j = 0; j < TEXT_HEIGHT; j++) {
 				memmove(gfxCmpBuffer + j * SCREEN_WIDTH, gfxCmpBuffer + j * SCREEN_WIDTH + diff, (SCREEN_WIDTH - diff) * sizeof(u16));
-				u16 *px = gfxCmpBuffer + (j + 1) * SCREEN_WIDTH - width;
-				for (int k = 0; k < width; k++) *(px++) = COLOR_COMPOSING_BACKDROP;
+				u16 *row = gfxCmpBuffer + (j + 1) * SCREEN_WIDTH - width;
+				toncset16(row, COLOR_COMPOSING_BACKDROP, width);
 			}
 			fontPrintChar(defaultFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
 			x = SCREEN_WIDTH;
