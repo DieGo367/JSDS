@@ -404,7 +404,7 @@ u8 currentBoard = 0;
 bool cancelEnabled = false;
 bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
 enum HoldMode { NO_HOLD, TOUCHING, A_PRESS, B_PRESS, D_PAD_PRESS};
-HoldMode heldMode = TOUCHING;
+HoldMode heldMode = NO_HOLD;
 int heldTime = 0;
 int heldKeyIdx = -1;
 int heldDir = 0;
@@ -573,7 +573,8 @@ void pressKey(KeyDef key, u8 keyWidth, u8 keyHeight, int idx, HoldMode mode) {
 	heldMode = mode;
 	if (mode != B_PRESS) drawSingleKey(key, keyWidth, keyHeight, PRESSED);
 }
-void holdKey(KeyDef key) {
+void holdKey() {
+	KeyDef key = boards[currentBoard][heldKeyIdx];
 	if (++heldTime >= REPEAT_START && (heldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
 		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 		if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
@@ -635,6 +636,7 @@ void moveHighlight() {
 		}
 	}
 }
+
 
 
 void keyboardInit() {
@@ -705,14 +707,14 @@ void keyboardUpdate() {
 			KeyDef key = boards[currentBoard][heldKeyIdx];
 			u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(heldKeyIdx + 1) % boardSizes[currentBoard]]);
 			u8 keyHeight = calcKeyHeight(key);
-			if (inKeyBounds(pos.px, pos.py, key, keyWidth, keyHeight)) holdKey(key);
+			if (inKeyBounds(pos.px, pos.py, key, keyWidth, keyHeight)) holdKey();
 			else heldTime = 0;
 		}
 		else releaseKey();
 	}
 	else if (heldMode == A_PRESS) {
 		if (keysHeld() & KEY_A) {
-			holdKey(boards[currentBoard][heldKeyIdx]);
+			holdKey();
 			if (heldTime == REPEAT_START && boards[currentBoard][highlightedKeyIdx].lower == CANCEL) {
 				releaseKey();
 				highlightedKeyIdx = -1;
@@ -724,7 +726,7 @@ void keyboardUpdate() {
 		}
 	}
 	else if (heldMode == B_PRESS) {
-		if (keysHeld() & KEY_B) holdKey(boards[currentBoard][heldKeyIdx]);
+		if (keysHeld() & KEY_B) holdKey();
 		else releaseKey();
 	}
 	else if (heldMode == D_PAD_PRESS) {
@@ -806,10 +808,6 @@ ComposeStatus keyboardComposeStatus() {
 	return composing;
 }
 void keyboardComposeAccept(char **strPtr, int *strSize) {
-	composing = INACTIVE;
-	cancelEnabled = false;
-	if (closeOnAccept) keyboardHide();
-	else drawSelectedBoard();
 	char *str = (char *) malloc((compCursor - compositionBuffer) * 3 + 1);
 	*strPtr = str;
 	int size = 0;
@@ -830,10 +828,10 @@ void keyboardComposeAccept(char **strPtr, int *strSize) {
 			*(str++) = BIT(7) | (codepoint & 0x3F);
 			size += 3;
 		}
-		*str = 0;
 	}
+	*str = 0;
 	*strSize = size;
-	dmaFillHalfWords(0, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
+	keyboardComposeCancel();
 }
 void keyboardComposeCancel() {
 	composing = INACTIVE;

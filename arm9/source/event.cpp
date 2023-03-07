@@ -79,7 +79,6 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
 	if (!abortFlag) {
 		runMicrotasks();
 		if (inREPL) {
-			printf("-> ");
 			logLiteral(result);
 			putchar('\n');
 		}
@@ -275,13 +274,18 @@ void eventLoop() {
 		if (dependentEvents & (stylusdown | stylusmove | stylusup)) stylusEvents();
 		timeoutUpdate();
 		runTasks();
+		keyboardUpdate();
 		if (inREPL) {
-			if (keyboardComposeStatus() == INACTIVE) keyboardCompose(false);
+			if (keyboardComposeStatus() == INACTIVE) {
+				putchar('>'); putchar(' ');
+				keyboardCompose(false);
+			}
 			else if (keyboardComposeStatus() == FINISHED) {
-				putchar('\n');
 				char *inputStr;
 				int inputSize;
 				keyboardComposeAccept(&inputStr, &inputSize);
+				printf(inputStr);
+				putchar('\n');
 				jerry_value_t parsedCode = jerry_parse(
 					(const jerry_char_t *) "REPL", 4,
 					(const jerry_char_t *) inputStr, inputSize,
@@ -292,7 +296,6 @@ void eventLoop() {
 				jerry_release_value(parsedCode);
 			}
 		}
-		keyboardUpdate();
 		storageUpdate();
 	}
 }

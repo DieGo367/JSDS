@@ -67,69 +67,57 @@ static jerry_value_t closeHandler(CALL_INFO) {
 }
 
 static jerry_value_t alertHandler(CALL_INFO) {
-	consoleClear();
-	printf("============= Alert ============");
-	if (argCount > 0) {
-		printValue(args[0]);
-		putchar('\n');
-	}
-	printf("===================== (A) OK ===");
+	if (argCount > 0) printValue(args[0]);
+	else printf("Alert");
+	printf(" [ OK]\n");
 	while (true) {
 		swiWaitForVBlank();
 		scanKeys();
 		if (keysDown() & KEY_A) break;
 	}
-	consoleClear();
 	return undefined;
 }
 
 static jerry_value_t confirmHandler(CALL_INFO) {
-	consoleClear();
-	printf("============ Confirm ===========");
-	if (argCount > 0) {
-		printValue(args[0]);
-		putchar('\n');
-	}
-	printf("========= (A) OK  (B) Cancel ===");
+	if (argCount > 0) printValue(args[0]);
+	else printf("Confirm");
+	printf(" [ OK,  Cancel]\n");
 	while (true) {
 		swiWaitForVBlank();
 		scanKeys();
 		u32 keys = keysDown();
-		if (keys & KEY_A) return consoleClear(), True;
-		else if (keys & KEY_B) return consoleClear(), False;
+		if (keys & KEY_A) return True;
+		else if (keys & KEY_B) return False;
 	}
 }
 
 static jerry_value_t promptHandler(CALL_INFO) {
-	consoleClear();
-	printf("============ Prompt ============");
-	if (argCount > 0) {
-		printValue(args[0]);
-		putchar('\n');
-	}
-	printf("================================");
+	if (argCount > 0) printValue(args[0]);
+	else printf("Prompt");
+	putchar(' ');
 	keyboardCompose(true);
-	while (true) {
+	ComposeStatus status = keyboardComposeStatus();
+	while (status == COMPOSING) {
 		swiWaitForVBlank();
 		scanKeys();
 		keyboardUpdate();
-		ComposeStatus status = keyboardComposeStatus();
-		if (status == FINISHED) {
-			char *str;
-			int strSize;
-			keyboardComposeAccept(&str, &strSize);
-			jerry_value_t strVal = jerry_create_string_sz_from_utf8((jerry_char_t *) str, (jerry_size_t) strSize);
-			free(str);
-			keyboardUpdate();
-			consoleClear();
-			return strVal;
-		}
-		else if (status == INACTIVE) {
-			keyboardUpdate();
-			consoleClear();
-			if (argCount > 1) return jerry_value_to_string(args[1]);
-			else return null;
-		}
+		status = keyboardComposeStatus();
+	}
+	if (status == FINISHED) {
+		char *str;
+		int strSize;
+		keyboardComposeAccept(&str, &strSize);
+		printf(str); putchar('\n');
+		jerry_value_t strVal = jerry_create_string_sz_from_utf8((jerry_char_t *) str, (jerry_size_t) strSize);
+		free(str);
+		keyboardUpdate();
+		return strVal;
+	}
+	else {
+		putchar('\n');
+		keyboardUpdate();
+		if (argCount > 1) return jerry_value_to_string(args[1]);
+		else return null;
 	}
 }
 
