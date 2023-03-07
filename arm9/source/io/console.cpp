@@ -21,6 +21,7 @@ static u16 gfxBuffer[SCREEN_WIDTH * SCREEN_HEIGHT] = {0};
 
 u16 lineWidth = 0;
 u16 lineTop = 0;
+bool filled = false;
 bool paused = false;
 
 u16 colors[4] = {0};
@@ -52,62 +53,39 @@ u16 consoleSetBackground(u16 color) {
 }
 u16 consoleGetBackground() { return colors[0]; }
 
+void consoleDraw() {
+	int firstHeight = lineTop + defaultFont.tileHeight;
+	if (filled) {
+		int secondHeight = SCREEN_HEIGHT - firstHeight;
+		dmaCopyWords(0, gfxBuffer, bgGetGfxPtr(3) + (SCREEN_WIDTH * secondHeight), SCREEN_WIDTH * firstHeight * sizeof(u16));
+		if (secondHeight > 0) dmaCopyWords(1, gfxBuffer + (SCREEN_WIDTH * firstHeight), bgGetGfxPtr(3), SCREEN_WIDTH * secondHeight * sizeof(u16));
+	}
+	else dmaCopyWords(0, gfxBuffer, bgGetGfxPtr(3), SCREEN_WIDTH * firstHeight * sizeof(u16));
+}
+
 void newLine() {
 	lineWidth = 0;
 	lineTop += defaultFont.tileHeight;
 	if (lineTop >= SCREEN_HEIGHT) {
-		int rowCount = lineTop - defaultFont.tileHeight;
-		u32 *dst = (u32 *) gfxBuffer;
-		u32 *src = (u32 *) (gfxBuffer + (defaultFont.tileHeight * SCREEN_WIDTH));
-		while (rowCount--) { // moves an entire row of bg data at a time.
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-			*dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-		}
-		lineTop = SCREEN_HEIGHT - defaultFont.tileHeight;
-		memset(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16));
+		lineTop -= SCREEN_HEIGHT;
+		filled = true;
 	}
+	if (filled) memset(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16));
 }
 
-int writeCodepoint(u16 codepoint) {
+bool writeCodepoint(u16 codepoint) {
 	if (codepoint == '\n') {
 		newLine();
-		return 2;
+		return true;
 	}
 	else if (codepoint == '\t') {
 		u8 tabWidth = fontGetCharWidth(defaultFont, ' ') * TAB_SIZE;
 		lineWidth = (lineWidth / tabWidth + 1) * tabWidth;
-		if (lineWidth > SCREEN_WIDTH) newLine();
-		return 2;
+		if (lineWidth > SCREEN_WIDTH) {
+			newLine();
+			return true;
+		}
+		return false;
 	}
 
 	bool newLined = false;
@@ -120,39 +98,39 @@ int writeCodepoint(u16 codepoint) {
 	fontPrintChar(defaultFont, colors, codepoint, gfxBuffer, SCREEN_WIDTH, lineWidth, lineTop);
 
 	lineWidth += width;
-	return newLined ? 2 : 1;
+	return newLined;
 }
 
 ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 	if (!message) return 0;
 	int amt = len;
-	int update = 0;
+	bool fullUpdate = false;
 	while (amt-- > 0) {
-		int status = 0;
+		bool newLined = false;
 		u8 ch = *message++;
 		if (ch & BIT(7)) {
 			if (amt >= 1 && (ch & 0xE0) == 0xC0 && (message[0] & 0xC0) == 0x80) {
-				status = writeCodepoint((ch & 0x1F) << 6 | (message[0] & 0x3F));
+				newLined = writeCodepoint((ch & 0x1F) << 6 | (message[0] & 0x3F));
 				amt--; message++;
 			}
 			else if (amt >= 2 && (ch & 0xF0) == 0xE0 && (message[0] & 0xC0) == 0x80 && (message[1] & 0xC0) == 0x80) {
-				status = writeCodepoint((ch & 0x0F) << 12 | (message[0] & 0x3F) << 6 | (message[1] & 0x3F));
+				newLined = writeCodepoint((ch & 0x0F) << 12 | (message[0] & 0x3F) << 6 | (message[1] & 0x3F));
 				amt -= 2;
 				message += 2;
 			}
 			else if (amt >= 3 && (ch & 0xF8) == 0xF0 && (message[0] & 0xC0) == 0x80 && (message[1] & 0xC0) == 0x80 && (message[2] & 0xC0) == 0x80) {
-				status = writeCodepoint(REPLACEMENT_CHAR);
+				newLined = writeCodepoint(REPLACEMENT_CHAR);
 				amt -= 3;
 				message += 3;
 			}
-			else status = writeCodepoint(REPLACEMENT_CHAR);
+			else newLined = writeCodepoint(REPLACEMENT_CHAR);
 		}
-		else status = writeCodepoint(ch);
-		if (status > update) update = status;
+		else newLined = writeCodepoint(ch);
+		if (newLined) fullUpdate = true;
 	}
 	if (!paused) {
-		if (update == 2) dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
-		else if (update == 1) dmaCopy(
+		if (fullUpdate) consoleDraw();
+		else dmaCopyWords(1,
 			gfxBuffer + (lineTop * SCREEN_WIDTH),
 			bgGetGfxPtr(3) + (lineTop * SCREEN_WIDTH),
 			SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16)
@@ -191,10 +169,11 @@ void consolePause() {
 // Resumes the DMA copies after every console write, and performs one immediately
 void consoleResume() {
 	paused = false;
-	dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
+	consoleDraw();
 }
 void consoleClear() {
-	memset(gfxBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u16));
-	if (!paused) dmaCopy(gfxBuffer, bgGetGfxPtr(3), sizeof(gfxBuffer));
+	memset(gfxBuffer, 0, sizeof(gfxBuffer));
+	if (!paused) dmaFillWords(0, bgGetGfxPtr(3), sizeof(gfxBuffer));
 	lineWidth = lineTop = 0;
+	filled = false;
 }
