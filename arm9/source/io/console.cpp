@@ -11,12 +11,13 @@
 
 
 const int TAB_SIZE = 2;
+const int BUFFER_HEIGHT = SCREEN_HEIGHT;
 
-static u16 gfxBuffer[SCREEN_WIDTH * SCREEN_HEIGHT] = {0};
+static u16 gfxBuffer[SCREEN_WIDTH * BUFFER_HEIGHT] = {0};
 
+u16 consoleHeight = SCREEN_HEIGHT;
 u16 lineWidth = 0;
-u16 lineTop = 0;
-bool filled = false;
+int linePos = 0;
 bool paused = false;
 
 u16 colors[4] = {0};
@@ -49,23 +50,24 @@ u16 consoleSetBackground(u16 color) {
 u16 consoleGetBackground() { return colors[0]; }
 
 void consoleDraw() {
-	int firstHeight = lineTop + defaultFont.tileHeight;
-	if (filled) {
-		int secondHeight = SCREEN_HEIGHT - firstHeight;
-		dmaCopyWords(0, gfxBuffer, bgGetGfxPtr(3) + (SCREEN_WIDTH * secondHeight), SCREEN_WIDTH * firstHeight * sizeof(u16));
-		if (secondHeight > 0) dmaCopyWords(1, gfxBuffer + (SCREEN_WIDTH * firstHeight), bgGetGfxPtr(3), SCREEN_WIDTH * secondHeight * sizeof(u16));
+	int pos = linePos + defaultFont.tileHeight;
+	if (pos <= consoleHeight) dmaCopyWords(0, gfxBuffer, bgGetGfxPtr(7), pos * SCREEN_WIDTH * sizeof(u16));
+	else if (pos <= BUFFER_HEIGHT) dmaCopyWords(0, gfxBuffer + (pos - consoleHeight) * SCREEN_WIDTH, bgGetGfxPtr(7), consoleHeight * SCREEN_WIDTH * sizeof(u16));
+	else {
+		int bottom = pos % BUFFER_HEIGHT;
+		int top = bottom - consoleHeight;
+		if (top >= 0) dmaCopyWords(0, gfxBuffer + top * SCREEN_WIDTH, bgGetGfxPtr(7), consoleHeight * SCREEN_WIDTH * sizeof(u16));
+		else {
+			dmaCopyWords(0, gfxBuffer + (BUFFER_HEIGHT + top) * SCREEN_WIDTH, bgGetGfxPtr(7), -top * SCREEN_WIDTH * sizeof(u16));
+			if (bottom) dmaCopyWords(0, gfxBuffer, bgGetGfxPtr(7) - (top * SCREEN_WIDTH), bottom * SCREEN_WIDTH * sizeof(u16));
+		}
 	}
-	else dmaCopyWords(0, gfxBuffer, bgGetGfxPtr(3), SCREEN_WIDTH * firstHeight * sizeof(u16));
 }
 
 void newLine() {
 	lineWidth = 0;
-	lineTop += defaultFont.tileHeight;
-	if (lineTop + defaultFont.tileHeight > SCREEN_HEIGHT) {
-		lineTop = 0;
-		filled = true;
-	}
-	if (filled) toncset16(gfxBuffer + (lineTop * SCREEN_WIDTH), 0, SCREEN_WIDTH * defaultFont.tileHeight);
+	linePos += defaultFont.tileHeight;
+	toncset16(gfxBuffer + ((linePos % BUFFER_HEIGHT) * SCREEN_WIDTH), 0, SCREEN_WIDTH * defaultFont.tileHeight);
 }
 
 bool writeCodepoint(u16 codepoint) {
@@ -90,7 +92,7 @@ bool writeCodepoint(u16 codepoint) {
 		newLined = true;
 	}
 
-	fontPrintChar(defaultFont, colors, codepoint, gfxBuffer, SCREEN_WIDTH, lineWidth, lineTop);
+	fontPrintChar(defaultFont, colors, codepoint, gfxBuffer, SCREEN_WIDTH, lineWidth, linePos % BUFFER_HEIGHT);
 
 	lineWidth += width;
 	return newLined;
@@ -125,11 +127,14 @@ ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 	}
 	if (!paused) {
 		if (fullUpdate) consoleDraw();
-		else dmaCopyWords(0,
-			gfxBuffer + (lineTop * SCREEN_WIDTH),
-			bgGetGfxPtr(3) + (filled ? SCREEN_HEIGHT - defaultFont.tileHeight : lineTop) * SCREEN_WIDTH,
-			SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16)
-		);
+		else {
+			int pos = linePos + defaultFont.tileHeight;
+			dmaCopyWords(0,
+				gfxBuffer + (pos % BUFFER_HEIGHT * SCREEN_WIDTH),
+				bgGetGfxPtr(7) + (pos <= consoleHeight ? consoleHeight - defaultFont.tileHeight : pos % BUFFER_HEIGHT) * SCREEN_WIDTH,
+				SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16)
+			);
+		}
 	}
 	return len;
 }
@@ -146,14 +151,16 @@ const devoptab_t opTable = {
 };
 
 void consoleInit() {
+	if (defaultFont.tileWidth == 0) {
+		videoSetModeSub(MODE_3_2D);
+		vramSetBankC(VRAM_C_SUB_BG);
+		bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+		fontLoadDefault();
+	}
 	devoptab_list[STD_OUT] = &opTable;
 	devoptab_list[STD_ERR] = &opTable;
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
-	videoSetMode(MODE_3_2D);
-	vramSetBankA(VRAM_A_MAIN_BG);
-	bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-	if (defaultFont.tileWidth == 0) fontLoadDefault();
 	consoleSetColor(0xFFFF);
 }
 
@@ -168,7 +175,17 @@ void consoleResume() {
 }
 void consoleClear() {
 	toncset(gfxBuffer, 0, sizeof(gfxBuffer));
-	if (!paused) dmaFillWords(0, bgGetGfxPtr(3), sizeof(gfxBuffer));
-	lineWidth = lineTop = 0;
-	filled = false;
+	if (!paused) dmaFillWords(0, bgGetGfxPtr(7), SCREEN_WIDTH * consoleHeight * sizeof(u16));
+	lineWidth = linePos = 0;
+}
+void consoleShrink() {
+	consoleHeight = SCREEN_HEIGHT / 2;
+	if (!paused) {
+		consoleDraw();
+		dmaFillWords(0, bgGetGfxPtr(7) + SCREEN_WIDTH * SCREEN_HEIGHT / 2, SCREEN_WIDTH * SCREEN_HEIGHT / 2 * sizeof(u16));
+	}
+}
+void consoleExpand() {
+	consoleHeight = SCREEN_HEIGHT;
+	if (!paused) consoleDraw();
 }

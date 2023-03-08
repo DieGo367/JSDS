@@ -15,5 +15,7 @@ u16 consoleGetBackground();
 void consolePause();
 void consoleResume();
 void consoleClear();
+void consoleShrink();
+void consoleExpand();
 
 #endif /* JSDS_CONSOLE_HPP */

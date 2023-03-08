@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "console.hpp"
 #include "font.hpp"
 #include "keyboard_nftr.h"
 #include "../tonccpy.h"
@@ -637,10 +638,12 @@ void moveHighlight() {
 
 
 void keyboardInit() {
-	videoSetModeSub(MODE_3_2D);
-	vramSetBankC(VRAM_C_SUB_BG);
-	bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-	if (defaultFont.tileWidth == 0) fontLoadDefault();
+	if (defaultFont.tileWidth == 0) {
+		videoSetModeSub(MODE_3_2D);
+		vramSetBankC(VRAM_C_SUB_BG);
+		bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+		fontLoadDefault();
+	}
 	keyFont = fontLoad(keyboard_nftr);
 }
 void keyboardUpdate() {
@@ -772,6 +775,7 @@ void keyboardUpdate() {
 
 bool keyboardShow() {
 	if (showing) return false;
+	consoleShrink();
 	drawSelectedBoard();
 	showing = true;
 	return true;
@@ -779,6 +783,7 @@ bool keyboardShow() {
 bool keyboardHide() {
 	if (!showing) return false;
 	dmaFillHalfWords(0, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
+	consoleExpand();
 	showing = false;
 	return true;
 }
@@ -793,11 +798,11 @@ void keyboardSetReleaseHandler(void (*handler) (const u16 codepoint, const char 
 void keyboardCompose(bool allowCancel) {
 	composing = COMPOSING;
 	closeOnAccept = !showing;
-	if (!showing || cancelEnabled != allowCancel) {
+	if (cancelEnabled != allowCancel) {
+		showing = false;
 		cancelEnabled = allowCancel;
-		showing = true;
-		drawSelectedBoard();
 	}
+	keyboardShow();
 	compCursor = compositionBuffer;
 	drawComposedText();
 }
