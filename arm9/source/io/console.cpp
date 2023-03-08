@@ -127,14 +127,11 @@ ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 	}
 	if (!paused) {
 		if (fullUpdate) consoleDraw();
-		else {
-			int pos = linePos + defaultFont.tileHeight;
-			dmaCopyWords(0,
-				gfxBuffer + (pos % BUFFER_HEIGHT * SCREEN_WIDTH),
-				bgGetGfxPtr(7) + (pos <= consoleHeight ? consoleHeight - defaultFont.tileHeight : pos % BUFFER_HEIGHT) * SCREEN_WIDTH,
-				SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16)
-			);
-		}
+		else dmaCopyWords(0,
+			gfxBuffer + (linePos % BUFFER_HEIGHT * SCREEN_WIDTH),
+			bgGetGfxPtr(7) + (linePos + defaultFont.tileHeight <= consoleHeight ? linePos : consoleHeight - defaultFont.tileHeight) * SCREEN_WIDTH,
+			SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16)
+		);
 	}
 	return len;
 }

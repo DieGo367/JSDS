@@ -1,9 +1,9 @@
 #include "keyboard.hpp"
 
 #include <nds/arm9/background.h>
+#include <nds/arm9/cache.h>
 #include <nds/arm9/input.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "console.hpp"
 #include "font.hpp"
@@ -460,6 +460,7 @@ void renderKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
 }
 void drawSingleKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
 	renderKey(key, keyWidth, keyHeight, palIdx);
+	DC_FlushRange(gfxKbdBuffer, sizeof(gfxKbdBuffer));
 	for (u8 y = 0; y < keyHeight && key.y + y < KEYBOARD_HEIGHT-1; y++) {
 		dmaCopy(gfxKbdBuffer + key.x + (key.y + y) * SCREEN_WIDTH, bgGetGfxPtr(7) + key.x + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT + (key.y + y))), keyWidth * sizeof(u16));
 	}
@@ -472,6 +473,7 @@ void drawSelectedBoard() {
 		u8 keyHeight = calcKeyHeight(key);
 		renderKey(key, keyWidth, keyHeight, i == highlightedKeyIdx ? HIGHLIGHTED : (keyIsActive(key) ? ACTIVE : NEUTRAL));
 	}
+	DC_FlushRange(gfxKbdBuffer, sizeof(gfxKbdBuffer));
 	dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
 }
 void drawComposedText() {
@@ -491,7 +493,7 @@ void drawComposedText() {
 		}
 		else {
 			for (int j = 0; j < TEXT_HEIGHT; j++) {
-				memmove(gfxCmpBuffer + j * SCREEN_WIDTH, gfxCmpBuffer + j * SCREEN_WIDTH + diff, (SCREEN_WIDTH - diff) * sizeof(u16));
+				tonccpy(gfxCmpBuffer + j * SCREEN_WIDTH, gfxCmpBuffer + j * SCREEN_WIDTH + diff, (SCREEN_WIDTH - diff) * sizeof(u16));
 				u16 *row = gfxCmpBuffer + (j + 1) * SCREEN_WIDTH - width;
 				toncset16(row, COLOR_COMPOSING_BACKDROP, width);
 			}
@@ -499,6 +501,7 @@ void drawComposedText() {
 			x = SCREEN_WIDTH;
 		}
 	}
+	DC_FlushRange(gfxCmpBuffer, sizeof(gfxCmpBuffer));
 	dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }
 
