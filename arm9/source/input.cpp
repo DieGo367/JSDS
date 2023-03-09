@@ -176,14 +176,14 @@ bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 
 	return canceled;
 }
 
+bool pauseKeyEvents = false;
 void onKeyDown(const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
-	if (dependentEvents & keydown) {
+	if (!pauseKeyEvents && dependentEvents & keydown) {
 		dispatchKeyboardEvent(true, codepoint, name, 0, shift, ctrl, alt, meta, caps);
 	}
 }
-
 void onKeyUp(const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
-	if (dependentEvents & keyup) {
+	if (!pauseKeyEvents && dependentEvents & keyup) {
 		dispatchKeyboardEvent(false, codepoint, name, 0, shift, ctrl, alt, meta, caps);
 	}
 }

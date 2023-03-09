@@ -19,6 +19,7 @@ extern "C" {
 #include "error.hpp"
 #include "event.hpp"
 #include "inline.hpp"
+#include "input.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
 #include "jerry/jerryscript.h"
@@ -96,6 +97,7 @@ static jerry_value_t promptHandler(CALL_INFO) {
 	if (argCount > 0) printValue(args[0]);
 	else printf("Prompt");
 	putchar(' ');
+	pauseKeyEvents = true;
 	keyboardCompose(true);
 	ComposeStatus status = keyboardComposeStatus();
 	while (status == COMPOSING) {
@@ -112,11 +114,13 @@ static jerry_value_t promptHandler(CALL_INFO) {
 		jerry_value_t strVal = jerry_create_string_sz_from_utf8((jerry_char_t *) str, (jerry_size_t) strSize);
 		free(str);
 		keyboardUpdate();
+		pauseKeyEvents = false;
 		return strVal;
 	}
 	else {
 		putchar('\n');
 		keyboardUpdate();
+		pauseKeyEvents = false;
 		if (argCount > 1) return jerry_value_to_string(args[1]);
 		else return null;
 	}
