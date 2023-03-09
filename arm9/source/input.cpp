@@ -8,85 +8,102 @@
 
 
 
+u32 canceledButtons = 0;
+// Args: EventTarget, Event
+void dispatchButtonEventTask(const jerry_value_t *args, u32 argCount) {
+	if (dispatchEvent(args[0], args[1], false)) {
+		char *button = getStringProperty(args[1], "button");
+		if (button[0] == 'A') canceledButtons |= KEY_A;
+		else if (button[0] == 'B') canceledButtons |= KEY_B;
+		else if (button[0] == 'X') canceledButtons |= KEY_X;
+		else if (button[0] == 'Y') canceledButtons |= KEY_Y;
+		else if (button[0] == 'L') canceledButtons |= button[1] == 0 ? KEY_L : KEY_LEFT;
+		else if (button[0] == 'R') canceledButtons |= button[1] == 0 ? KEY_R : KEY_RIGHT;
+		else if (button[0] == 'U') canceledButtons |= KEY_UP;
+		else if (button[0] == 'D') canceledButtons |= KEY_DOWN;
+		else if (button[0] == 'S') canceledButtons |= button[1] == 'T' ? KEY_START : KEY_SELECT;
+		free(button);
+	}
+}
+
 void buttonEvents(bool down) {
+	canceledButtons = 0;
 	u32 set = down ? keysDown() : keysUp();
 	if (set) {
 		jerry_value_t buttonEventConstructor = getProperty(ref_global, "ButtonEvent");
 		jerry_value_t buttonStr = createString("button");
 		jerry_value_t args[2] = {createString(down ? "buttondown" : "buttonup"), jerry_create_object()};
 		jerry_release_value(jerry_set_property(args[1], buttonStr, null));
+		if (down) setProperty(args[1], "cancelable", True);
 		jerry_value_t event = jerry_construct_object(buttonEventConstructor, args, 2);
+		bool valueWritten = true;
 		if (set & KEY_A) {
 			jerry_value_t value = createString("A");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_B) {
 			jerry_value_t value = createString("B");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_X) {
 			jerry_value_t value = createString("X");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_Y) {
 			jerry_value_t value = createString("Y");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_L) {
 			jerry_value_t value = createString("L");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_R) {
 			jerry_value_t value = createString("R");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_UP) {
 			jerry_value_t value = createString("Up");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_DOWN) {
 			jerry_value_t value = createString("Down");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_LEFT) {
 			jerry_value_t value = createString("Left");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_RIGHT) {
 			jerry_value_t value = createString("Right");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_START) {
 			jerry_value_t value = createString("START");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
 		}
 		else if (set & KEY_SELECT) {
 			jerry_value_t value = createString("SELECT");
 			jerry_set_internal_property(event, buttonStr, value);
 			jerry_release_value(value);
-			queueEvent(ref_global, event);
+		}
+		else valueWritten = false;
+		if (valueWritten) {
+			if (down) {
+				jerry_value_t taskArgs[2] = {ref_global, event};
+				queueTask(dispatchButtonEventTask, taskArgs, 2);
+			}
+			else queueEvent(ref_global, event);
 		}
 		jerry_release_value(event);
 		jerry_release_value(args[0]);
@@ -95,6 +112,8 @@ void buttonEvents(bool down) {
 		jerry_release_value(buttonEventConstructor);
 	}
 }
+
+u32 getCanceledButtons() { return canceledButtons; }
 
 u16 prevX = 0, prevY = 0;
 void queueStylusEvent(const char *name, int curX, int curY, bool usePrev) {

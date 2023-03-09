@@ -7,6 +7,8 @@
 
 
 void buttonEvents(bool down);
+u32 getCanceledButtons();
+
 void stylusEvents();
 
 extern bool pauseKeyEvents;

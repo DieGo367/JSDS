@@ -8,7 +8,7 @@
 enum ComposeStatus { INACTIVE, COMPOSING, FINISHED };
 
 void keyboardInit();
-void keyboardUpdate();
+void keyboardUpdate(u32 blockedButtons = 0);
 
 bool keyboardShow();
 bool keyboardHide(); 

@@ -651,10 +651,10 @@ void keyboardInit() {
 	}
 	keyFont = fontLoad(keyboard_nftr);
 }
-void keyboardUpdate() {
+void keyboardUpdate(u32 blockedButtons) {
 	if (!showing) return;
 	if (heldMode == NO_HOLD) {
-		u32 down = keysDown();
+		u32 down = keysDown() ^ blockedButtons;
 		if (down & KEY_TOUCH) {
 			touchPosition pos;
 			touchRead(&pos);
@@ -736,7 +736,7 @@ void keyboardUpdate() {
 	}
 	else if (heldMode == D_PAD_PRESS) {
 		u32 heldButtons = keysHeld();
-		u32 down = keysDown();
+		u32 down = keysDown() ^ blockedButtons;
 		if (heldButtons & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
 			if (down & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
 				heldDir = (down & KEY_DOWN) ? KEY_DOWN : ((down & KEY_UP) ? KEY_UP : ((down & KEY_RIGHT) ? KEY_RIGHT : KEY_LEFT));

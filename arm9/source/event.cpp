@@ -274,7 +274,7 @@ void eventLoop() {
 		if (dependentEvents & (stylusdown | stylusmove | stylusup)) stylusEvents();
 		timeoutUpdate();
 		runTasks();
-		keyboardUpdate();
+		keyboardUpdate(getCanceledButtons());
 		if (inREPL) {
 			if (keyboardComposeStatus() == INACTIVE) {
 				putchar('>'); putchar(' ');
