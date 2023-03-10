@@ -1104,7 +1104,7 @@ static jerry_value_t DSTouchGetPositionHandler(CALL_INFO) {
 	return position;
 }
 
-static jerry_value_t DSFileReadHandler(CALL_INFO) {
+static jerry_value_t FileReadHandler(CALL_INFO) {
 	REQUIRE_1();
 
 	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
@@ -1138,7 +1138,7 @@ static jerry_value_t DSFileReadHandler(CALL_INFO) {
 	}
 }
 
-static jerry_value_t DSFileWriteHandler(CALL_INFO) {
+static jerry_value_t FileWriteHandler(CALL_INFO) {
 	REQUIRE_1();
 	EXPECT(jerry_value_is_object(args[0]) && jerry_value_is_typedarray(args[0]) && jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 
@@ -1166,7 +1166,7 @@ static jerry_value_t DSFileWriteHandler(CALL_INFO) {
 	else return jerry_create_number(bytesWritten);
 }
 
-static jerry_value_t DSFileSeekHandler(CALL_INFO) {
+static jerry_value_t FileSeekHandler(CALL_INFO) {
 	REQUIRE_1();
 
 	int mode = 10;
@@ -1187,14 +1187,14 @@ static jerry_value_t DSFileSeekHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t DSFileCloseHandler(CALL_INFO) {
+static jerry_value_t FileCloseHandler(CALL_INFO) {
 	FILE *file;
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
 	if (fclose(file) != 0) return throwError("File close failed.");
 	return undefined;
 }
 
-static jerry_value_t DSFileStaticOpenHandler(CALL_INFO) {
+static jerry_value_t FileStaticOpenHandler(CALL_INFO) {
 	REQUIRE_1();
 	char *path = getAsString(args[0]);
 	char defaultMode[2] = "r";
@@ -1219,15 +1219,15 @@ static jerry_value_t DSFileStaticOpenHandler(CALL_INFO) {
 	}
 	else {
 		jerry_value_t modeStr = createString(mode);
-		jerry_value_t dsFile = newDSFile(file, modeStr);
+		jerry_value_t fileObj = newFile(file, modeStr);
 		jerry_release_value(modeStr);
 		if (mode != defaultMode) free(mode);
 		free(path);
-		return dsFile;
+		return fileObj;
 	}
 }
 
-static jerry_value_t DSFileStaticCopyHandler(CALL_INFO) {
+static jerry_value_t FileStaticCopyHandler(CALL_INFO) {
 	REQUIRE(2);
 	char *sourcePath = getAsString(args[0]);
 	FILE *source = fopen(sourcePath, "r");
@@ -1264,7 +1264,7 @@ static jerry_value_t DSFileStaticCopyHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t DSFileStaticRenameHandler(CALL_INFO) {
+static jerry_value_t FileStaticRenameHandler(CALL_INFO) {
 	REQUIRE(2);
 	char *sourcePath = getAsString(args[0]);
 	char *destPath = getAsString(args[1]);
@@ -1275,14 +1275,14 @@ static jerry_value_t DSFileStaticRenameHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t DSFileStaticRemoveHandler(CALL_INFO) {
+static jerry_value_t FileStaticRemoveHandler(CALL_INFO) {
 	REQUIRE_1();
 	char *path = getAsString(args[0]);
 	if (remove(path) != 0) return throwError("Failed to delete file.");
 	return undefined;
 }
 
-static jerry_value_t DSFileStaticReadHandler(CALL_INFO) {
+static jerry_value_t FileStaticReadHandler(CALL_INFO) {
 	REQUIRE_1();
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "r");
@@ -1307,7 +1307,7 @@ static jerry_value_t DSFileStaticReadHandler(CALL_INFO) {
 	return u8Array;
 }
 
-static jerry_value_t DSFileStaticReadTextHandler(CALL_INFO) {
+static jerry_value_t FileStaticReadTextHandler(CALL_INFO) {
 	REQUIRE_1();
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "r");
@@ -1331,7 +1331,7 @@ static jerry_value_t DSFileStaticReadTextHandler(CALL_INFO) {
 	return str;
 }
 
-static jerry_value_t DSFileStaticWriteHandler(CALL_INFO) {
+static jerry_value_t FileStaticWriteHandler(CALL_INFO) {
 	REQUIRE(2);
 	EXPECT(jerry_value_is_object(args[1]) && jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	char *path = getAsString(args[0]);
@@ -1353,7 +1353,7 @@ static jerry_value_t DSFileStaticWriteHandler(CALL_INFO) {
 	return jerry_create_number(bytesWritten);
 }
 
-static jerry_value_t DSFileStaticWriteTextHandler(CALL_INFO) {
+static jerry_value_t FileStaticWriteTextHandler(CALL_INFO) {
 	REQUIRE(2);
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "w");
@@ -1373,7 +1373,7 @@ static jerry_value_t DSFileStaticWriteTextHandler(CALL_INFO) {
 	return jerry_create_number(bytesWritten);
 }
 
-static jerry_value_t DSFileStaticMakeDirHandler(CALL_INFO) {
+static jerry_value_t FileStaticMakeDirHandler(CALL_INFO) {
 	REQUIRE_1();
 	bool recursive = argCount > 1 ? jerry_value_to_boolean(args[1]) : false;
 	char *path = getAsString(args[0]);
@@ -1395,7 +1395,7 @@ static jerry_value_t DSFileStaticMakeDirHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t DSFileStaticReadDirHandler(CALL_INFO) {
+static jerry_value_t FileStaticReadDirHandler(CALL_INFO) {
 	REQUIRE_1();
 	char *path = getAsString(args[0]);
 	DIR *dir = opendir(path);
@@ -1570,7 +1570,7 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onvblank");
 	defEventAttribute(ref_global, "onwake");
 
-	// DS namespace, where most custom functionality lives
+	// DS namespace, where most DS-specific functionality lives
 	ref_DS = createNamespace(ref_global, "DS");
 
 	setMethod(ref_DS, "getBatteryLevel", DSGetBatteryLevelHandler);
@@ -1676,22 +1676,23 @@ void exposeAPI() {
 	setMethod(touch, "getPosition", DSTouchGetPositionHandler);
 	jerry_release_value(touch);
 
-	jsClass DSFile = createClass(ref_DS, "File", IllegalConstructor);
-	setMethod(DSFile.constructor, "open", DSFileStaticOpenHandler);
-	setMethod(DSFile.constructor, "copy", DSFileStaticCopyHandler);
-	setMethod(DSFile.constructor, "rename", DSFileStaticRenameHandler);
-	setMethod(DSFile.constructor, "remove", DSFileStaticRemoveHandler);
-	setMethod(DSFile.constructor, "read", DSFileStaticReadHandler);
-	setMethod(DSFile.constructor, "readText", DSFileStaticReadTextHandler);
-	setMethod(DSFile.constructor, "write", DSFileStaticWriteHandler);
-	setMethod(DSFile.constructor, "writeText", DSFileStaticWriteTextHandler);
-	setMethod(DSFile.constructor, "makeDir", DSFileStaticMakeDirHandler);
-	setMethod(DSFile.constructor, "readDir", DSFileStaticReadDirHandler);
-	setMethod(DSFile.prototype, "read", DSFileReadHandler);
-	setMethod(DSFile.prototype, "write", DSFileWriteHandler);
-	setMethod(DSFile.prototype, "seek", DSFileSeekHandler);
-	setMethod(DSFile.prototype, "close", DSFileCloseHandler);
-	releaseClass(DSFile);
+	// Simple custom File class, nothing like the web version
+	jsClass File = createClass(ref_global, "File", IllegalConstructor);
+	setMethod(File.constructor, "open", FileStaticOpenHandler);
+	setMethod(File.constructor, "copy", FileStaticCopyHandler);
+	setMethod(File.constructor, "rename", FileStaticRenameHandler);
+	setMethod(File.constructor, "remove", FileStaticRemoveHandler);
+	setMethod(File.constructor, "read", FileStaticReadHandler);
+	setMethod(File.constructor, "readText", FileStaticReadTextHandler);
+	setMethod(File.constructor, "write", FileStaticWriteHandler);
+	setMethod(File.constructor, "writeText", FileStaticWriteTextHandler);
+	setMethod(File.constructor, "makeDir", FileStaticMakeDirHandler);
+	setMethod(File.constructor, "readDir", FileStaticReadDirHandler);
+	setMethod(File.prototype, "read", FileReadHandler);
+	setMethod(File.prototype, "write", FileWriteHandler);
+	setMethod(File.prototype, "seek", FileSeekHandler);
+	setMethod(File.prototype, "close", FileCloseHandler);
+	releaseClass(File);
 
 	exposeBetaAPI();
 }
