@@ -97,16 +97,10 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
  */
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_value_t dispatchStr = createString("dispatch");
-	jerry_value_t eventPhaseStr = createString("eventPhase");
 	jerry_value_t targetStr = createString("target");
 	jerry_value_t currentTargetStr = createString("currentTarget");
 
 	jerry_set_internal_property(event, dispatchStr, True);
-
-	jerry_value_t AT_TARGET = jerry_create_number(2);
-	jerry_set_internal_property(event, eventPhaseStr, AT_TARGET);
-	jerry_release_value(AT_TARGET);
-
 	jerry_set_internal_property(event, targetStr, target);
 	jerry_set_internal_property(event, currentTargetStr, target);
 
@@ -121,11 +115,8 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 		u32 length = jerry_get_array_length(listenersCopy);
 		jerry_value_t removedStr = createString("removed");
 		jerry_value_t onceStr = createString("once");
-		jerry_value_t passiveStr = createString("passive");
 		jerry_value_t callbackStr = createString("callback");
 		jerry_value_t spliceFunc = getProperty(listenersOfType, "splice");
-		jerry_value_t inPassiveListenerStr = createString("inPassiveListener");
-		jerry_value_t handleEventStr = createString("handleEvent");
 		jerry_value_t stopImmediatePropagationStr = createString("stopImmediatePropagation");
 
 		for (u32 i = 0; i < length && !abortFlag; i++) {
@@ -149,27 +140,11 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 					jerry_release_value(spliceArgs[0]);
 					jerry_release_value(jerry_set_property(listener, removedStr, True));
 				}
-				jerry_value_t passiveVal = jerry_get_property(listener, passiveStr);
-				bool passive = jerry_get_boolean_value(passiveVal);
-				jerry_release_value(passiveVal);
-				if (passive) jerry_set_internal_property(event, inPassiveListenerStr, True);
 				
 				jerry_value_t callbackVal = jerry_get_property(listener, callbackStr);
 				jerry_value_t result;
-				bool ran = false;
 				if (jerry_value_is_function(callbackVal)) {
 					result = jerry_call_function(callbackVal, target, &event, 1);
-					ran = true;
-				}
-				else if (jerry_value_is_object(callbackVal)) {
-					jerry_value_t handler = jerry_get_property(callbackVal, handleEventStr);
-					if (jerry_value_is_function(handler)) {
-						result = jerry_call_function(handler, target, &event, 1);
-						ran = true;
-					}
-					jerry_release_value(handler);
-				}
-				if (ran) {
 					if (!abortFlag) {
 						if (!sync) runMicrotasks();
 						if (jerry_value_is_error(result)) handleError(result, sync);
@@ -177,18 +152,13 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 					jerry_release_value(result);
 				}
 				jerry_release_value(callbackVal);
-
-				jerry_set_internal_property(event, inPassiveListenerStr, False);
 			}
 			jerry_release_value(listener);
 		}
 
 		jerry_release_value(stopImmediatePropagationStr);
-		jerry_release_value(handleEventStr);
-		jerry_release_value(inPassiveListenerStr);
 		jerry_release_value(spliceFunc);
 		jerry_release_value(callbackStr);
-		jerry_release_value(passiveStr);
 		jerry_release_value(onceStr);
 		jerry_release_value(removedStr);
 		jerry_release_value(listenersCopy);
@@ -197,18 +167,13 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_release_value(eventType);
 	jerry_release_value(eventListeners);
 
-	jerry_value_t NONE = jerry_create_number(0);
-	jerry_set_internal_property(event, eventPhaseStr, NONE);
-	jerry_release_value(NONE);
 	jerry_set_internal_property(event, targetStr, null);
 	jerry_set_internal_property(event, currentTargetStr, null);
 	jerry_set_internal_property(event, dispatchStr, False);
-	setInternalProperty(event, "stopPropagation", False);
 	setInternalProperty(event, "stopImmediatePropagation", False);
 	
 	jerry_release_value(currentTargetStr);
 	jerry_release_value(targetStr);
-	jerry_release_value(eventPhaseStr);
 	jerry_release_value(dispatchStr);
 	
 	jerry_value_t canceledVal = getInternalProperty(event, "defaultPrevented");

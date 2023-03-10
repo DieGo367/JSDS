@@ -15,7 +15,6 @@ extern "C" {
 #include <unistd.h>
 #include <vector>
 
-#include "abortsignal.hpp"
 #include "error.hpp"
 #include "event.hpp"
 #include "inline.hpp"
@@ -396,63 +395,42 @@ static jerry_value_t consoleClearHandler(CALL_INFO) {
 static jerry_value_t EventConstructor(CALL_INFO) {
 	CONSTRUCTOR(Event); REQUIRE_1();
 
-	jerry_value_t zero = jerry_create_number(0);
 	setInternalProperty(thisValue, "initialized", True);               // initialized flag
 	setInternalProperty(thisValue, "dispatch", False);                 // dispatch flag
-	setInternalProperty(thisValue, "inPassiveListener", False);        // in passive listener flag
-	setInternalProperty(thisValue, "stopPropagation", False);          // stop propagation flag
 	setInternalProperty(thisValue, "stopImmediatePropagation", False); // stop immediate propagation flag
 	setReadonly(thisValue, "target", null);
 	setReadonly(thisValue, "currentTarget", null);
-	setReadonly(thisValue, "eventPhase", zero);
-	setReadonly(thisValue, "bubbles", False);
 	setReadonly(thisValue, "cancelable", False);
 	setReadonly(thisValue, "defaultPrevented", False);                 // canceled flag
-	setReadonly(thisValue, "composed", False);                         // composed flag
-	setReadonly(thisValue, "isTrusted", False);
 	jerry_value_t currentTime = jerry_create_number(time(NULL));
 	setReadonly(thisValue, "timeStamp", currentTime);
 	jerry_release_value(currentTime);
-	jerry_release_value(zero);
 
 	jerry_value_t typeAsString = jerry_value_to_string(args[0]);	
 	setReadonly(thisValue, "type", typeAsString);
 	jerry_release_value(typeAsString);
 
 	if (argCount > 1 && jerry_value_is_object(args[1])) {
-		jerry_value_t bubblesVal = getProperty(args[1], "bubbles");
-		jerry_value_t bubblesBool = jerry_create_boolean(jerry_value_to_boolean(bubblesVal));
-		setInternalProperty(thisValue, "bubbles", bubblesBool);
-		jerry_release_value(bubblesBool);
-		jerry_release_value(bubblesVal);
 		jerry_value_t cancelableVal = getProperty(args[1], "cancelable");
 		jerry_value_t cancelableBool = jerry_create_boolean(jerry_value_to_boolean(cancelableVal));
 		setInternalProperty(thisValue, "cancelable", cancelableBool);
 		jerry_release_value(cancelableBool);
 		jerry_release_value(cancelableVal);
-		jerry_value_t composedVal = getProperty(args[1], "composed");
-		jerry_value_t composedBool = jerry_create_boolean(jerry_value_to_boolean(composedVal));
-		setInternalProperty(thisValue, "composed", composedBool);
-		jerry_release_value(composedBool);
-		jerry_release_value(composedVal);
 	}
 
 	return undefined;
 }
 
 static jerry_value_t EventStopImmediatePropagationHandler(CALL_INFO) {
-	setInternalProperty(thisValue, "stopPropagation", True);
 	setInternalProperty(thisValue, "stopImmediatePropagation", True);
 	return undefined;
 }
 
 static jerry_value_t EventPreventDefaultHandler(CALL_INFO) {
 	jerry_value_t cancelable = getInternalProperty(thisValue, "cancelable");
-	jerry_value_t inPassiveListener = getInternalProperty(thisValue, "inPassiveListener");
-	if (jerry_value_to_boolean(cancelable) && !jerry_value_to_boolean(inPassiveListener)) {
+	if (jerry_value_to_boolean(cancelable)) {
 		setInternalProperty(thisValue, "defaultPrevented", True);
 	}
-	jerry_release_value(inPassiveListener);
 	jerry_release_value(cancelable);
 	return undefined;
 }
@@ -474,69 +452,15 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	
 	jerry_value_t typeStr = createString("type");
 	jerry_value_t callbackStr = createString("callback");
-	jerry_value_t captureStr = createString("capture");
 	jerry_value_t onceStr = createString("once");
-	jerry_value_t passiveStr = createString("passive");
 
 	jerry_value_t typeVal = jerry_value_to_string(args[0]);
 	jerry_value_t callbackVal = args[1];
-	bool capture = false;
 	bool once = false;
-	bool passive = false;
-	jerry_value_t signal = null;
-	if (argCount > 2) {
-		if (jerry_value_is_object(args[2])) {
-			jerry_value_t captureVal = jerry_get_property(args[2], captureStr);
-			capture = jerry_value_to_boolean(captureVal);
-			jerry_release_value(captureVal);
-			
-			jerry_value_t onceVal = jerry_get_property(args[2], onceStr);
-			once = jerry_value_to_boolean(onceVal);
-			jerry_release_value(onceVal);
-			
-			jerry_value_t passiveVal = jerry_get_property(args[2], passiveStr);
-			passive = jerry_value_to_boolean(passiveVal);
-			jerry_release_value(passiveVal);
-			
-			jerry_value_t signalVal = getProperty(args[2], "signal");
-			if (!jerry_value_is_undefined(signalVal)) {
-				jerry_value_t AbortSignal = getProperty(ref_global, "AbortSignal");
-				jerry_value_t isAbortSignalVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, signalVal, AbortSignal);
-				bool isAbortSignal = jerry_get_boolean_value(isAbortSignalVal);
-				jerry_release_value(isAbortSignalVal);
-				jerry_release_value(AbortSignal);
-				if (!isAbortSignal) {
-					jerry_release_value(signalVal);
-					jerry_release_value(typeVal);
-					jerry_release_value(passiveStr);
-					jerry_release_value(onceStr);
-					jerry_release_value(captureStr);
-					jerry_release_value(callbackStr);
-					jerry_release_value(typeStr);
-					jerry_release_value(target);
-					return throwTypeError("'signal' was not an AbortSignal.");
-				}
-				else {
-					jerry_value_t abortedVal = getInternalProperty(signalVal, "aborted");
-					bool isAborted = jerry_get_boolean_value(abortedVal);
-					jerry_release_value(abortedVal);
-					if (isAborted) {
-						jerry_release_value(signalVal);
-						jerry_release_value(typeVal);
-						jerry_release_value(passiveStr);
-						jerry_release_value(onceStr);
-						jerry_release_value(captureStr);
-						jerry_release_value(callbackStr);
-						jerry_release_value(typeStr);
-						jerry_release_value(target);
-						return undefined;
-					}
-					else signal = signalVal;
-				}
-			}
-			else jerry_release_value(signalVal);
-		}
-		else capture = jerry_value_to_boolean(args[2]);
+	if (argCount > 2 && jerry_value_is_object(args[2])) {
+		jerry_value_t onceVal = jerry_get_property(args[2], onceStr);
+		once = jerry_value_to_boolean(onceVal);
+		jerry_release_value(onceVal);
 	}
 
 	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
@@ -551,14 +475,9 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	for (u32 i = 0; shouldAppend && i < length; i++) {
 		jerry_value_t storedListener = jerry_get_property_by_index(listenersOfType, i);
 		jerry_value_t storedCallback = jerry_get_property(storedListener, callbackStr);
-		jerry_value_t storedCapture = jerry_get_property(storedListener, captureStr);
 		jerry_value_t callbackEquality = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallback);
-		bool captureEquality = capture == jerry_get_boolean_value(storedCapture);
-		if (jerry_get_boolean_value(callbackEquality) && captureEquality) {
-			shouldAppend = false;
-		}
+		if (jerry_get_boolean_value(callbackEquality)) shouldAppend = false;
 		jerry_release_value(callbackEquality);
-		jerry_release_value(storedCapture);
 		jerry_release_value(storedCallback);
 		jerry_release_value(storedListener);
 	}
@@ -568,21 +487,9 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 
 		jerry_release_value(jerry_set_property(listener, typeStr, typeVal));
 		jerry_release_value(jerry_set_property(listener, callbackStr, callbackVal));
-		jerry_value_t captureVal = jerry_create_boolean(capture);
-		jerry_release_value(jerry_set_property(listener, captureStr, captureVal));
-		jerry_release_value(captureVal);
 		jerry_value_t onceVal = jerry_create_boolean(once);
 		jerry_release_value(jerry_set_property(listener, onceStr, onceVal));
 		jerry_release_value(onceVal);
-		jerry_value_t passiveVal = jerry_create_boolean(passive);
-		jerry_release_value(jerry_set_property(listener, passiveStr, passiveVal));
-		jerry_release_value(passiveVal);
-		setProperty(listener, "signal", signal);
-		if (!jerry_value_is_null(signal)) {
-			jerry_value_t removeEventListener = getProperty(target, "removeEventListener");
-			abortSignalAddAlgorithm(signal, removeEventListener, target, args, argCount);
-			jerry_release_value(removeEventListener);
-		}
 		setProperty(listener, "removed", False);
 
 		jerry_value_t pushFunc = getProperty(listenersOfType, "push");
@@ -609,11 +516,8 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 
 	jerry_release_value(listenersOfType);
 	jerry_release_value(eventListeners);
-	jerry_release_value(signal);
 	jerry_release_value(typeVal);
-	jerry_release_value(passiveStr);
 	jerry_release_value(onceStr);
-	jerry_release_value(captureStr);
 	jerry_release_value(callbackStr);
 	jerry_release_value(typeStr);
 
@@ -626,19 +530,9 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 	
 	jerry_value_t typeStr = createString("type");
 	jerry_value_t callbackStr = createString("callback");
-	jerry_value_t captureStr = createString("capture");
 
 	jerry_value_t typeVal = jerry_value_to_string(args[0]);
 	jerry_value_t callbackVal = args[1];
-	bool capture = false;
-	if (argCount > 2) {
-		if (jerry_value_is_object(args[2])) {
-			jerry_value_t captureVal = jerry_get_property(args[2], captureStr);
-			capture = jerry_value_to_boolean(captureVal);
-			jerry_release_value(captureVal);
-		}
-		else capture = jerry_value_to_boolean(args[2]);
-	}
 
 	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
 	jerry_value_t listenersOfType = jerry_get_property(eventListeners, typeVal);
@@ -648,10 +542,8 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 		for (u32 i = 0; !removed && i < length; i++) {
 			jerry_value_t storedListener = jerry_get_property_by_index(listenersOfType, i);
 			jerry_value_t storedCallback = jerry_get_property(storedListener, callbackStr);
-			jerry_value_t storedCapture = jerry_get_property(storedListener, captureStr);
 			jerry_value_t callbackEquality = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallback);
-			bool captureEquality = capture == jerry_get_boolean_value(storedCapture);
-			if (jerry_get_boolean_value(callbackEquality) && captureEquality) {
+			if (jerry_get_boolean_value(callbackEquality)) {
 				jerry_value_t spliceFunc = getProperty(listenersOfType, "splice");
 				jerry_value_t spliceArgs[2] = {jerry_create_number(i), jerry_create_number(1)};
 				jerry_release_value(jerry_call_function(spliceFunc, listenersOfType, spliceArgs, 2));
@@ -678,7 +570,6 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 				}
 			}
 			jerry_release_value(callbackEquality);
-			jerry_release_value(storedCapture);
 			jerry_release_value(storedCallback);
 			jerry_release_value(storedListener);
 		}
@@ -686,7 +577,6 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 	jerry_release_value(listenersOfType);
 	jerry_release_value(eventListeners);
 	jerry_release_value(typeVal);
-	jerry_release_value(captureStr);
 	jerry_release_value(callbackStr);
 	jerry_release_value(typeStr);
 
