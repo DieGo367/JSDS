@@ -1524,8 +1524,7 @@ void exposeAPI() {
 	jerry_value_t globalListeners = jerry_create_array(0);
 	setInternalProperty(ref_global, "eventListeners", globalListeners);
 	jerry_release_value(globalListeners);
-	jerry_release_value(EventTarget.constructor);
-	jerry_release_value(EventTarget.prototype);
+	releaseClass(EventTarget);
 
 	ref_Error = getProperty(ref_global, "Error");
 
@@ -1534,13 +1533,10 @@ void exposeAPI() {
 	setMethod(Event.prototype, "preventDefault", EventPreventDefaultHandler);
 	ref_Event = Event.constructor;
 
-	jsClass KeyboardEvent = extendClass(ref_global, "KeyboardEvent", KeyboardEventConstructor, Event.prototype);
-	releaseClass(KeyboardEvent);
-
 	releaseClass(extendClass(ref_global, "ErrorEvent", ErrorEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "PromiseRejectionEvent", PromiseRejectionEventConstructor, Event.prototype));
+	releaseClass(extendClass(ref_global, "KeyboardEvent", KeyboardEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "CustomEvent", CustomEventConstructor, Event.prototype));
-	// new DS-related event constructors
 	releaseClass(extendClass(ref_global, "ButtonEvent", ButtonEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "TouchEvent", TouchEventConstructor, Event.prototype));
 	jerry_release_value(Event.prototype);
@@ -1565,7 +1561,6 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onunhandledrejection");
 	defEventAttribute(ref_global, "onkeydown");
 	defEventAttribute(ref_global, "onkeyup");
-	// new DS-related events
 	defEventAttribute(ref_global, "onbuttondown");
 	defEventAttribute(ref_global, "onbuttonup");
 	defEventAttribute(ref_global, "onsleep");
@@ -1579,7 +1574,7 @@ void exposeAPI() {
 	ref_DS = createNamespace(ref_global, "DS");
 
 	setMethod(ref_DS, "getBatteryLevel", DSGetBatteryLevelHandler);
-	setMethod(ref_DS, "getMainScreen", [](CALL_INFO) { return createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom"); });
+	setMethod(ref_DS, "getMainScreen", [](CALL_INFO) -> jerry_value_t { return createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom"); });
 	setReadonly(ref_DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
 	setMethod(ref_DS, "setMainScreen", DSSetMainScreenHandler);
 	setMethod(ref_DS, "shutdown", [](CALL_INFO) -> jerry_value_t { systemShutDown(); return undefined; });
@@ -1592,14 +1587,10 @@ void exposeAPI() {
 	setReadonlyNumber(profile, "alarmMinute", PersonalData->alarmMinute);
 	setReadonlyNumber(profile, "birthDay", PersonalData->birthDay);
 	setReadonlyNumber(profile, "birthMonth", PersonalData->birthMonth);
-	u16 name[10];
-	for (u8 i = 0; i < PersonalData->nameLen; i++) name[i] = PersonalData->name[i];
-	jerry_value_t nameStr = createStringU16(name, PersonalData->nameLen);
+	jerry_value_t nameStr = createStringU16((u16 *) PersonalData->name, PersonalData->nameLen);
 	setReadonly(profile, "name", nameStr);
 	jerry_release_value(nameStr);
-	u16 message[26];
-	for (u8 i = 0; i < PersonalData->messageLen; i++) message[i] = PersonalData->message[i];
-	jerry_value_t messageStr = createStringU16(message, PersonalData->messageLen);
+	jerry_value_t messageStr = createStringU16((u16 *) PersonalData->message, PersonalData->messageLen);
 	setReadonly(profile, "message", messageStr);
 	jerry_release_value(messageStr);
 	u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
