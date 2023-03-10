@@ -1510,6 +1510,11 @@ void exposeAPI() {
 	setMethod(console, "warn", consoleWarnHandler);
 	jerry_release_value(console);
 
+	jerry_value_t keyboard = createNamespace(ref_global, "keyboard");
+	setMethod(keyboard, "hide", [](CALL_INFO) -> jerry_value_t { keyboardHide(); return undefined; });
+	setMethod(keyboard, "show", [](CALL_INFO) -> jerry_value_t { keyboardShow(); return undefined; });
+	jerry_release_value(keyboard);
+
 	jsClass EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
 	setMethod(EventTarget.prototype, "addEventListener", EventTargetAddEventListenerHandler);
 	setMethod(EventTarget.prototype, "removeEventListener", EventTargetRemoveEventListenerHandler);
@@ -1575,10 +1580,8 @@ void exposeAPI() {
 
 	setMethod(ref_DS, "getBatteryLevel", DSGetBatteryLevelHandler);
 	setMethod(ref_DS, "getMainScreen", [](CALL_INFO) { return createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom"); });
-	setMethod(ref_DS, "hideKeyboard", [](CALL_INFO) -> jerry_value_t { keyboardHide(); return undefined; });
 	setReadonly(ref_DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
 	setMethod(ref_DS, "setMainScreen", DSSetMainScreenHandler);
-	setMethod(ref_DS, "showKeyboard", [](CALL_INFO) -> jerry_value_t { keyboardShow(); return undefined; });
 	setMethod(ref_DS, "shutdown", [](CALL_INFO) -> jerry_value_t { systemShutDown(); return undefined; });
 	setMethod(ref_DS, "sleep", DSSleepHandler);
 	setMethod(ref_DS, "swapScreens", [](CALL_INFO) -> jerry_value_t { lcdSwap(); return undefined; });
