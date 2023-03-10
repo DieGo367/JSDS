@@ -1487,6 +1487,7 @@ void exposeAPI() {
 
 	ref_global = jerry_get_global_object();
 	setProperty(ref_global, "self", ref_global);
+	ref_Error = getProperty(ref_global, "Error");
 
 	setMethod(ref_global, "alert", alertHandler);
 	setMethod(ref_global, "clearInterval", clearTimeoutHandler);
@@ -1533,19 +1534,16 @@ void exposeAPI() {
 	jerry_release_value(globalListeners);
 	releaseClass(EventTarget);
 
-	ref_Error = getProperty(ref_global, "Error");
-
 	jsClass Event = createClass(ref_global, "Event", EventConstructor);
 	setMethod(Event.prototype, "stopImmediatePropagation", EventStopImmediatePropagationHandler);
 	setMethod(Event.prototype, "preventDefault", EventPreventDefaultHandler);
-	ref_Event = Event.constructor;
-
 	releaseClass(extendClass(ref_global, "ErrorEvent", ErrorEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "PromiseRejectionEvent", PromiseRejectionEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "KeyboardEvent", KeyboardEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "CustomEvent", CustomEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "ButtonEvent", ButtonEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "TouchEvent", TouchEventConstructor, Event.prototype));
+	ref_Event = Event.constructor;
 	jerry_release_value(Event.prototype);
 
 	jsClass Storage = createClass(ref_global, "Storage", IllegalConstructor);
