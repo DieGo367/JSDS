@@ -1666,7 +1666,9 @@ void exposeAPI() {
 
 	jerry_value_t touch = jerry_create_object();
 	setProperty(ref_DS, "touch", touch);
-	defGetter(touch, "touching", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
+	defGetter(touch, "start", [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_TOUCH); });
+	defGetter(touch, "active", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
+	defGetter(touch, "end", [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_TOUCH); });
 	setMethod(touch, "getPosition", DSTouchGetPositionHandler);
 	jerry_release_value(touch);
 
