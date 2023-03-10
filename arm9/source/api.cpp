@@ -1459,7 +1459,7 @@ static jerry_value_t BETA_gfxRect(CALL_INFO) {
 
 void exposeBetaAPI() {
 	jerry_value_t beta = jerry_create_object();
-	setProperty(ref_DS, "beta", beta);
+	setProperty(ref_global, "beta", beta);
 
 	setMethod(beta, "gfxInit", BETA_gfxInit);
 	setMethod(beta, "gfxPixel", BETA_gfxPixel);
