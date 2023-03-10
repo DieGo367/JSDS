@@ -35,7 +35,6 @@ jerry_value_t ref_DS;
 jerry_value_t ref_localStorage;
 jerry_value_t ref_Event;
 jerry_value_t ref_Error;
-jerry_value_t ref_DOMException;
 jerry_value_t ref_str_name;
 jerry_value_t ref_str_constructor;
 jerry_value_t ref_str_prototype;
@@ -394,19 +393,6 @@ static jerry_value_t consoleClearHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t DOMExceptionConstructor(CALL_INFO) {
-	CONSTRUCTOR(DOMException);
-
-	jerry_value_t messageVal = argCount > 0 ? jerry_value_to_string(args[0]) : createString("");
-	setReadonly(thisValue, "message", messageVal);
-	jerry_release_value(messageVal);
-	jerry_value_t nameVal = argCount > 1 ? jerry_value_to_string(args[1]) : createString("Error");
-	setReadonly(thisValue, "name", nameVal);
-	jerry_release_value(nameVal);
-	
-	return undefined;
-}
-
 static jerry_value_t EventConstructor(CALL_INFO) {
 	CONSTRUCTOR(Event); REQUIRE_1();
 
@@ -451,28 +437,6 @@ static jerry_value_t EventConstructor(CALL_INFO) {
 		jerry_release_value(composedVal);
 	}
 
-	return undefined;
-}
-
-static jerry_value_t EventNONEGetter(CALL_INFO)            { return jerry_create_number(0); }
-static jerry_value_t EventCAPTURING_PHASEGetter(CALL_INFO) { return jerry_create_number(1); }
-static jerry_value_t EventAT_TARGETGetter(CALL_INFO)       { return jerry_create_number(2); }
-static jerry_value_t EventBUBBLING_PHASEGetter(CALL_INFO)  { return jerry_create_number(3); }
-
-static jerry_value_t EventComposedPathHandler(CALL_INFO) {
-	jerry_value_t dispatchVal = getInternalProperty(thisValue, "dispatch");
-	bool dispatching = jerry_get_boolean_value(dispatchVal);
-	jerry_release_value(dispatchVal);
-	if (dispatching) {
-		jerry_value_t arr = jerry_create_array(1);
-		jerry_release_value(jerry_set_property_by_index(arr, 0, thisValue));
-		return arr;
-	}
-	return jerry_create_array(0);
-}
-
-static jerry_value_t EventStopPropagationHandler(CALL_INFO) {
-	setInternalProperty(thisValue, "stopPropagation", True);
 	return undefined;
 }
 
@@ -740,7 +704,7 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	jerry_value_t dispatchVal = getProperty(args[0], "dispatch");
 	bool dispatched = jerry_value_to_boolean(dispatchVal);
 	jerry_release_value(dispatchVal);
-	if (dispatched) return throwDOMException("Invalid event state", "InvalidStateError");
+	if (dispatched) return throwError("Invalid event state");
 
 	bool canceled = dispatchEvent(target, args[0], true);
 	return jerry_create_boolean(!canceled);
@@ -917,25 +881,6 @@ static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t KeyboardEventDOM_KEY_LOCATION_STANDARDGetter(CALL_INFO) { return jerry_create_number(0); }
-static jerry_value_t KeyboardEventDOM_KEY_LOCATION_LEFTGetter(CALL_INFO)     { return jerry_create_number(1); }
-static jerry_value_t KeyboardEventDOM_KEY_LOCATION_RIGHTGetter(CALL_INFO)    { return jerry_create_number(2); }
-static jerry_value_t KeyboardEventDOM_KEY_LOCATION_NUMPADGetter(CALL_INFO)   { return jerry_create_number(3); }
-
-static jerry_value_t KeyboardEventGetModifierStateHandler(CALL_INFO) {
-	REQUIRE_1();
-	char *key = getAsString(args[0]);
-	bool result = false;
-	if (strcmp(key, "Alt") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "altKey"));
-	else if (strcmp(key, "AltGraph") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "modifierAltGraph"));
-	else if (strcmp(key, "CapsLock") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "modifierCapsLock"));
-	else if (strcmp(key, "Control") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "ctrlKey"));
-	else if (strcmp(key, "Meta") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "metaKey"));
-	else if (strcmp(key, "Shift") == 0) result = jerry_get_boolean_value(getInternalProperty(thisValue, "shiftKey"));
-	free(key);
-	return jerry_create_boolean(result);
-}
-
 static jerry_value_t CustomEventConstructor(CALL_INFO) {
 	CONSTRUCTOR(CustomEvent); REQUIRE_1();
 	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), CustomEventInit);
@@ -1082,7 +1027,7 @@ static jerry_value_t StorageSetItemHandler(CALL_INFO) {
 
 	jerry_value_t result = undefined;
 	if (storageFilled > STORAGE_API_MAX_CAPACITY) {
-		result = throwDOMException("Exceeded the quota.", "QuotaExceededError");
+		result = throwError("Exceeded the quota.");
 	}
 	else {
 		if (strcmp(propertyName, "length") == 0) {
@@ -1175,7 +1120,7 @@ static jerry_value_t StorageProxySetHandler(CALL_INFO) {
 
 	jerry_value_t result;
 	if (storageFilled > STORAGE_API_MAX_CAPACITY) {
-		result = throwDOMException("Exceeded the quota.", "QuotaExceededError");
+		result = throwError("Exceeded the quota.");
 	}
 	else {
 		jerry_value_t assignment = jerry_set_property(args[0], propertyAsString, valAsString);
@@ -1711,29 +1656,13 @@ void exposeAPI() {
 	jerry_release_value(EventTarget.prototype);
 
 	ref_Error = getProperty(ref_global, "Error");
-	jerry_value_t ErrorPrototype = jerry_get_property(ref_Error, ref_str_prototype);
-	jsClass DOMException = extendClass(ref_global, "DOMException", DOMExceptionConstructor, ErrorPrototype);
-	ref_DOMException = DOMException.constructor;
-	jerry_release_value(DOMException.prototype);
-	jerry_release_value(ErrorPrototype);
 
 	jsClass Event = createClass(ref_global, "Event", EventConstructor);
-	classDefGetter(Event, "NONE",            EventNONEGetter);
-	classDefGetter(Event, "CAPTURING_PHASE", EventCAPTURING_PHASEGetter);
-	classDefGetter(Event, "AT_TARGET",       EventAT_TARGETGetter);
-	classDefGetter(Event, "BUBBLING_PHASE",  EventBUBBLING_PHASEGetter);
-	setMethod(Event.prototype, "composedPath", EventComposedPathHandler);
-	setMethod(Event.prototype, "stopPropagation", EventStopPropagationHandler);
 	setMethod(Event.prototype, "stopImmediatePropagation", EventStopImmediatePropagationHandler);
 	setMethod(Event.prototype, "preventDefault", EventPreventDefaultHandler);
 	ref_Event = Event.constructor;
 
 	jsClass KeyboardEvent = extendClass(ref_global, "KeyboardEvent", KeyboardEventConstructor, Event.prototype);
-	classDefGetter(KeyboardEvent, "DOM_KEY_LOCATION_STANDARD", KeyboardEventDOM_KEY_LOCATION_STANDARDGetter);
-	classDefGetter(KeyboardEvent, "DOM_KEY_LOCATION_LEFT",     KeyboardEventDOM_KEY_LOCATION_LEFTGetter);
-	classDefGetter(KeyboardEvent, "DOM_KEY_LOCATION_RIGHT",    KeyboardEventDOM_KEY_LOCATION_RIGHTGetter);
-	classDefGetter(KeyboardEvent, "DOM_KEY_LOCATION_NUMPAD",   KeyboardEventDOM_KEY_LOCATION_NUMPADGetter);
-	setMethod(KeyboardEvent.prototype, "getModifierState", KeyboardEventGetModifierStateHandler);
 	releaseClass(KeyboardEvent);
 
 	releaseClass(extendClass(ref_global, "ErrorEvent", ErrorEventConstructor, Event.prototype));
@@ -1906,7 +1835,6 @@ void releaseReferences() {
 	jerry_release_value(ref_localStorage);
 	jerry_release_value(ref_Event);
 	jerry_release_value(ref_Error);
-	jerry_release_value(ref_DOMException);
 	jerry_release_value(ref_str_name);
 	jerry_release_value(ref_str_constructor);
 	jerry_release_value(ref_str_prototype);
