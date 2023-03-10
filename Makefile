@@ -13,7 +13,7 @@ export TOPDIR	:=	$(CURDIR)
 NITRO_FILES	:=
 
 # These set the information text in the nds file
-GAME_TITLE     := JavaScript DS
+GAME_TITLE     := JSDS
 GAME_SUBTITLE1 := DVDo
 
 include $(DEVKITARM)/ds_rules
