@@ -1092,7 +1092,14 @@ static jerry_value_t DSSleepHandler(CALL_INFO) {
 }
 
 static jerry_value_t DSTouchGetPositionHandler(CALL_INFO) {
-	if ((keysHeld() & KEY_TOUCH) == 0) return null;
+	if ((keysHeld() & KEY_TOUCH) == 0) {
+		jerry_value_t position = jerry_create_object();
+		jerry_value_t NaN = jerry_create_number_nan();
+		setProperty(position, "x", NaN);
+		setProperty(position, "y", NaN);
+		jerry_release_value(NaN);
+		return position;
+	}
 	touchPosition pos; touchRead(&pos);
 	jerry_value_t position = jerry_create_object();
 	jerry_value_t x = jerry_create_number(pos.px);
