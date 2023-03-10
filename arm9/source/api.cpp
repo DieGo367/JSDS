@@ -1594,12 +1594,15 @@ void exposeAPI() {
 	setReadonlyNumber(profile, "alarmMinute", PersonalData->alarmMinute);
 	setReadonlyNumber(profile, "birthDay", PersonalData->birthDay);
 	setReadonlyNumber(profile, "birthMonth", PersonalData->birthMonth);
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 	jerry_value_t nameStr = createStringU16((u16 *) PersonalData->name, PersonalData->nameLen);
 	setReadonly(profile, "name", nameStr);
 	jerry_release_value(nameStr);
 	jerry_value_t messageStr = createStringU16((u16 *) PersonalData->message, PersonalData->messageLen);
 	setReadonly(profile, "message", messageStr);
 	jerry_release_value(messageStr);
+	#pragma GCC diagnostic pop
 	u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
 	setReadonlyNumber(profile, "color", themeColors[PersonalData->theme]);
 	setReadonly(profile, "autoMode", jerry_create_boolean(PersonalData->autoMode));
