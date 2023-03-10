@@ -608,14 +608,12 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 	jerry_value_t messageProp = createString("message");
 	jerry_value_t filenameProp = createString("filename");
 	jerry_value_t linenoProp = createString("lineno");
-	jerry_value_t colnoProp = createString("colno");
 	jerry_value_t emptyStr = createString("");
 	jerry_value_t zero = jerry_create_number(0);
 	setReadonly(thisValue, "error", undefined);
 	setReadonlyJV(thisValue, messageProp, emptyStr);
 	setReadonlyJV(thisValue, filenameProp, emptyStr);
 	setReadonlyJV(thisValue, linenoProp, zero);
-	setReadonlyJV(thisValue, colnoProp, zero);
 	jerry_release_value(zero);
 	jerry_release_value(emptyStr);
 
@@ -641,13 +639,6 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 			jerry_release_value(linenoNum);
 		}
 		jerry_release_value(linenoVal);
-		jerry_value_t colnoVal = jerry_get_property(args[1], colnoProp);
-		if (!jerry_value_is_undefined(colnoVal)) {
-			jerry_value_t colnoNum = jerry_value_to_number(colnoVal);
-			jerry_set_internal_property(thisValue, colnoProp, colnoNum);
-			jerry_release_value(colnoNum);
-		}
-		jerry_release_value(colnoVal);
 		jerry_value_t errorProp = createString("error");
 		jerry_value_t errorVal = jerry_get_property(args[1], errorProp);
 		jerry_set_internal_property(thisValue, errorProp, errorVal);
@@ -655,7 +646,6 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 		jerry_release_value(errorProp);
 	}
 
-	jerry_release_value(colnoProp);
 	jerry_release_value(linenoProp);
 	jerry_release_value(filenameProp);
 	jerry_release_value(messageProp);
@@ -741,32 +731,19 @@ static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
 	jerry_release_value(codeStr);
 	jerry_release_value(keyStr);
 
-	char eventInitBooleanProperties[16][20] = {
-		"repeat", "isComposing",
-		"ctrlKey", "shiftKey", "altKey", "metaKey",
-		"modifierAltGraph", "modifierCapsLock",
-		"modifierFn", "modifierFnLock",
-		"modifierHyper", "modifierNumLock", "modifierScrollLock",
-		"modifierSuper", "modifierSymbol", "modifierSymbolLock"
-	};
+	char eventInitBooleanProperties[][12] = {"repeat", "isComposing", "shiftKey"};
 
 	if (argCount > 1) {
-		for (u8 i = 0; i < 16; i++) {
+		for (u8 i = 0; i < 3; i++) {
 			jerry_value_t prop = createString(eventInitBooleanProperties[i]);
 			jerry_value_t val = jerry_get_property(args[1], prop);
 			bool setTrue = jerry_value_to_boolean(val);
-			if (i < 6) setReadonlyJV(thisValue, prop, jerry_create_boolean(setTrue));
-			else jerry_set_internal_property(thisValue, prop, jerry_create_boolean(setTrue));
+			setReadonlyJV(thisValue, prop, jerry_create_boolean(setTrue));
 			jerry_release_value(val);
 			jerry_release_value(prop);
 		}
 	}
-	else {
-		for (u8 i = 0; i < 16; i++) {
-			if (i < 6) setReadonly(thisValue, eventInitBooleanProperties[i], False);
-			else setInternalProperty(thisValue, eventInitBooleanProperties[i], False);
-		}
-	}
+	else for (u8 i = 0; i < 3; i++) setReadonly(thisValue, eventInitBooleanProperties[i], False);
 
 	return undefined;
 }
