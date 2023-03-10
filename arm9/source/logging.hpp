@@ -22,7 +22,7 @@ void logIndentAdd();
 void logIndentRemove();
 void logIndent();
 
-void log(const jerry_value_t args[], jerry_value_t argCount);
+void log(const jerry_value_t args[], jerry_length_t argCount);
 void logLiteral(jerry_value_t value, u8 level = 0);
 void logObject(jerry_value_t value, u8 level = 0);
 void logTable(const jerry_value_t args[], jerry_value_t argCount);
