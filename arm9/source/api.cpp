@@ -36,8 +36,6 @@ jerry_value_t ref_localStorage;
 jerry_value_t ref_Event;
 jerry_value_t ref_Error;
 jerry_value_t ref_DOMException;
-jerry_value_t ref_task_reportError;
-jerry_value_t ref_task_abortSignalTimeout;
 jerry_value_t ref_str_name;
 jerry_value_t ref_str_constructor;
 jerry_value_t ref_str_prototype;
@@ -126,139 +124,6 @@ static jerry_value_t promptHandler(CALL_INFO) {
 	}
 }
 
-static jerry_value_t atobHandler(CALL_INFO) {
-	REQUIRE_1();
-	char errorName[22] = "InvalidCharacterError";
-	char errorMsg[25] = "Failed to decode base64.";
-
-	jerry_length_t dataSize;
-	char *data = getAsString(args[0], &dataSize);
-	char *dataEnd = data + dataSize;
-
-	// (1) strip ASCII whitespace
-	jerry_length_t strippedSize = 0;
-	for (char *ch = data; ch != dataEnd; ch++) {
-		u8 n; // (8.1) find codepoint associated to character
-		if (*ch == ' ' || *ch == '\t' || *ch == '\n' || *ch == '\r' || *ch == '\f') continue;
-		else if (*ch >= 'A' && *ch <= 'Z') n = *ch - 'A';
-		else if (*ch >= 'a' && *ch <= 'z') n = *ch - 'a' + 26;
-		else if (*ch >= '0' && *ch <= '9') n = *ch - '0' + 52;
-		else if (*ch == '+') n = 62;
-		else if (*ch == '/') n = 63;
-		else if (*ch == '=') n = 64; // equal sign will be handled later
-		else { // (4) error on invalid character
-			free(data);
-			return throwDOMException(errorMsg, errorName);
-		}
-		*ch = n;
-		strippedSize++;
-	}
-	dataEnd = data + strippedSize;
-	*dataEnd = '\0';
-
-	// (2) handle ending equal signs
-	if (strippedSize > 0 && strippedSize % 4 == 0) {
-		if (data[strippedSize - 1] == 64) data[--strippedSize] = '\0';
-		if (data[strippedSize - 1] == 64) data[--strippedSize] = '\0';
-		dataEnd = data + strippedSize;
-	}
-	// (3) fail on %4==1
-	else if (strippedSize % 4 == 1) {
-		free(data);
-		return throwDOMException(errorMsg, errorName);
-	}
-
-	// (5-8) output, buffer, position and loop
-	char *output = (char *) malloc((strippedSize + 1) * 2);
-	char *out = output;
-	int buffer = 0, bits = 0;
-	for (char *ch = data; ch != dataEnd; ch++) {
-		if (*ch == 64) { // (4 again) fail on equal sign not at end of string
-			free(data);
-			return throwDOMException(errorMsg, errorName);
-		}
-		buffer = buffer << 6 | *ch; // (8.2) append 6 bits to buffer
-		bits += 6;
-		if (bits == 24) { // (8.3) output 3 8-bit numbers when buffer reaches 24 bits
-			out = writeBinByteToUTF8(buffer >> 16, out);
-			out = writeBinByteToUTF8(buffer >> 8 & 0xFF, out);
-			out = writeBinByteToUTF8(buffer & 0xFF, out);
-			buffer = bits = 0;
-		}
-	}
-	// (9) handle remaining bits in buffer
-	if (bits == 12) out = writeBinByteToUTF8(buffer >> 4, out);
-	else if (bits == 18) {
-		out = writeBinByteToUTF8(buffer >> 10, out);
-		out = writeBinByteToUTF8(buffer >> 2 & 0xFF, out);
-	}
-	*out = '\0';
-	free(data);
-	
-	jerry_value_t result = jerry_create_string_from_utf8((jerry_char_t *) output);
-	free(output);
-	return result;
-}
-
-const char b64Chars[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-static jerry_value_t btoaHandler(CALL_INFO) {
-	REQUIRE_1();
-
-	jerry_length_t dataSize;
-	char *data = getAsString(args[0], &dataSize);
-	char *dataEnd = data + dataSize;
-
-	// convert UTF8 representation to binary, and count size
-	jerry_length_t binSize = 0;
-	for (char *ch = data; ch != dataEnd; ch++) {
-		if (*ch & BIT(7)) { // greater than U+007F
-			if (*ch & 0b00111100) { // greater than U+00FF, is out of range and therefore invalid
-				free(data);
-				return throwDOMException("The string to be encoded contains characters outside of the Latin1 range.", "InvalidCharacterError");
-			}
-			*ch = (*ch << 6 & 0b11000000) | (*ch & 0b00111111);
-			ch++;
-			binSize += 2;
-		}
-		else binSize++;
-	}
-	dataEnd = data + binSize;
-
-	// allocate just enough memory, then finish the conversion to ASCII
-	char *output = (char *) malloc(((binSize + 2) / 3) * 4);
-	char *out = output;
-	int buffer = 0, bits = 0;
-	for (char *ch = data; ch != dataEnd; ch++) {
-		buffer = buffer << 8 | *ch;
-		bits += 8;
-		if (bits == 24) {
-			*(out++) = b64Chars[buffer >> 18];
-			*(out++) = b64Chars[buffer >> 12 & 0b00111111];
-			*(out++) = b64Chars[buffer >> 6 & 0b00111111];
-			*(out++) = b64Chars[buffer & 0b00111111];
-			buffer = bits = 0;
-		}
-	}
-	if (bits == 8) {
-		*(out++) = b64Chars[buffer >> 2];
-		*(out++) = b64Chars[buffer << 4 & 0b00110000];
-		*(out++) = '=';
-		*(out++) = '=';
-	}
-	else if (bits == 16) {
-		*(out++) = b64Chars[buffer >> 10];
-		*(out++) = b64Chars[buffer >> 4 & 0b00111111];
-		*(out++) = b64Chars[buffer << 2 & 0b00111100];
-		*(out++) = '=';
-	}
-	*out = '\0';
-	free(data);
-
-	jerry_value_t result = createString(output);
-	free(output);
-	return result;
-}
-
 static jerry_value_t setTimeoutHandler(CALL_INFO) {
 	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, false);
 	else {
@@ -282,31 +147,6 @@ static jerry_value_t setIntervalHandler(CALL_INFO) {
 static jerry_value_t clearTimeoutHandler(CALL_INFO) {
 	if (argCount > 0) clearTimeout(args[0]);
 	else clearTimeout(undefined);
-	return undefined;
-}
-
-static jerry_value_t reportErrorHandler(CALL_INFO) {
-	REQUIRE_1();
-	jerry_value_t error = jerry_create_error_from_value(args[0], false);
-	handleError(error, true);
-	jerry_release_value(error);
-	return undefined;
-}
-
-static jerry_value_t queueMicrotaskHandler(CALL_INFO) {
-	REQUIRE_1(); EXPECT(jerry_value_is_function(args[0]), Function);
-
-	jerry_value_t promise = jerry_create_promise();
-	jerry_value_t thenFunc = getProperty(promise, "then");
-	jerry_value_t thenPromise = jerry_call_function(thenFunc, promise, args, 1);
-	jerry_value_t catchFunc = getProperty(thenPromise, "catch");
-	jerry_release_value(jerry_call_function(catchFunc, thenPromise, &ref_task_reportError, 1));
-	jerry_release_value(catchFunc);
-	jerry_release_value(thenPromise);
-	jerry_release_value(thenFunc);
-
-	jerry_release_value(jerry_resolve_or_reject_promise(promise, undefined, true));
-	jerry_release_value(promise);
 	return undefined;
 }
 
@@ -393,20 +233,6 @@ static jerry_value_t consoleDirHandler(CALL_INFO) {
 		logIndent();
 		if (jerry_value_is_object(args[0])) logObject(args[0]);
 		else logLiteral(args[0]);
-		putchar('\n');
-	}
-	consoleResume();
-	return undefined;
-}
-
-static jerry_value_t consoleDirxmlHandler(CALL_INFO) {
-	consolePause();
-	if (argCount > 0) {
-		logIndent();
-		for (u32 i = 0; i < argCount; i++) {
-			logLiteral(args[i]);
-			if (i < argCount - 1) putchar(' ');
-		}
 		putchar('\n');
 	}
 	consoleResume();
@@ -1201,104 +1027,6 @@ static jerry_value_t StylusEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t AbortControllerConstructor(CALL_INFO) {
-	CONSTRUCTOR(AbortController);
-
-	jerry_value_t signal = newAbortSignal(false);
-	setReadonly(thisValue, "signal", signal);
-	setReadonly(signal, "reason", undefined);
-	jerry_release_value(signal);
-
-	return undefined;
-}
-
-static jerry_value_t AbortControllerAbortHandler(CALL_INFO) {
-	jerry_value_t signal = getInternalProperty(thisValue, "signal");
-	jerry_value_t abortedStr = createString("aborted");
-	jerry_value_t abortedVal = jerry_get_internal_property(signal, abortedStr);
-	if (!jerry_get_boolean_value(abortedVal)) {
-		abortSignalRunAlgorithms(signal);
-
-		if (argCount > 0 && !jerry_value_is_undefined(args[0])) setInternalProperty(signal, "reason", args[0]);
-		else {
-			jerry_value_t exception = createDOMException("signal is aborted without reason.", "AbortError");
-			setInternalProperty(signal, "reason", exception);
-			jerry_release_value(exception);
-		}
-		jerry_value_t abortStr = createString("abort");
-		jerry_value_t abortEvent = jerry_construct_object(ref_Event, &abortStr, 1);
-		jerry_release_value(abortStr);
-
-		setInternalProperty(abortEvent, "isTrusted", True);
-
-		dispatchEvent(signal, abortEvent, true);
-		jerry_release_value(abortEvent);
-
-		jerry_set_internal_property(signal, abortedStr, True);
-	}
-	jerry_release_value(abortedVal);
-	jerry_release_value(abortedStr);
-	jerry_release_value(signal);
-	return undefined;
-}
-
-static jerry_value_t AbortSignalStaticAbortHandler(CALL_INFO) {
-	jerry_value_t signal = newAbortSignal(true);
-	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		setReadonly(signal, "reason", args[0]);
-	}
-	else {
-		jerry_value_t exception = createDOMException("signal is aborted without reason.", "AbortError");
-		setReadonly(signal, "reason", exception);
-		jerry_release_value(exception);
-	}
-	return signal;
-}
-
-static jerry_value_t AbortSignalStaticTimeoutHandler(CALL_INFO) {
-	REQUIRE_1();
-	jerry_value_t signal = newAbortSignal(false);
-	setReadonly(signal, "reason", undefined);
-	jerry_value_t ms = jerry_value_to_number(args[0]);
-	jerry_release_value(addTimeout(ref_task_abortSignalTimeout, ms, &signal, 1, false, true));
-	jerry_release_value(ms);
-	return signal;
-}
-
-static jerry_value_t abortSignalTimeoutTask(CALL_INFO) {
-	jerry_value_t abortedStr = createString("aborted");
-	jerry_value_t abortedVal = jerry_get_internal_property(args[0], abortedStr);
-	if (!jerry_get_boolean_value(abortedVal)) {
-		abortSignalRunAlgorithms(args[0]);
-
-		jerry_value_t exception = createDOMException("signal timed out.", "TimeoutError");
-		setInternalProperty(args[0], "reason", exception);
-		jerry_release_value(exception);
-
-		jerry_value_t abortStr = createString("abort");
-		jerry_value_t abortEvent = jerry_construct_object(ref_Event, &abortStr, 1);
-		jerry_release_value(abortStr);
-
-		setInternalProperty(abortEvent, "isTrusted", True);
-
-		dispatchEvent(args[0], abortEvent, true);
-		jerry_release_value(abortEvent);
-
-		jerry_set_internal_property(args[0], abortedStr, True);
-	}
-	jerry_release_value(abortedVal);
-	jerry_release_value(abortedStr);
-	return undefined;
-}
-
-static jerry_value_t AbortSignalThrowIfAbortedHandler(CALL_INFO) {
-	jerry_value_t abortedVal = getInternalProperty(thisValue, "aborted");
-	bool aborted = jerry_get_boolean_value(abortedVal);
-	jerry_release_value(abortedVal);
-	if (aborted) return jerry_create_error_from_value(getInternalProperty(thisValue, "reason"), true);
-	else return undefined;
-}
-
 static jerry_value_t StorageLengthGetter(CALL_INFO) {
 	jerry_value_t propNames = jerry_get_object_keys(thisValue);
 	u32 length = jerry_get_array_length(propNames);
@@ -1496,344 +1224,6 @@ static jerry_value_t StorageProxyDeletePropertyHandler(CALL_INFO) {
 	jerry_release_value(hasOwn);
 	jerry_release_value(propertyAsString);
 	return result;
-}
-
-static jerry_value_t TextDecoderConstructor(CALL_INFO) {
-	CONSTRUCTOR(TextDecoder);
-
-	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		char *str = getAsString(args[0]);
-		if (strcmp(str, "utf-8") != 0 && strcmp(str, "utf8") != 0) {
-			free(str);
-			return jerry_create_error(JERRY_ERROR_RANGE, (jerry_char_t *) "The encoding label provided is invalid.");
-		}
-		free(str);
-	}
-
-	jerry_value_t encoding = createString("utf-8");
-	setReadonly(thisValue, "encoding", encoding);
-	jerry_release_value(encoding);
-
-	jerry_value_t fatalStr = createString("fatal");
-	jerry_value_t ignoreBOMStr = createString("ignoreBOM");
-	setReadonlyJV(thisValue, fatalStr, False);
-	setReadonlyJV(thisValue, ignoreBOMStr, False);
-
-	setInternalProperty(thisValue, "BOMSeen", False);
-	setInternalProperty(thisValue, "doNotFlush", False);
-
-	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
-		if (!jerry_value_is_object(args[1])) {
-			jerry_release_value(fatalStr);
-			jerry_release_value(ignoreBOMStr);
-			return throwTypeError("Expected type 'TextDecoderOptions'.");
-		}
-		jerry_value_t fatalVal = jerry_get_property(args[1], fatalStr);
-		jerry_set_internal_property(thisValue, fatalStr, jerry_value_to_boolean(fatalVal) ? True : False);
-		jerry_release_value(fatalVal);
-		jerry_value_t ignoreBOMVal = jerry_get_property(args[1], ignoreBOMStr);
-		jerry_set_internal_property(thisValue, ignoreBOMStr, jerry_value_to_boolean(ignoreBOMVal) ? True : False);
-		jerry_release_value(ignoreBOMVal);
-	}
-
-	jerry_release_value(fatalStr);
-	jerry_release_value(ignoreBOMStr);
-
-	return undefined;
-}
-
-static jerry_value_t TextDecoderDecodeHandler(CALL_INFO) {
-	jerry_value_t doNotFlushStr = createString("doNotFlush");
-	jerry_value_t doNotFlushVal = jerry_get_internal_property(thisValue, doNotFlushStr);
-	if (jerry_get_boolean_value(doNotFlushVal) == false) {
-		setInternalProperty(thisValue, "hasPrevIO", False);
-		setInternalProperty(thisValue, "BOMSeen", False);
-	}
-	jerry_release_value(doNotFlushVal);
-
-	bool doNotFlush = false;
-	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
-		if (jerry_value_is_object(args[1])) {
-			jerry_value_t streamVal = getProperty(args[1], "stream");
-			doNotFlush = jerry_value_to_boolean(streamVal);
-			jerry_set_internal_property(thisValue, doNotFlushStr, doNotFlush ? True : False);
-			jerry_release_value(streamVal);
-		}
-		else {
-			jerry_release_value(doNotFlushStr);
-			return throwTypeError("Expected type 'TextDecodeOptions'.");
-		}
-	}
-	jerry_release_value(doNotFlushStr);
-
-	u8 *source = NULL;
-	u32 sourceLen = 0;
-	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		if (jerry_value_is_typedarray(args[0])) {
-			u32 byteOffset = 0;
-			jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &sourceLen);
-			source = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
-			jerry_release_value(arrayBuffer);
-		}
-		else if (jerry_value_is_arraybuffer(args[0])) {
-			source = jerry_get_arraybuffer_pointer(args[0]);
-			sourceLen = jerry_get_arraybuffer_byte_length(args[0]);
-		}
-		else return throwTypeError("Expected type 'ArrayBuffer' or 'ArrayBufferView'.");
-	}
-
-	jerry_value_t fatal = getInternalProperty(thisValue, "fatal");
-	bool isFatal = jerry_get_boolean_value(fatal);
-	jerry_release_value(fatal);
-
-	/*
-	Time to decode UTF-8 into... UTF-8.
-	Reason for this is that the methods for creating strings provided by
-	JerryScript accept two formats: CESU-8 and UTF-8. There's no reason to
-	convert to raw Unicode when I'd just have to convert it to one of those
-	two anyway. I believe JerryScript is using CESU-8 internally. I have
-	the option to either convert to CESU-8 myself or just let JerryScript's
-	internal function do it for me. In any case, I still have to do my own
-	"decode" to handle error behavior to match the spec (and since Jerry
-	does its own string validation, this unfortunately means that they are
-	being checked twice).
-	*/
-	
-	u32 i = 0;
-	u32 sequence = 0;
-	u8 bytesNeeded = 0;
-	u8 bytesSeen = 0;
-	u32 lowerBound = 0x80;
-	u32 upperBound = 0xBF;
-
-	jerry_value_t hasPrevIO = getInternalProperty(thisValue, "hasPrevIO");
-	if (jerry_get_boolean_value(hasPrevIO)) {
-		jerry_value_t sequenceNum = getInternalProperty(thisValue, "seq");
-		sequence = jerry_value_as_uint32(sequenceNum);
-		jerry_release_value(sequenceNum);
-		jerry_value_t needed_seen = getInternalProperty(thisValue, "ns");
-		u32 needed_seen_u32 = jerry_value_as_uint32(needed_seen);
-		bytesNeeded = needed_seen_u32 >> 8;
-		bytesSeen = needed_seen_u32 & 0xFF;
-		jerry_release_value(needed_seen);
-		jerry_value_t lowerBoundNum = getInternalProperty(thisValue, "lb");
-		lowerBound = jerry_value_as_uint32(lowerBoundNum);
-		jerry_release_value(lowerBoundNum);
-		jerry_value_t upperBoundNum = getInternalProperty(thisValue, "ub");
-		upperBound = jerry_value_as_uint32(upperBoundNum);
-		jerry_release_value(upperBoundNum);
-	}
-	jerry_release_value(hasPrevIO);
-
-	std::vector<u8> out;
-	char errorMsg[31] = "The encoded data is not valid.";
-
-	while (true) {
-		if (i >= sourceLen) {
-			if (bytesNeeded > 0 && !doNotFlush) {
-				bytesNeeded = 0;
-				if (isFatal) return throwTypeError(errorMsg);
-				else {
-					out.emplace_back(0xEF);
-					out.emplace_back(0xBF);
-					out.emplace_back(0xBD);
-				}
-			}
-			break;
-		}
-		u8 byte = source[i];
-		if (bytesNeeded == 0) {
-			if (byte <= 0x7F) {
-				out.emplace_back(byte);
-			}
-			else if (byte >= 0xC2 && byte <= 0xDF) {
-				bytesNeeded = 1;
-				sequence = sequence << 8 | byte;
-			}
-			else if (byte >= 0xE0 && byte <= 0xEF) {
-				if (byte == 0xE0) lowerBound = 0xA0;
-				if (byte == 0xED) upperBound = 0x9F;
-				bytesNeeded = 2;
-				sequence = sequence << 8 | byte;
-			}
-			else if (byte >= 0xF0 && byte <= 0xF4) {
-				if (byte == 0xF0) lowerBound = 0x90;
-				if (byte == 0xF4) upperBound = 0x8F;
-				bytesNeeded = 3;
-				sequence = sequence << 8 | byte;
-			}
-			else {
-				if (isFatal) return throwTypeError(errorMsg);
-				else {
-					out.emplace_back(0xEF);
-					out.emplace_back(0xBF);
-					out.emplace_back(0xBD);
-				}
-			}
-		}
-		else if (byte < lowerBound || byte > upperBound) {
-			sequence = bytesNeeded = bytesSeen = 0;
-			lowerBound = 0x80;
-			upperBound = 0xBF;
-			if (isFatal) return throwTypeError(errorMsg);
-			else {
-				out.emplace_back(0xEF);
-				out.emplace_back(0xBF);
-				out.emplace_back(0xBD);
-			}
-		}
-		else {
-			lowerBound = 0x80;
-			upperBound = 0xBF;
-			sequence = sequence << 8 | byte;
-			if (++bytesSeen == bytesNeeded) {
-				if (bytesNeeded == 3) out.emplace_back(sequence >> 24);
-				if (bytesNeeded >= 2) out.emplace_back(sequence >> 16 & 0xFF);
-				out.emplace_back(sequence >> 8 & 0xFF);
-				out.emplace_back(sequence & 0xFF);
-				sequence = bytesNeeded = bytesSeen = 0;
-			}
-		}
-		i++;
-	}
-
-	if (doNotFlush) {
-		jerry_value_t sequenceNum = jerry_create_number(sequence);
-		jerry_value_t needed_seen = jerry_create_number(bytesNeeded << 8 | bytesSeen);
-		jerry_value_t lowerBoundNum = jerry_create_number(lowerBound);
-		jerry_value_t upperBoundNum = jerry_create_number(upperBound);
-		setInternalProperty(thisValue, "seq", sequenceNum);
-		setInternalProperty(thisValue, "ns", needed_seen);
-		setInternalProperty(thisValue, "lb", lowerBoundNum);
-		setInternalProperty(thisValue, "ub", upperBoundNum);
-		setInternalProperty(thisValue, "hasPrevIO", True);
-		jerry_release_value(sequenceNum);
-		jerry_release_value(needed_seen);
-		jerry_release_value(lowerBoundNum);
-		jerry_release_value(upperBoundNum);
-	}
-
-	u8 *data = out.data();
-	u32 size = out.size();
-
-	if (size > 2) {
-		jerry_value_t ignoreBOM = getInternalProperty(thisValue, "ignoreBOM");
-		if (jerry_get_boolean_value(ignoreBOM) == false) {
-			jerry_value_t BOMSeen = getInternalProperty(thisValue, "BOMSeen");
-			if (jerry_get_boolean_value(BOMSeen) == false) {
-				if (data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
-					data += 3;
-					size -= 3;
-					setInternalProperty(thisValue, "BOMSeen", True);
-				}
-			}
-			jerry_release_value(BOMSeen);
-		}
-		jerry_release_value(ignoreBOM);
-	}
-
-	return jerry_create_string_sz_from_utf8(data, size);
-}
-
-static jerry_value_t TextEncoderConstructor(CALL_INFO) {
-	CONSTRUCTOR(TextEncoder);
-
-	jerry_value_t encoding = createString("utf-8");
-	setReadonly(thisValue, "encoding", encoding);
-	jerry_release_value(encoding);
-
-	return undefined;
-}
-
-static jerry_value_t TextEncoderEncodeHandler(CALL_INFO) {
-	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		jerry_value_t stringVal = jerry_value_to_string(args[0]);
-		jerry_length_t size = jerry_get_string_size(stringVal);
-		jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
-		u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer);
-		jerry_string_to_utf8_char_buffer(stringVal, data, size);
-		jerry_value_t typedArray = jerry_create_typedarray_for_arraybuffer(JERRY_TYPEDARRAY_UINT8, arrayBuffer);
-		jerry_release_value(stringVal);
-		jerry_release_value(arrayBuffer);
-		return typedArray;
-	}
-	else return jerry_create_typedarray(JERRY_TYPEDARRAY_UINT8, 0);
-}
-
-static jerry_value_t TextEncoderEncodeIntoHandler(CALL_INFO) {
-	REQUIRE(2);
-	EXPECT(jerry_value_is_object(args[1]) && jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
-
-	jerry_value_t stringVal = jerry_value_to_string(args[0]);
-	u32 stringSize = jerry_get_utf8_string_size(stringVal);
-	u32 stringLen = jerry_get_string_length(stringVal);
-	u32 offset = 0, bufferSize = 0;
-	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &offset, &bufferSize);
-	u8 *dest = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
-	u32 written = jerry_string_to_utf8_char_buffer(stringVal, dest, bufferSize);
-	jerry_release_value(arrayBuffer);
-
-	u8 *copy = NULL;
-	// If the destination buffer was too small, the first string copy will fail.
-	// In that case, dump a copy of the string to perform the writes manually
-	if (written == 0 && stringLen > 0) {
-		copy = (u8 *) malloc(stringSize);
-		jerry_string_to_utf8_char_buffer(stringVal, copy, stringSize);
-	}
-	jerry_release_value(stringVal);
-
-	u32 read = 0;
-	u32 i = 0;
-	u32 validSize = stringSize < bufferSize ? stringSize : bufferSize;
-	u8 byte;
-	u8 *source = copy == NULL ? dest : copy;
-	while (i < validSize && read < stringLen) {
-		byte = source[i];
-
-		u8 byteCt = 0; // byte size of the incoming codepoint
-		u8 lenCt = 0;  // number of UTF-16 codepoints used by incoming codepoint (1 or 2)
-
-		if (byte >= 0xF0 && byte <= 0xF4) { // greater than U+FFFF
-			lenCt = 2;
-			byteCt = 4;
-		}
-		else {
-			lenCt = 1;
-			if (byte <= 0x7F) byteCt = 1;
-			else if (byte >= 0xC2 && byte <= 0xDF) byteCt = 2;
-			else if (byte >= 0xE0 && byte <= 0xEF) {
-				byteCt = 3;
-				// replace surrogates with the replacement char
-				u16 codepoint = (byte & 0xF) << 12 | (source[i+1] & 0b111111) << 6 | (source[i+2] & 0b111111);
-				if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
-					source[i] = 0xEF;
-					source[i+1] = 0xBF;
-					source[i+2] = 0xBD;
-				}
-			}
-			else break;
-		}
-
-		if (i + byteCt <= validSize && read + lenCt <= stringLen) {
-			read += lenCt;
-			if (copy != NULL) written += byteCt;
-		}
-		i += byteCt;
-	}
-
-	if (copy != NULL) {
-		tonccpy(dest, copy, written);
-		free(copy);
-	}
-
-	jerry_value_t returnVal = jerry_create_object();
-	jerry_value_t readVal = jerry_create_number(read);
-	setProperty(returnVal, "read", readVal);
-	jerry_release_value(readVal);
-	jerry_value_t writtenVal = jerry_create_number(written);
-	setProperty(returnVal, "written", writtenVal);
-	jerry_release_value(writtenVal);
-	return returnVal;
 }
 
 static jerry_value_t DSGetBatteryLevelHandler(CALL_INFO) {
@@ -2273,7 +1663,6 @@ void exposeAPI() {
 	ref_str_prototype = createString("prototype");
 	ref_str_backtrace = createString("backtrace");
 	ref_sym_toStringTag = jerry_get_well_known_symbol(JERRY_SYMBOL_TO_STRING_TAG);
-	ref_task_abortSignalTimeout = jerry_create_external_function(abortSignalTimeoutTask);
 	ref_consoleCounters = jerry_create_object();
 	ref_consoleTimers = jerry_create_object();
 
@@ -2281,15 +1670,11 @@ void exposeAPI() {
 	setProperty(ref_global, "self", ref_global);
 
 	setMethod(ref_global, "alert", alertHandler);
-	setMethod(ref_global, "atob", atobHandler);
-	setMethod(ref_global, "btoa", btoaHandler);
 	setMethod(ref_global, "clearInterval", clearTimeoutHandler);
 	setMethod(ref_global, "clearTimeout", clearTimeoutHandler);
 	setMethod(ref_global, "close", closeHandler);
 	setMethod(ref_global, "confirm", confirmHandler);
 	setMethod(ref_global, "prompt", promptHandler);
-	setMethod(ref_global, "queueMicrotask", queueMicrotaskHandler);
-	ref_task_reportError = createMethod(ref_global, "reportError", reportErrorHandler);
 	setMethod(ref_global, "setInterval", setIntervalHandler);
 	setMethod(ref_global, "setTimeout", setTimeoutHandler);
 	
@@ -2300,10 +1685,8 @@ void exposeAPI() {
 	setMethod(console, "countReset", consoleCountResetHandler);
 	setMethod(console, "debug", consoleDebugHandler);
 	setMethod(console, "dir", consoleDirHandler);
-	setMethod(console, "dirxml", consoleDirxmlHandler);
 	setMethod(console, "error", consoleErrorHandler);
 	setMethod(console, "group", consoleGroupHandler);
-	setMethod(console, "groupCollapsed", consoleGroupHandler);
 	setMethod(console, "groupEnd", consoleGroupEndHandler);
 	setMethod(console, "info", consoleInfoHandler);
 	setMethod(console, "log", consoleLogHandler);
@@ -2325,6 +1708,7 @@ void exposeAPI() {
 	setInternalProperty(ref_global, "eventListeners", globalListeners);
 	jerry_release_value(globalListeners);
 	jerry_release_value(EventTarget.constructor);
+	jerry_release_value(EventTarget.prototype);
 
 	ref_Error = getProperty(ref_global, "Error");
 	jerry_value_t ErrorPrototype = jerry_get_property(ref_Error, ref_str_prototype);
@@ -2360,17 +1744,6 @@ void exposeAPI() {
 	releaseClass(extendClass(ref_global, "StylusEvent", StylusEventConstructor, Event.prototype));
 	jerry_release_value(Event.prototype);
 
-	jsClass AbortController = createClass(ref_global, "AbortController", AbortControllerConstructor);
-	setMethod(AbortController.prototype, "abort", AbortControllerAbortHandler);
-	releaseClass(AbortController);
-
-	jsClass AbortSignal = extendClass(ref_global, "AbortSignal", IllegalConstructor, EventTarget.prototype);
-	setMethod(AbortSignal.constructor, "abort", AbortSignalStaticAbortHandler);
-	setMethod(AbortSignal.constructor, "timeout", AbortSignalStaticTimeoutHandler);
-	setMethod(AbortSignal.prototype, "throwIfAborted", AbortSignalThrowIfAbortedHandler);
-	releaseClass(AbortSignal);
-	jerry_release_value(EventTarget.prototype);
-
 	jsClass Storage = createClass(ref_global, "Storage", IllegalConstructor);
 	defGetter(Storage.prototype, "length", StorageLengthGetter);
 	setMethod(Storage.prototype, "key", StorageKeyHandler);
@@ -2387,19 +1760,8 @@ void exposeAPI() {
 	setProperty(ref_global, "localStorage", ref_localStorage);
 	setInternalProperty(ref_localStorage, "isLocal", True);
 
-	jsClass TextDecoder = createClass(ref_global, "TextDecoder", TextDecoderConstructor);
-	setMethod(TextDecoder.prototype, "decode", TextDecoderDecodeHandler);
-	releaseClass(TextDecoder);
-
-	jsClass TextEncoder = createClass(ref_global, "TextEncoder", TextEncoderConstructor);
-	setMethod(TextEncoder.prototype, "encode", TextEncoderEncodeHandler);
-	setMethod(TextEncoder.prototype, "encodeInto", TextEncoderEncodeIntoHandler);
-	releaseClass(TextEncoder);
-
 	defEventAttribute(ref_global, "onerror");
-	defEventAttribute(ref_global, "onload");
 	defEventAttribute(ref_global, "onunhandledrejection");
-	defEventAttribute(ref_global, "onunload");
 	defEventAttribute(ref_global, "onkeydown");
 	defEventAttribute(ref_global, "onkeyup");
 	// new DS-related events
@@ -2518,19 +1880,6 @@ void exposeAPI() {
 	setMethod(stylus, "getPosition", DSStylusGetPositionHandler);
 	jerry_release_value(stylus);
 
-	jerry_value_t Screen = jerry_create_object();
-	setProperty(ref_DS, "Screen", Screen);
-	setStringProperty(Screen, "Bottom", "bottom");
-	setStringProperty(Screen, "Top", "top");
-	jerry_release_value(Screen);
-
-	jerry_value_t SeekMode = jerry_create_object();
-	setProperty(ref_DS, "SeekMode", SeekMode);
-	setStringProperty(SeekMode, "Start", "start");
-	setStringProperty(SeekMode, "Current", "current");
-	setStringProperty(SeekMode, "End", "end");
-	jerry_release_value(SeekMode);
-
 	jsClass DSFile = createClass(ref_DS, "File", IllegalConstructor);
 	setMethod(DSFile.constructor, "open", DSFileStaticOpenHandler);
 	setMethod(DSFile.constructor, "copy", DSFileStaticCopyHandler);
@@ -2558,8 +1907,6 @@ void releaseReferences() {
 	jerry_release_value(ref_Event);
 	jerry_release_value(ref_Error);
 	jerry_release_value(ref_DOMException);
-	jerry_release_value(ref_task_reportError);
-	jerry_release_value(ref_task_abortSignalTimeout);
 	jerry_release_value(ref_str_name);
 	jerry_release_value(ref_str_constructor);
 	jerry_release_value(ref_str_prototype);

@@ -49,13 +49,9 @@ void runFile(const char *filename) {
 	free(script);
 	queueTask(runParsedCodeTask, &parsedCode, 1);
 	jerry_release_value(parsedCode);
-	queueEventName("load");
 	storageLoad(filename);
 	eventLoop();
-	if (!abortFlag) {
-		queueEventName("unload");
-		runTasks();
-	}
+	if (!abortFlag) runTasks();
 }
 
 void repl() {

@@ -13,7 +13,7 @@
 
 /* Attempts to handle an error by dispatching an ErrorEvent.
  * If left unhandled, the error will be printed and (unless in the REPL) the program will exit.
- * Not for use within JS functions. (reportError is the exception)
+ * Not for use within JS functions.
  */
 void handleError(jerry_value_t error, bool sync) {
 	bool errorHandled = false;
