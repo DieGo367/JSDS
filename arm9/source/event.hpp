@@ -21,9 +21,9 @@ enum DependentEvent {
 	vblank     = BIT(0),
 	buttondown = BIT(1),
 	buttonup   = BIT(2),
-	stylusdown = BIT(3),
-	stylusmove = BIT(4),
-	stylusup   = BIT(5),
+	touchstart = BIT(3),
+	touchmove  = BIT(4),
+	touchend   = BIT(5),
 	keydown    = BIT(6),
 	keyup      = BIT(7)
 };

@@ -116,7 +116,7 @@ void buttonEvents(bool down) {
 u32 getCanceledButtons() { return canceledButtons; }
 
 u16 prevX = 0, prevY = 0;
-void queueStylusEvent(const char *name, int curX, int curY, bool usePrev) {
+void queueTouchEvent(const char *name, int curX, int curY, bool usePrev) {
 	jerry_value_t args[2] = {createString(name), jerry_create_object()};
 	jerry_value_t x = jerry_create_number(curX);
 	jerry_value_t y = jerry_create_number(curY);
@@ -132,23 +132,23 @@ void queueStylusEvent(const char *name, int curX, int curY, bool usePrev) {
 		jerry_release_value(dx);
 		jerry_release_value(dy);
 	}
-	jerry_value_t stylusEventConstructor = getProperty(ref_global, "StylusEvent");
-	jerry_value_t event = jerry_construct_object(stylusEventConstructor, args, 2);
+	jerry_value_t touchEventConstructor = getProperty(ref_global, "TouchEvent");
+	jerry_value_t event = jerry_construct_object(touchEventConstructor, args, 2);
 	queueEvent(ref_global, event);
 	jerry_release_value(args[0]);
 	jerry_release_value(args[1]);
 	jerry_release_value(event);
-	jerry_release_value(stylusEventConstructor);
+	jerry_release_value(touchEventConstructor);
 }
 
-void stylusEvents() {
+void touchEvents() {
 	touchPosition pos;
 	touchRead(&pos);
-	if (keysDown() & KEY_TOUCH) queueStylusEvent("stylusdown", pos.px, pos.py, false);
+	if (keysDown() & KEY_TOUCH) queueTouchEvent("touchstart", pos.px, pos.py, false);
 	else if (keysHeld() & KEY_TOUCH) {
-		if (prevX != pos.px || prevY != pos.py) queueStylusEvent("stylusmove", pos.px, pos.py, true);
+		if (prevX != pos.px || prevY != pos.py) queueTouchEvent("touchmove", pos.px, pos.py, true);
 	}
-	else if (keysUp() & KEY_TOUCH) queueStylusEvent("stylusup", prevX, prevY, false);
+	else if (keysUp() & KEY_TOUCH) queueTouchEvent("touchend", prevX, prevY, false);
 	prevX = pos.px;
 	prevY = pos.py;
 }

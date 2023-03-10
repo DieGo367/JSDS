@@ -502,9 +502,9 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 			if (strcmp(type, "vblank") == 0) dependentEvents |= vblank;
 			else if (strcmp(type, "buttondown") == 0) dependentEvents |= buttondown;
 			else if (strcmp(type, "buttonup") == 0) dependentEvents |= buttonup;
-			else if (strcmp(type, "stylusdown") == 0) dependentEvents |= stylusdown;
-			else if (strcmp(type, "stylusmove") == 0) dependentEvents |= stylusmove;
-			else if (strcmp(type, "stylusup") == 0) dependentEvents |= stylusup;
+			else if (strcmp(type, "touchstart") == 0) dependentEvents |= touchstart;
+			else if (strcmp(type, "touchmove") == 0) dependentEvents |= touchmove;
+			else if (strcmp(type, "touchend") == 0) dependentEvents |= touchend;
 			else if (strcmp(type, "keydown") == 0) dependentEvents |= keydown;
 			else if (strcmp(type, "keyup") == 0) dependentEvents |= keyup;
 			free(type);
@@ -559,9 +559,9 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 						if (strcmp(type, "vblank") == 0) dependentEvents &= ~(vblank);
 						else if (strcmp(type, "buttondown") == 0) dependentEvents &= ~(buttondown);
 						else if (strcmp(type, "buttonup") == 0) dependentEvents &= ~(buttonup);
-						else if (strcmp(type, "stylusdown") == 0) dependentEvents &= ~(stylusdown);
-						else if (strcmp(type, "stylusmove") == 0) dependentEvents &= ~(stylusmove);
-						else if (strcmp(type, "stylusup") == 0) dependentEvents &= ~(stylusup);
+						else if (strcmp(type, "touchstart") == 0) dependentEvents &= ~(touchstart);
+						else if (strcmp(type, "touchmove") == 0) dependentEvents &= ~(touchmove);
+						else if (strcmp(type, "touchend") == 0) dependentEvents &= ~(touchend);
 						else if (strcmp(type, "keydown") == 0) dependentEvents &= ~(keydown);
 						else if (strcmp(type, "keyup") == 0) dependentEvents &= ~(keyup);
 						free(type);
@@ -790,9 +790,9 @@ static jerry_value_t ButtonEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t StylusEventConstructor(CALL_INFO) {
-	CONSTRUCTOR(StylusEvent); REQUIRE_1();
-	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), StylusEventInit);
+static jerry_value_t TouchEventConstructor(CALL_INFO) {
+	CONSTRUCTOR(TouchEvent); REQUIRE_1();
+	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), TouchEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
 	jerry_value_t xStr = createString("x");
@@ -1091,7 +1091,7 @@ static jerry_value_t DSSleepHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t DSStylusGetPositionHandler(CALL_INFO) {
+static jerry_value_t DSTouchGetPositionHandler(CALL_INFO) {
 	if ((keysHeld() & KEY_TOUCH) == 0) return null;
 	touchPosition pos; touchRead(&pos);
 	jerry_value_t position = jerry_create_object();
@@ -1537,7 +1537,7 @@ void exposeAPI() {
 	releaseClass(extendClass(ref_global, "CustomEvent", CustomEventConstructor, Event.prototype));
 	// new DS-related event constructors
 	releaseClass(extendClass(ref_global, "ButtonEvent", ButtonEventConstructor, Event.prototype));
-	releaseClass(extendClass(ref_global, "StylusEvent", StylusEventConstructor, Event.prototype));
+	releaseClass(extendClass(ref_global, "TouchEvent", TouchEventConstructor, Event.prototype));
 	jerry_release_value(Event.prototype);
 
 	jsClass Storage = createClass(ref_global, "Storage", IllegalConstructor);
@@ -1564,9 +1564,9 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onbuttondown");
 	defEventAttribute(ref_global, "onbuttonup");
 	defEventAttribute(ref_global, "onsleep");
-	defEventAttribute(ref_global, "onstylusdown");
-	defEventAttribute(ref_global, "onstylusmove");
-	defEventAttribute(ref_global, "onstylusup");
+	defEventAttribute(ref_global, "ontouchstart");
+	defEventAttribute(ref_global, "ontouchmove");
+	defEventAttribute(ref_global, "ontouchend");
 	defEventAttribute(ref_global, "onvblank");
 	defEventAttribute(ref_global, "onwake");
 
@@ -1670,11 +1670,11 @@ void exposeAPI() {
 	jerry_release_value(released);
 	jerry_release_value(buttons);
 
-	jerry_value_t stylus = jerry_create_object();
-	setProperty(ref_DS, "stylus", stylus);
-	defGetter(stylus, "touching", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
-	setMethod(stylus, "getPosition", DSStylusGetPositionHandler);
-	jerry_release_value(stylus);
+	jerry_value_t touch = jerry_create_object();
+	setProperty(ref_DS, "touch", touch);
+	defGetter(touch, "touching", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
+	setMethod(touch, "getPosition", DSTouchGetPositionHandler);
+	jerry_release_value(touch);
 
 	jsClass DSFile = createClass(ref_DS, "File", IllegalConstructor);
 	setMethod(DSFile.constructor, "open", DSFileStaticOpenHandler);

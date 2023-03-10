@@ -9,7 +9,7 @@
 void buttonEvents(bool down);
 u32 getCanceledButtons();
 
-void stylusEvents();
+void touchEvents();
 
 extern bool pauseKeyEvents;
 bool onKeyDown(const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps);

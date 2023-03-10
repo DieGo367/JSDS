@@ -236,7 +236,7 @@ void eventLoop() {
 		if (keysUp() & KEY_LID) onWake();
 		if (dependentEvents & (buttondown)) buttonEvents(true);
 		if (dependentEvents & (buttonup)) buttonEvents(false);
-		if (dependentEvents & (stylusdown | stylusmove | stylusup)) stylusEvents();
+		if (dependentEvents & (touchstart | touchmove | touchend)) touchEvents();
 		timeoutUpdate();
 		runTasks();
 		keyboardUpdate(getCanceledButtons());
