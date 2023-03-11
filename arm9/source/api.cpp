@@ -395,7 +395,7 @@ static jerry_value_t consoleClearHandler(CALL_INFO) {
 static jerry_value_t TextEncodeHandler(CALL_INFO) {
 	REQUIRE_1();
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
-		EXPECT(jerry_value_is_typedarray(args[1]), ArrayBufferView);
+		EXPECT(jerry_value_is_typedarray(args[1]), Uint8Array);
 		jerry_value_t text = jerry_value_to_string(args[0]);
 		jerry_length_t size = jerry_get_utf8_string_size(text);
 		jerry_length_t byteOffset, bufSize;
@@ -422,7 +422,7 @@ static jerry_value_t TextEncodeHandler(CALL_INFO) {
 }
 
 static jerry_value_t TextDecodeHandler(CALL_INFO) {
-	REQUIRE_1(); EXPECT(jerry_value_is_typedarray(args[0]), ArrayBufferView);
+	REQUIRE_1(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
 	u32 byteOffset = 0, dataLen = 0;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
@@ -434,7 +434,7 @@ static jerry_value_t TextDecodeHandler(CALL_INFO) {
 static jerry_value_t TextEncodeUTF16Handler(CALL_INFO) {
 	REQUIRE_1();
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
-		EXPECT(jerry_value_is_typedarray(args[1]), ArrayBufferView);
+		EXPECT(jerry_value_is_typedarray(args[1]), Uint8Array);
 	}
 	jerry_length_t utf8Size;
 	char *utf8 = getAsString(args[0], &utf8Size);
@@ -481,12 +481,117 @@ static jerry_value_t TextEncodeUTF16Handler(CALL_INFO) {
 }
 
 static jerry_value_t TextDecodeUTF16Handler(CALL_INFO) {
-	REQUIRE_1(); EXPECT(jerry_value_is_typedarray(args[0]), ArrayBufferView);
+	REQUIRE_1(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
 	u32 byteOffset = 0, dataLen = 0;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 	jerry_release_value(arrayBuffer);
 	return createStringU16((u16 *) data, dataLen / 2);
+}
+
+const char b64Map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static jerry_value_t Base64EncodeHandler(CALL_INFO) {
+	REQUIRE_1(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
+	jerry_length_t byteOffset, dataSize;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataSize);
+	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
+	jerry_release_value(arrayBuffer);
+
+	const u32 asciiSize = (dataSize + 2) / 3 * 4;
+	char ascii[asciiSize]; // base64 needs 4 chars to encode 3 bytes
+	char *out = ascii;
+	u32 i = 2;
+	for (; i < dataSize; i += 3) {
+		*(out++) = b64Map[data[i - 2] >> 2];
+		*(out++) = b64Map[(data[i - 2] & 0b11) << 4 | data[i - 1] >> 4];
+		*(out++) = b64Map[(data[i - 1] & 0x0F) << 2 | data[i] >> 6];
+		*(out++) = b64Map[data[i] & 0b00111111];
+	}
+	if (i == dataSize) {
+		*(out++) = b64Map[data[i - 2] >> 2];
+		*(out++) = b64Map[(data[i - 2] & 0b11) << 4 | data[i - 1] >> 4];
+		*(out++) = b64Map[(data[i - 1] & 0x0F) << 2];
+		*(out++) = '=';
+	}
+	else if (i == dataSize + 1) {
+		*(out++) = b64Map[data[i - 2] >> 2];
+		*(out++) = b64Map[(data[i - 2] & 0b11) << 4];
+		*(out++) = '=';
+		*(out++) = '=';
+	}
+
+	return jerry_create_string_sz_from_utf8((jerry_char_t *) ascii, asciiSize);
+}
+
+static inline u8 b64CharValue(char ch, bool *bad) {
+	if (ch >= 'A' && ch <= 'Z') return ch - 'A';
+	if (ch >= 'a' && ch <= 'z') return ch - 'a' + 26;
+	if (ch >= '0' && ch <= '9') return ch - '0' + 52;
+	if (ch == '+') return 62;
+	if (ch == '/') return 63;
+	*bad = true;
+	return 0;
+}
+static jerry_value_t Base64DecodeHandler(CALL_INFO) {
+	REQUIRE_1(); EXPECT(jerry_value_is_string(args[0]), string);
+	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
+		EXPECT(jerry_value_is_typedarray(args[1]), Uint8Array);
+	}
+	jerry_length_t asciiSize;
+	char *ascii = getString(args[0], &asciiSize);
+	const char errorMsg[] = "Unable to decode Base64.";
+
+	if (asciiSize % 4 == 1) {
+		free(ascii);
+		return throwTypeError(errorMsg);
+	}
+	u32 dataLen = asciiSize / 4 * 3;
+	if (ascii[asciiSize - 1] == '=') dataLen--;
+	if (ascii[asciiSize - 2] == '=') dataLen--;
+
+	u8 data[dataLen];
+	u8 *out = data;
+	u32 asciiIdx = 0, dataIdx = 2;
+	bool badEncoding = false;
+	for (; dataIdx < dataLen; dataIdx += 3) {
+		u8 first = b64CharValue(ascii[asciiIdx++], &badEncoding);
+		u8 second = b64CharValue(ascii[asciiIdx++], &badEncoding);
+		u8 third = b64CharValue(ascii[asciiIdx++], &badEncoding);
+		u8 fourth = b64CharValue(ascii[asciiIdx++], &badEncoding);
+		if (badEncoding) break;
+		*(out++) = first << 2 | second >> 4;
+		*(out++) = (second & 0xF) << 4 | third >> 2;
+		*(out++) = (third & 0b11) << 6 | fourth;
+	}
+	if (dataIdx == dataLen) {
+		u8 first = b64CharValue(ascii[asciiIdx++], &badEncoding);
+		u8 second = b64CharValue(ascii[asciiIdx++], &badEncoding);
+		u8 third = b64CharValue(ascii[asciiIdx++], &badEncoding);
+		*(out++) = first << 2 | second >> 4;
+		*(out++) = (second & 0xF) << 4 | third >> 2;
+	}
+	else if (dataIdx == dataLen + 1) {
+		u8 first = b64CharValue(ascii[asciiIdx++], &badEncoding);
+		u8 second = b64CharValue(ascii[asciiIdx++], &badEncoding);
+		*(out++) = first << 2 | second >> 4;
+	}
+
+	free(ascii);
+	if (badEncoding) return throwTypeError(errorMsg);
+
+	jerry_value_t u8Array;
+	if (argCount > 1 && !jerry_value_is_undefined(args[1])) u8Array = jerry_acquire_value(args[1]);
+	else u8Array = jerry_create_typedarray(JERRY_TYPEDARRAY_UINT8, dataLen);
+	jerry_length_t byteOffset, arraySize;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(u8Array, &byteOffset, &arraySize);
+	if (arraySize < dataLen) {
+		jerry_release_value(arrayBuffer);
+		jerry_release_value(u8Array);
+		return throwTypeError("Data size is too big to decode into the given array.");
+	}
+	jerry_arraybuffer_write(arrayBuffer, byteOffset, data, dataLen);
+	jerry_release_value(arrayBuffer);
+	return u8Array;
 }
 
 static jerry_value_t EventConstructor(CALL_INFO) {
@@ -1626,6 +1731,11 @@ void exposeAPI() {
 	setMethod(Text, "encodeUTF16", TextEncodeUTF16Handler);
 	setMethod(Text, "decodeUTF16", TextDecodeUTF16Handler);
 	jerry_release_value(Text);
+
+	jerry_value_t Base64 = createNamespace(ref_global, "Base64");
+	setMethod(Base64, "encode", Base64EncodeHandler);
+	setMethod(Base64, "decode", Base64DecodeHandler);
+	jerry_release_value(Base64);
 
 	jsClass EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
 	setMethod(EventTarget.prototype, "addEventListener", EventTargetAddEventListenerHandler);
