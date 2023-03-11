@@ -15,14 +15,23 @@ enum {
 
 // helper inline functions
 
+// Creates a jerry common error.
+inline jerry_value_t throwError(const char *message) {
+	return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) message);
+}
+// Creates a jerry type error.
+inline jerry_value_t throwTypeError(const char *message) {
+	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) message);
+}
+
 // Creates a js string out of a c string. Return value must be released!
 inline jerry_value_t createString(const char *str) {
 	return jerry_create_string((const jerry_char_t *) str);
 }
 
-// Creates a js string out of a list of 16-bit Unicode codepoints. Return value must be released!
+// Creates a js string out of a list of 16-bit Unicode codepoints. Return value must be released! Throws a TypeError when invalid.
 inline jerry_value_t createStringU16(const u16* codepoints, u32 length) {
-	u8 utf8[length * 3]; // each codepoint can be up to 3 bytes
+	u8 utf8[length * 3]; // each codepoint can produce up to 3 bytes (surrogate pairs end up as 4 bytes, but that's still 2 bytes each)
 	u8 *out = utf8;
 	for (u32 i = 0; i < length; i++) {
 		u16 codepoint = codepoints[i];
@@ -32,6 +41,14 @@ inline jerry_value_t createStringU16(const u16* codepoints, u32 length) {
 			out[1] = BIT(7) | (codepoint & 0b00111111);
 			out += 2;
 		}
+		else if (codepoint >= 0xD800 && codepoint < 0xDC00 && i < length && codepoints[i + 1] >= 0xDC00 && codepoints[i + 1] < 0xF000) {
+			u16 surrogate = codepoints[++i];
+			out[0] = 0xF0 | (codepoint >> 7 & 0b111);
+			out[1] = BIT(7) | (codepoint >> 1 & 0b00111111);
+			out[2] = BIT(7) | (codepoint & 1) << 5 | (surrogate >> 5 & 0b00011111); // different mask than the rest
+			out[3] = BIT(7) | (surrogate & 0b00111111);
+			out += 4;
+		}
 		else {
 			out[0] = 0b11100000 | (codepoint >> 12 & 0xF);
 			out[1] = BIT(7) | (codepoint >> 6 & 0b00111111);
@@ -39,6 +56,7 @@ inline jerry_value_t createStringU16(const u16* codepoints, u32 length) {
 			out += 3;
 		}
 	}
+	if (!jerry_is_valid_utf8_string(utf8, out - utf8)) return throwTypeError("Invalid UTF-16");
 	return jerry_create_string_sz_from_utf8(utf8, out - utf8);
 }
 
@@ -331,15 +349,6 @@ inline void defEventAttribute(jerry_value_t eventTarget, const char *attributeNa
 	jerry_release_value(eventAttributeDesc.getter);
 	jerry_release_value(eventAttributeDesc.setter);
 	jerry_release_value(nameDesc.value);
-}
-
-// Creates a jerry common error.
-inline jerry_value_t throwError(const char *message) {
-	return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) message);
-}
-// Creates a jerry type error.
-inline jerry_value_t throwTypeError(const char *message) {
-	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) message);
 }
 
 #endif /* JSDS_INLINE_HPP */

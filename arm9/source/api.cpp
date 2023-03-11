@@ -431,6 +431,64 @@ static jerry_value_t TextDecodeHandler(CALL_INFO) {
 	return jerry_create_string_sz_from_utf8(data, dataLen);
 }
 
+static jerry_value_t TextEncodeUTF16Handler(CALL_INFO) {
+	REQUIRE_1();
+	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
+		EXPECT(jerry_value_is_typedarray(args[1]), ArrayBufferView);
+	}
+	jerry_length_t utf8Size;
+	char *utf8 = getAsString(args[0], &utf8Size);
+	u8 utf16[utf8Size * 2];
+	u16 *out = (u16 *) utf16;
+	for (u32 i = 0; i < utf8Size; i++) {
+		u8 byte = utf8[i];
+		if (byte < 0x80) *(out++) = byte;
+		else if (byte < 0xE0) {
+			u8 byte2 = utf8[++i]; // Jerry validates its strings, so this shouldn't be out of range
+			*(out++) = (byte & 0b11111) << 6 | (byte2 & 0b111111);
+		}
+		else if (byte < 0xF0) {
+			u8 byte2 = utf8[++i], byte3 = utf8[++i];
+			*(out++) = (byte & 0xF) << 12 | (byte2 & 0b111111) << 6 | (byte3 & 0b111111);
+		}
+		else {
+			u8 byte2 = utf8[++i], byte3 = utf8[++i], byte4 = utf8[++i];
+			u32 codepoint = (byte & 0b111) << 18 | (byte2 & 0b111111) << 12 | (byte3 & 0b111111) << 6 | (byte4 & 0b111111);
+			codepoint -= 0x10000;
+			*(out++) = 0xD800 | codepoint >> 10;
+			*(out++) = 0xDC00 | (codepoint & 0x3FF);
+		}
+	}
+	free(utf8);
+	jerry_length_t utf16Size = ((u8 *) out) - utf16;
+	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
+		jerry_length_t byteOffset, bufSize;
+		jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &byteOffset, &bufSize);
+		u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
+		jerry_release_value(arrayBuffer);
+		if (utf16Size > bufSize) {
+			return throwTypeError("Text size is too big to encode into the given array.");
+		}
+		tonccpy(data, utf16, utf16Size);
+		return jerry_acquire_value(args[1]);
+	}
+	jerry_value_t arrayBuffer = jerry_create_arraybuffer(utf16Size);
+	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer);
+	tonccpy(data, utf16, utf16Size);
+	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer(JERRY_TYPEDARRAY_UINT8, arrayBuffer);
+	jerry_release_value(arrayBuffer);
+	return u8Array;
+}
+
+static jerry_value_t TextDecodeUTF16Handler(CALL_INFO) {
+	REQUIRE_1(); EXPECT(jerry_value_is_typedarray(args[0]), ArrayBufferView);
+	u32 byteOffset = 0, dataLen = 0;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
+	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
+	jerry_release_value(arrayBuffer);
+	return createStringU16((u16 *) data, dataLen / 2);
+}
+
 static jerry_value_t EventConstructor(CALL_INFO) {
 	CONSTRUCTOR(Event); REQUIRE_1();
 
@@ -1565,6 +1623,8 @@ void exposeAPI() {
 	jerry_value_t Text = createNamespace(ref_global, "Text");
 	setMethod(Text, "encode", TextEncodeHandler);
 	setMethod(Text, "decode", TextDecodeHandler);
+	setMethod(Text, "encodeUTF16", TextEncodeUTF16Handler);
+	setMethod(Text, "decodeUTF16", TextDecodeUTF16Handler);
 	jerry_release_value(Text);
 
 	jsClass EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
