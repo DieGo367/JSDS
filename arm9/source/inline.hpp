@@ -47,7 +47,7 @@ inline jerry_value_t createStringU16(const u16* codepoints, u32 length) {
  * If stringSize is not NULL, the value it points to will be set to the size as reported by JerryScript (which doesn't count the terminator).
 */
 inline char *getString(const jerry_value_t stringValue, jerry_length_t *stringSize = NULL) {
-	jerry_length_t size = jerry_get_string_size(stringValue);
+	jerry_length_t size = jerry_get_utf8_string_size(stringValue);
 	if (stringSize != NULL) *stringSize = size;
 	char *buffer = (char *) malloc(size + 1);
 	jerry_string_to_utf8_char_buffer(stringValue, (jerry_char_t *) buffer, size);
@@ -340,16 +340,6 @@ inline jerry_value_t throwError(const char *message) {
 // Creates a jerry type error.
 inline jerry_value_t throwTypeError(const char *message) {
 	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) message);
-}
-
-// Output a byte value in UTF-8 representation to the position pointed to by out. Returns a pointer to the position after the last value written.
-inline char *writeBinByteToUTF8(u8 byte, char *out) {
-	if (byte & BIT(7)) {
-		*(out++) = 0b11000000 | (byte & 0b11000000) >> 6;
-		*(out++) = 0b10000000 | (byte & 0b00111111);
-	}
-	else *(out++) = byte;
-	return out;
 }
 
 #endif /* JSDS_INLINE_HPP */
