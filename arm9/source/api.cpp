@@ -392,6 +392,45 @@ static jerry_value_t consoleClearHandler(CALL_INFO) {
 	return undefined;
 }
 
+static jerry_value_t TextEncodeHandler(CALL_INFO) {
+	REQUIRE_1();
+	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
+		EXPECT(jerry_value_is_typedarray(args[1]), ArrayBufferView);
+		jerry_value_t text = jerry_value_to_string(args[0]);
+		jerry_length_t size = jerry_get_utf8_string_size(text);
+		jerry_length_t byteOffset, bufSize;
+		jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &byteOffset, &bufSize);
+		u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
+		jerry_release_value(arrayBuffer);
+		if (size > bufSize) {
+			jerry_release_value(text);
+			return throwTypeError("Text size is too big to encode into the given array.");
+		}
+		jerry_string_to_utf8_char_buffer(text, data, size);
+		jerry_release_value(text);
+		return jerry_acquire_value(args[1]);
+	}
+	jerry_value_t text = jerry_value_to_string(args[0]);
+	jerry_length_t size = jerry_get_utf8_string_size(text);
+	jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
+	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer);
+	jerry_string_to_utf8_char_buffer(text, data, size);
+	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer(JERRY_TYPEDARRAY_UINT8, arrayBuffer);
+	jerry_release_value(text);
+	jerry_release_value(arrayBuffer);
+	return u8Array;
+}
+
+static jerry_value_t TextDecodeHandler(CALL_INFO) {
+	REQUIRE_1(); EXPECT(jerry_value_is_typedarray(args[0]), ArrayBufferView);
+	u32 byteOffset = 0, dataLen = 0;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
+	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
+	jerry_release_value(arrayBuffer);
+	if (!jerry_is_valid_utf8_string(data, dataLen)) return throwTypeError("Invalid UTF-8");
+	return jerry_create_string_sz_from_utf8(data, dataLen);
+}
+
 static jerry_value_t EventConstructor(CALL_INFO) {
 	CONSTRUCTOR(Event); REQUIRE_1();
 
@@ -1522,6 +1561,11 @@ void exposeAPI() {
 	setMethod(keyboard, "hide", [](CALL_INFO) -> jerry_value_t { keyboardHide(); return undefined; });
 	setMethod(keyboard, "show", [](CALL_INFO) -> jerry_value_t { keyboardShow(); return undefined; });
 	jerry_release_value(keyboard);
+
+	jerry_value_t Text = createNamespace(ref_global, "Text");
+	setMethod(Text, "encode", TextEncodeHandler);
+	setMethod(Text, "decode", TextDecodeHandler);
+	jerry_release_value(Text);
 
 	jsClass EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
 	setMethod(EventTarget.prototype, "addEventListener", EventTargetAddEventListenerHandler);
