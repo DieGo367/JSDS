@@ -594,6 +594,323 @@ static jerry_value_t Base64DecodeHandler(CALL_INFO) {
 	return u8Array;
 }
 
+static jerry_value_t FileReadHandler(CALL_INFO) {
+	REQUIRE_1();
+
+	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
+	char *mode = getString(modeStr);
+	if (mode[0] != 'r' && mode[1] != '+') {
+		free(mode);
+		jerry_release_value(modeStr);
+		return throwError("Unable to read in current file mode.");
+	}
+	free(mode);
+	jerry_release_value(modeStr);
+	
+	u32 size = jerry_value_as_uint32(args[0]);
+	jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
+	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer);
+	FILE *file;
+	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
+	u32 bytesRead = fread(buf, 1, size, file);
+	if (ferror(file)) {
+		jerry_release_value(arrayBuffer);
+		return throwError("File read failed.");
+	}
+	else if (feof(file) && bytesRead == 0) {
+		jerry_release_value(arrayBuffer);
+		return null;
+	}
+	else {
+		jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, bytesRead);
+		jerry_release_value(arrayBuffer);
+		return u8Array;
+	}
+}
+
+static jerry_value_t FileWriteHandler(CALL_INFO) {
+	REQUIRE_1();
+	EXPECT(jerry_value_is_object(args[0]) && jerry_value_is_typedarray(args[0]) && jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
+
+	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
+	char *mode = getString(modeStr);
+	if (mode[0] != 'w' && mode[0] != 'a' && mode[1] != '+') {
+		free(mode);
+		jerry_release_value(modeStr);
+		return throwError("Unable to write in current file mode.");
+	}
+	free(mode);
+	jerry_release_value(modeStr);
+	
+	u32 offset, size;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &offset, &size);
+	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
+	jerry_release_value(arrayBuffer);
+	FILE *file;
+	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
+
+	u32 bytesWritten = fwrite(buf, 1, size, file);
+	if (ferror(file)) {
+		return throwError("File write failed.");
+	}
+	else return jerry_create_number(bytesWritten);
+}
+
+static jerry_value_t FileSeekHandler(CALL_INFO) {
+	REQUIRE_1();
+
+	int mode = 10;
+	if (argCount > 1) {
+		char *seekMode = getAsString(args[1]);
+		if (strcmp(seekMode, "start") == 0) mode = SEEK_SET;
+		else if (strcmp(seekMode, "current") == 0) mode = SEEK_CUR;
+		else if (strcmp(seekMode, "end") == 0) mode = SEEK_END;
+		free(seekMode);
+	}
+	else mode = SEEK_SET;
+	if (mode == 10) return throwTypeError("Invalid seek mode");
+
+	FILE *file;
+	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
+	int success = fseek(file, jerry_value_as_int32(args[0]), mode);
+	if (success != 0) return throwError("File seek failed.");
+	return undefined;
+}
+
+static jerry_value_t FileCloseHandler(CALL_INFO) {
+	FILE *file;
+	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
+	if (fclose(file) != 0) return throwError("File close failed.");
+	return undefined;
+}
+
+static jerry_value_t FileStaticOpenHandler(CALL_INFO) {
+	REQUIRE_1();
+	char *path = getAsString(args[0]);
+	char defaultMode[2] = "r";
+	char *mode = defaultMode;
+	if (argCount > 1) {
+		mode = getAsString(args[1]);
+		if (strcmp(mode, "r") != 0 && strcmp(mode, "r+") != 0
+		 && strcmp(mode, "w") != 0 && strcmp(mode, "w+") != 0
+		 && strcmp(mode, "a") != 0 && strcmp(mode, "a+") != 0
+		) {
+			free(mode);
+			free(path);
+			return throwTypeError("Invalid file mode");
+		}
+	}
+
+	FILE *file = fopen(path, mode);
+	if (file == NULL) {
+		if (mode != defaultMode) free(mode);
+		free(path);
+		return throwError("Unable to open file.");
+	}
+	else {
+		jerry_value_t modeStr = createString(mode);
+		jerry_value_t fileObj = newFile(file, modeStr);
+		jerry_release_value(modeStr);
+		if (mode != defaultMode) free(mode);
+		free(path);
+		return fileObj;
+	}
+}
+
+static jerry_value_t FileStaticCopyHandler(CALL_INFO) {
+	REQUIRE(2);
+	char *sourcePath = getAsString(args[0]);
+	FILE *source = fopen(sourcePath, "r");
+	free(sourcePath);
+	if (source == NULL) return throwError("Unable to open source file during copy.");
+	
+	fseek(source, 0, SEEK_END);
+	u32 size = ftell(source);
+	rewind(source);
+	u8 *data = (u8 *) malloc(size);
+	u32 bytesRead = fread(data, 1, size, source);
+	if (ferror(source)) {
+		free(data);
+		fclose(source);
+		return throwError("Failed to read source file during copy.");
+	}
+	fclose(source);
+
+	char *destPath = getAsString(args[1]);
+	FILE *dest = fopen(destPath, "w");
+	free(destPath);
+	if (dest == NULL) {
+		free(data);
+		return throwError("Unable to open destination file during copy.");
+	}
+
+	fwrite(data, 1, bytesRead, dest);
+	free(data);
+	if (ferror(dest)) {
+		fclose(dest);
+		return throwError("Failed to write destination file during copy.");
+	}
+	fclose(dest);
+	return undefined;
+}
+
+static jerry_value_t FileStaticRenameHandler(CALL_INFO) {
+	REQUIRE(2);
+	char *sourcePath = getAsString(args[0]);
+	char *destPath = getAsString(args[1]);
+	int status = rename(sourcePath, destPath);
+	free(sourcePath);
+	free(destPath);
+	if (status != 0) return throwError("Failed to rename file.");
+	return undefined;
+}
+
+static jerry_value_t FileStaticRemoveHandler(CALL_INFO) {
+	REQUIRE_1();
+	char *path = getAsString(args[0]);
+	if (remove(path) != 0) return throwError("Failed to delete file.");
+	return undefined;
+}
+
+static jerry_value_t FileStaticReadHandler(CALL_INFO) {
+	REQUIRE_1();
+	char *path = getAsString(args[0]);
+	FILE *file = fopen(path, "r");
+	free(path);
+	if (file == NULL) return throwError("Unable to open file.");
+
+	fseek(file, 0, SEEK_END);
+	u32 size = ftell(file);
+	rewind(file);
+
+	jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
+	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer);
+	fread(buf, 1, size, file);
+	if (ferror(file)) {
+		jerry_release_value(arrayBuffer);
+		fclose(file);
+		return throwError("File read failed.");
+	}
+	fclose(file);
+	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, size);
+	jerry_release_value(arrayBuffer);
+	return u8Array;
+}
+
+static jerry_value_t FileStaticReadTextHandler(CALL_INFO) {
+	REQUIRE_1();
+	char *path = getAsString(args[0]);
+	FILE *file = fopen(path, "r");
+	free(path);
+	if (file == NULL) return throwError("Unable to open file.");
+
+	fseek(file, 0, SEEK_END);
+	u32 size = ftell(file);
+	rewind(file);
+
+	char *buf = (char *) malloc(size);
+	fread(buf, 1, size, file);
+	if (ferror(file)) {
+		free(buf);
+		fclose(file);
+		return throwError("File read failed.");
+	}
+	fclose(file);
+	jerry_value_t str = jerry_create_string_sz_from_utf8((jerry_char_t *) buf, size);
+	free(buf);
+	return str;
+}
+
+static jerry_value_t FileStaticWriteHandler(CALL_INFO) {
+	REQUIRE(2);
+	EXPECT(jerry_value_is_object(args[1]) && jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
+	char *path = getAsString(args[0]);
+	FILE *file = fopen(path, "w");
+	free(path);
+	if (file == NULL) return throwError("Unable to open file.");
+	
+	u32 offset, size;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &offset, &size);
+	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
+	jerry_release_value(arrayBuffer);
+
+	u32 bytesWritten = fwrite(buf, 1, size, file);
+	if (ferror(file)) {
+		fclose(file);
+		return throwError("File write failed.");
+	}
+	fclose(file);
+	return jerry_create_number(bytesWritten);
+}
+
+static jerry_value_t FileStaticWriteTextHandler(CALL_INFO) {
+	REQUIRE(2);
+	char *path = getAsString(args[0]);
+	FILE *file = fopen(path, "w");
+	free(path);
+	if (file == NULL) return throwError("Unable to open file.");
+	
+	u32 size;
+	char *text = getAsString(args[1], &size);
+	u32 bytesWritten = fwrite(text, 1, size, file);
+	if (ferror(file)) {
+		fclose(file);
+		free(text);
+		return throwError("File write failed.");
+	}
+	fclose(file);
+	free(text);
+	return jerry_create_number(bytesWritten);
+}
+
+static jerry_value_t FileStaticMakeDirHandler(CALL_INFO) {
+	REQUIRE_1();
+	bool recursive = argCount > 1 ? jerry_value_to_boolean(args[1]) : false;
+	char *path = getAsString(args[0]);
+	int status = -1;
+	if (recursive) {
+		char *slash = strchr(path, '/');
+		if (strchr(path, ':') != NULL || path == slash) slash = strchr(slash + 1, '/');
+		while (slash != NULL) {
+			slash[0] = '\0';
+			mkdir(path, 0777);
+			slash[0] = '/';
+			slash = strchr(slash + 1, '/');
+		}
+		status = access(path, F_OK);
+	}
+	else status = mkdir(path, 0777);
+	free(path);
+	if (status != 0) return throwError("Failed to make directory.");
+	return undefined;
+}
+
+static jerry_value_t FileStaticReadDirHandler(CALL_INFO) {
+	REQUIRE_1();
+	char *path = getAsString(args[0]);
+	DIR *dir = opendir(path);
+	free(path);
+	if (dir == NULL) return throwError("Unable to open directory.");
+
+	jerry_value_t arr = jerry_create_array(0);
+	jerry_value_t push = getProperty(arr, "push");
+	dirent *entry = readdir(dir);
+	while (entry != NULL) {
+		jerry_value_t dirEnt = jerry_create_object();
+		setProperty(dirEnt, "isDirectory", jerry_create_boolean(entry->d_type == DT_DIR));
+		setProperty(dirEnt, "isFile", jerry_create_boolean(entry->d_type == DT_REG));
+		jerry_value_t name = createString(entry->d_name);
+		setProperty(dirEnt, "name", name);
+		jerry_release_value(name);
+		jerry_call_function(push, arr, &dirEnt, 1);
+		jerry_release_value(dirEnt);
+		entry = readdir(dir);
+	}
+	closedir(dir);
+	jerry_release_value(push);
+	return arr;
+}
+
 static jerry_value_t EventConstructor(CALL_INFO) {
 	CONSTRUCTOR(Event); REQUIRE_1();
 
@@ -1313,323 +1630,6 @@ static jerry_value_t DSTouchGetPositionHandler(CALL_INFO) {
 	return position;
 }
 
-static jerry_value_t FileReadHandler(CALL_INFO) {
-	REQUIRE_1();
-
-	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
-	char *mode = getString(modeStr);
-	if (mode[0] != 'r' && mode[1] != '+') {
-		free(mode);
-		jerry_release_value(modeStr);
-		return throwError("Unable to read in current file mode.");
-	}
-	free(mode);
-	jerry_release_value(modeStr);
-	
-	u32 size = jerry_value_as_uint32(args[0]);
-	jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
-	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer);
-	FILE *file;
-	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
-	u32 bytesRead = fread(buf, 1, size, file);
-	if (ferror(file)) {
-		jerry_release_value(arrayBuffer);
-		return throwError("File read failed.");
-	}
-	else if (feof(file) && bytesRead == 0) {
-		jerry_release_value(arrayBuffer);
-		return null;
-	}
-	else {
-		jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, bytesRead);
-		jerry_release_value(arrayBuffer);
-		return u8Array;
-	}
-}
-
-static jerry_value_t FileWriteHandler(CALL_INFO) {
-	REQUIRE_1();
-	EXPECT(jerry_value_is_object(args[0]) && jerry_value_is_typedarray(args[0]) && jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
-
-	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
-	char *mode = getString(modeStr);
-	if (mode[0] != 'w' && mode[0] != 'a' && mode[1] != '+') {
-		free(mode);
-		jerry_release_value(modeStr);
-		return throwError("Unable to write in current file mode.");
-	}
-	free(mode);
-	jerry_release_value(modeStr);
-	
-	u32 offset, size;
-	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &offset, &size);
-	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
-	jerry_release_value(arrayBuffer);
-	FILE *file;
-	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
-
-	u32 bytesWritten = fwrite(buf, 1, size, file);
-	if (ferror(file)) {
-		return throwError("File write failed.");
-	}
-	else return jerry_create_number(bytesWritten);
-}
-
-static jerry_value_t FileSeekHandler(CALL_INFO) {
-	REQUIRE_1();
-
-	int mode = 10;
-	if (argCount > 1) {
-		char *seekMode = getAsString(args[1]);
-		if (strcmp(seekMode, "start") == 0) mode = SEEK_SET;
-		else if (strcmp(seekMode, "current") == 0) mode = SEEK_CUR;
-		else if (strcmp(seekMode, "end") == 0) mode = SEEK_END;
-		free(seekMode);
-	}
-	else mode = SEEK_SET;
-	if (mode == 10) return throwTypeError("Invalid seek mode");
-
-	FILE *file;
-	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
-	int success = fseek(file, jerry_value_as_int32(args[0]), mode);
-	if (success != 0) return throwError("File seek failed.");
-	return undefined;
-}
-
-static jerry_value_t FileCloseHandler(CALL_INFO) {
-	FILE *file;
-	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
-	if (fclose(file) != 0) return throwError("File close failed.");
-	return undefined;
-}
-
-static jerry_value_t FileStaticOpenHandler(CALL_INFO) {
-	REQUIRE_1();
-	char *path = getAsString(args[0]);
-	char defaultMode[2] = "r";
-	char *mode = defaultMode;
-	if (argCount > 1) {
-		mode = getAsString(args[1]);
-		if (strcmp(mode, "r") != 0 && strcmp(mode, "r+") != 0
-		 && strcmp(mode, "w") != 0 && strcmp(mode, "w+") != 0
-		 && strcmp(mode, "a") != 0 && strcmp(mode, "a+") != 0
-		) {
-			free(mode);
-			free(path);
-			return throwTypeError("Invalid file mode");
-		}
-	}
-
-	FILE *file = fopen(path, mode);
-	if (file == NULL) {
-		if (mode != defaultMode) free(mode);
-		free(path);
-		return throwError("Unable to open file.");
-	}
-	else {
-		jerry_value_t modeStr = createString(mode);
-		jerry_value_t fileObj = newFile(file, modeStr);
-		jerry_release_value(modeStr);
-		if (mode != defaultMode) free(mode);
-		free(path);
-		return fileObj;
-	}
-}
-
-static jerry_value_t FileStaticCopyHandler(CALL_INFO) {
-	REQUIRE(2);
-	char *sourcePath = getAsString(args[0]);
-	FILE *source = fopen(sourcePath, "r");
-	free(sourcePath);
-	if (source == NULL) return throwError("Unable to open source file during copy.");
-	
-	fseek(source, 0, SEEK_END);
-	u32 size = ftell(source);
-	rewind(source);
-	u8 *data = (u8 *) malloc(size);
-	u32 bytesRead = fread(data, 1, size, source);
-	if (ferror(source)) {
-		free(data);
-		fclose(source);
-		return throwError("Failed to read source file during copy.");
-	}
-	fclose(source);
-
-	char *destPath = getAsString(args[1]);
-	FILE *dest = fopen(destPath, "w");
-	free(destPath);
-	if (dest == NULL) {
-		free(data);
-		return throwError("Unable to open destination file during copy.");
-	}
-
-	fwrite(data, 1, bytesRead, dest);
-	free(data);
-	if (ferror(dest)) {
-		fclose(dest);
-		return throwError("Failed to write destination file during copy.");
-	}
-	fclose(dest);
-	return undefined;
-}
-
-static jerry_value_t FileStaticRenameHandler(CALL_INFO) {
-	REQUIRE(2);
-	char *sourcePath = getAsString(args[0]);
-	char *destPath = getAsString(args[1]);
-	int status = rename(sourcePath, destPath);
-	free(sourcePath);
-	free(destPath);
-	if (status != 0) return throwError("Failed to rename file.");
-	return undefined;
-}
-
-static jerry_value_t FileStaticRemoveHandler(CALL_INFO) {
-	REQUIRE_1();
-	char *path = getAsString(args[0]);
-	if (remove(path) != 0) return throwError("Failed to delete file.");
-	return undefined;
-}
-
-static jerry_value_t FileStaticReadHandler(CALL_INFO) {
-	REQUIRE_1();
-	char *path = getAsString(args[0]);
-	FILE *file = fopen(path, "r");
-	free(path);
-	if (file == NULL) return throwError("Unable to open file.");
-
-	fseek(file, 0, SEEK_END);
-	u32 size = ftell(file);
-	rewind(file);
-
-	jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
-	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer);
-	fread(buf, 1, size, file);
-	if (ferror(file)) {
-		jerry_release_value(arrayBuffer);
-		fclose(file);
-		return throwError("File read failed.");
-	}
-	fclose(file);
-	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, size);
-	jerry_release_value(arrayBuffer);
-	return u8Array;
-}
-
-static jerry_value_t FileStaticReadTextHandler(CALL_INFO) {
-	REQUIRE_1();
-	char *path = getAsString(args[0]);
-	FILE *file = fopen(path, "r");
-	free(path);
-	if (file == NULL) return throwError("Unable to open file.");
-
-	fseek(file, 0, SEEK_END);
-	u32 size = ftell(file);
-	rewind(file);
-
-	char *buf = (char *) malloc(size);
-	fread(buf, 1, size, file);
-	if (ferror(file)) {
-		free(buf);
-		fclose(file);
-		return throwError("File read failed.");
-	}
-	fclose(file);
-	jerry_value_t str = jerry_create_string_sz_from_utf8((jerry_char_t *) buf, size);
-	free(buf);
-	return str;
-}
-
-static jerry_value_t FileStaticWriteHandler(CALL_INFO) {
-	REQUIRE(2);
-	EXPECT(jerry_value_is_object(args[1]) && jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
-	char *path = getAsString(args[0]);
-	FILE *file = fopen(path, "w");
-	free(path);
-	if (file == NULL) return throwError("Unable to open file.");
-	
-	u32 offset, size;
-	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &offset, &size);
-	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
-	jerry_release_value(arrayBuffer);
-
-	u32 bytesWritten = fwrite(buf, 1, size, file);
-	if (ferror(file)) {
-		fclose(file);
-		return throwError("File write failed.");
-	}
-	fclose(file);
-	return jerry_create_number(bytesWritten);
-}
-
-static jerry_value_t FileStaticWriteTextHandler(CALL_INFO) {
-	REQUIRE(2);
-	char *path = getAsString(args[0]);
-	FILE *file = fopen(path, "w");
-	free(path);
-	if (file == NULL) return throwError("Unable to open file.");
-	
-	u32 size;
-	char *text = getAsString(args[1], &size);
-	u32 bytesWritten = fwrite(text, 1, size, file);
-	if (ferror(file)) {
-		fclose(file);
-		free(text);
-		return throwError("File write failed.");
-	}
-	fclose(file);
-	free(text);
-	return jerry_create_number(bytesWritten);
-}
-
-static jerry_value_t FileStaticMakeDirHandler(CALL_INFO) {
-	REQUIRE_1();
-	bool recursive = argCount > 1 ? jerry_value_to_boolean(args[1]) : false;
-	char *path = getAsString(args[0]);
-	int status = -1;
-	if (recursive) {
-		char *slash = strchr(path, '/');
-		if (strchr(path, ':') != NULL || path == slash) slash = strchr(slash + 1, '/');
-		while (slash != NULL) {
-			slash[0] = '\0';
-			mkdir(path, 0777);
-			slash[0] = '/';
-			slash = strchr(slash + 1, '/');
-		}
-		status = access(path, F_OK);
-	}
-	else status = mkdir(path, 0777);
-	free(path);
-	if (status != 0) return throwError("Failed to make directory.");
-	return undefined;
-}
-
-static jerry_value_t FileStaticReadDirHandler(CALL_INFO) {
-	REQUIRE_1();
-	char *path = getAsString(args[0]);
-	DIR *dir = opendir(path);
-	free(path);
-	if (dir == NULL) return throwError("Unable to open directory.");
-
-	jerry_value_t arr = jerry_create_array(0);
-	jerry_value_t push = getProperty(arr, "push");
-	dirent *entry = readdir(dir);
-	while (entry != NULL) {
-		jerry_value_t dirEnt = jerry_create_object();
-		setProperty(dirEnt, "isDirectory", jerry_create_boolean(entry->d_type == DT_DIR));
-		setProperty(dirEnt, "isFile", jerry_create_boolean(entry->d_type == DT_REG));
-		jerry_value_t name = createString(entry->d_name);
-		setProperty(dirEnt, "name", name);
-		jerry_release_value(name);
-		jerry_call_function(push, arr, &dirEnt, 1);
-		jerry_release_value(dirEnt);
-		entry = readdir(dir);
-	}
-	closedir(dir);
-	jerry_release_value(push);
-	return arr;
-}
-
 static jerry_value_t BETA_gfxInit(CALL_INFO) {
 	videoSetMode(MODE_3_2D);
 	vramSetBankA(VRAM_A_MAIN_BG);
@@ -1737,6 +1737,24 @@ void exposeAPI() {
 	setMethod(Base64, "decode", Base64DecodeHandler);
 	jerry_release_value(Base64);
 
+	// Simple custom File class, nothing like the web version
+	jsClass File = createClass(ref_global, "File", IllegalConstructor);
+	setMethod(File.constructor, "open", FileStaticOpenHandler);
+	setMethod(File.constructor, "copy", FileStaticCopyHandler);
+	setMethod(File.constructor, "rename", FileStaticRenameHandler);
+	setMethod(File.constructor, "remove", FileStaticRemoveHandler);
+	setMethod(File.constructor, "read", FileStaticReadHandler);
+	setMethod(File.constructor, "readText", FileStaticReadTextHandler);
+	setMethod(File.constructor, "write", FileStaticWriteHandler);
+	setMethod(File.constructor, "writeText", FileStaticWriteTextHandler);
+	setMethod(File.constructor, "makeDir", FileStaticMakeDirHandler);
+	setMethod(File.constructor, "readDir", FileStaticReadDirHandler);
+	setMethod(File.prototype, "read", FileReadHandler);
+	setMethod(File.prototype, "write", FileWriteHandler);
+	setMethod(File.prototype, "seek", FileSeekHandler);
+	setMethod(File.prototype, "close", FileCloseHandler);
+	releaseClass(File);
+
 	jsClass EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
 	setMethod(EventTarget.prototype, "addEventListener", EventTargetAddEventListenerHandler);
 	setMethod(EventTarget.prototype, "removeEventListener", EventTargetRemoveEventListenerHandler);
@@ -1800,8 +1818,7 @@ void exposeAPI() {
 	setMethod(ref_DS, "sleep", DSSleepHandler);
 	setMethod(ref_DS, "swapScreens", [](CALL_INFO) -> jerry_value_t { lcdSwap(); return undefined; });
 
-	jerry_value_t profile = jerry_create_object();
-	setProperty(ref_DS, "profile", profile);
+	jerry_value_t profile = createNamespace(ref_DS, "profile");
 	setReadonlyNumber(profile, "alarmHour", PersonalData->alarmHour);
 	setReadonlyNumber(profile, "alarmMinute", PersonalData->alarmMinute);
 	setReadonlyNumber(profile, "birthDay", PersonalData->birthDay);
@@ -1837,10 +1854,8 @@ void exposeAPI() {
 	jerry_release_value(languageStr);
 	jerry_release_value(profile);
 
-	jerry_value_t buttons = jerry_create_object();
-	setProperty(ref_DS, "buttons", buttons);
-	jerry_value_t pressed = jerry_create_object();
-	setProperty(buttons, "pressed", pressed);
+	jerry_value_t buttons = createNamespace(ref_DS, "buttons");
+	jerry_value_t pressed = createNamespace(buttons, "pressed");
 	defGetter(pressed, "A",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_A); });
 	defGetter(pressed, "B",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_B); });
 	defGetter(pressed, "X",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_X); });
@@ -1854,8 +1869,7 @@ void exposeAPI() {
 	defGetter(pressed, "START",  [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_START); });
 	defGetter(pressed, "SELECT", [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_SELECT); });
 	jerry_release_value(pressed);
-	jerry_value_t held = jerry_create_object();
-	setProperty(buttons, "held", held);
+	jerry_value_t held = createNamespace(buttons, "held");
 	defGetter(held, "A",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_A); });
 	defGetter(held, "B",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_B); });
 	defGetter(held, "X",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_X); });
@@ -1869,8 +1883,7 @@ void exposeAPI() {
 	defGetter(held, "START",  [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_START); });
 	defGetter(held, "SELECT", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_SELECT); });
 	jerry_release_value(held);
-	jerry_value_t released = jerry_create_object();
-	setProperty(buttons, "released", released);
+	jerry_value_t released = createNamespace(buttons, "released");
 	defGetter(released, "A",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_A); });
 	defGetter(released, "B",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_B); });
 	defGetter(released, "X",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_X); });
@@ -1886,31 +1899,12 @@ void exposeAPI() {
 	jerry_release_value(released);
 	jerry_release_value(buttons);
 
-	jerry_value_t touch = jerry_create_object();
-	setProperty(ref_DS, "touch", touch);
+	jerry_value_t touch = createNamespace(ref_DS, "touch");
 	defGetter(touch, "start", [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_TOUCH); });
 	defGetter(touch, "active", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
 	defGetter(touch, "end", [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_TOUCH); });
 	setMethod(touch, "getPosition", DSTouchGetPositionHandler);
 	jerry_release_value(touch);
-
-	// Simple custom File class, nothing like the web version
-	jsClass File = createClass(ref_global, "File", IllegalConstructor);
-	setMethod(File.constructor, "open", FileStaticOpenHandler);
-	setMethod(File.constructor, "copy", FileStaticCopyHandler);
-	setMethod(File.constructor, "rename", FileStaticRenameHandler);
-	setMethod(File.constructor, "remove", FileStaticRemoveHandler);
-	setMethod(File.constructor, "read", FileStaticReadHandler);
-	setMethod(File.constructor, "readText", FileStaticReadTextHandler);
-	setMethod(File.constructor, "write", FileStaticWriteHandler);
-	setMethod(File.constructor, "writeText", FileStaticWriteTextHandler);
-	setMethod(File.constructor, "makeDir", FileStaticMakeDirHandler);
-	setMethod(File.constructor, "readDir", FileStaticReadDirHandler);
-	setMethod(File.prototype, "read", FileReadHandler);
-	setMethod(File.prototype, "write", FileWriteHandler);
-	setMethod(File.prototype, "seek", FileSeekHandler);
-	setMethod(File.prototype, "close", FileCloseHandler);
-	releaseClass(File);
 
 	exposeBetaAPI();
 }
