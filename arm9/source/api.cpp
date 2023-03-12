@@ -955,7 +955,7 @@ static jerry_value_t EventPreventDefaultHandler(CALL_INFO) {
 }
 
 static jerry_value_t EventTargetConstructor(CALL_INFO) {
-	CONSTRUCTOR(EventTarget);
+	if (thisValue != ref_global) CONSTRUCTOR(EventTarget);
 
 	jerry_value_t eventListenerList = jerry_create_object();
 	setInternalProperty(thisValue, "eventListeners", eventListenerList);
@@ -1761,9 +1761,7 @@ void exposeAPI() {
 	setMethod(EventTarget.prototype, "dispatchEvent", EventTargetDispatchEventHandler);
 	// turn global into an EventTarget
 	jerry_release_value(jerry_set_prototype(ref_global, EventTarget.prototype));
-	jerry_value_t globalListeners = jerry_create_array(0);
-	setInternalProperty(ref_global, "eventListeners", globalListeners);
-	jerry_release_value(globalListeners);
+	EventTargetConstructor(EventTarget.constructor, ref_global, NULL, 0);
 	releaseClass(EventTarget);
 
 	jsClass Event = createClass(ref_global, "Event", EventConstructor);
