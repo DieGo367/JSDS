@@ -30,7 +30,6 @@ extern "C" {
 
 
 jerry_value_t ref_global;
-jerry_value_t ref_DS;
 jerry_value_t ref_storage;
 jerry_value_t ref_Event;
 jerry_value_t ref_Error;
@@ -45,22 +44,24 @@ jerry_value_t ref_consoleTimers;
 const char ONE_ARG[] = "1 argument required.";
 
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
-#define REQUIRE_1() if (argCount == 0) return throwTypeError(ONE_ARG);
+#define FUNCTION(name) static jerry_value_t name(CALL_INFO)
+#define LAMBDA(returnVal) [](CALL_INFO) -> jerry_value_t { return returnVal; }
+#define REQUIRE_FIRST() if (argCount == 0) return throwTypeError(ONE_ARG)
 #define REQUIRE(n) if (argCount < n) return throwTypeError(#n " arguments required.")
 #define EXPECT(test, type) if (!(test)) return throwTypeError("Expected type '" #type "'.")
-#define CONSTRUCTOR(name) if (isNewTargetUndefined()) return throwTypeError("Constructor '" #name "' cannot be invoked without 'new'.");
+#define CONSTRUCTOR(name) if (isNewTargetUndefined()) return throwTypeError("Constructor '" #name "' cannot be invoked without 'new'.")
 
-static jerry_value_t IllegalConstructor(CALL_INFO) {
+FUNCTION(IllegalConstructor) {
 	return throwTypeError("Illegal constructor");
 }
 
-static jerry_value_t closeHandler(CALL_INFO) {
+FUNCTION(closeJSDS) {
 	abortFlag = true;
 	userClosed = true;
 	return jerry_create_abort_from_value(createString("close() was called."), true);
 }
 
-static jerry_value_t alertHandler(CALL_INFO) {
+FUNCTION(alert) {
 	if (argCount > 0) printValue(args[0]);
 	else printf("Alert");
 	printf(" [ OK]\n");
@@ -72,7 +73,7 @@ static jerry_value_t alertHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t confirmHandler(CALL_INFO) {
+FUNCTION(confirm) {
 	if (argCount > 0) printValue(args[0]);
 	else printf("Confirm");
 	printf(" [ OK,  Cancel]\n");
@@ -85,7 +86,7 @@ static jerry_value_t confirmHandler(CALL_INFO) {
 	}
 }
 
-static jerry_value_t promptHandler(CALL_INFO) {
+FUNCTION(prompt) {
 	if (argCount > 0) printValue(args[0]);
 	else printf("Prompt");
 	putchar(' ');
@@ -118,7 +119,7 @@ static jerry_value_t promptHandler(CALL_INFO) {
 	}
 }
 
-static jerry_value_t setTimeoutHandler(CALL_INFO) {
+FUNCTION(setTimeout) {
 	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, false);
 	else {
 		jerry_value_t zero = jerry_create_number(0);
@@ -128,7 +129,7 @@ static jerry_value_t setTimeoutHandler(CALL_INFO) {
 	}
 }
 
-static jerry_value_t setIntervalHandler(CALL_INFO) {
+FUNCTION(setInterval) {
 	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, true);
 	else {
 		jerry_value_t zero = jerry_create_number(0);
@@ -138,13 +139,13 @@ static jerry_value_t setIntervalHandler(CALL_INFO) {
 	}
 }
 
-static jerry_value_t clearTimeoutHandler(CALL_INFO) {
+FUNCTION(clearInterval) {
 	if (argCount > 0) clearTimeout(args[0]);
 	else clearTimeout(undefined);
 	return undefined;
 }
 
-static jerry_value_t consoleLogHandler(CALL_INFO) {
+FUNCTION(console_log) {
 	if (argCount > 0) {
 		logIndent();
 		log(args, argCount);
@@ -152,7 +153,7 @@ static jerry_value_t consoleLogHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleInfoHandler(CALL_INFO) {
+FUNCTION(console_info) {
 	if (argCount > 0) {
 		u16 prev = consoleSetColor(INFO);
 		logIndent();
@@ -162,7 +163,7 @@ static jerry_value_t consoleInfoHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleWarnHandler(CALL_INFO) {
+FUNCTION(console_warn) {
 	if (argCount > 0) {
 		u16 prev = consoleSetColor(WARN);
 		logIndent();
@@ -172,7 +173,7 @@ static jerry_value_t consoleWarnHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleErrorHandler(CALL_INFO) {
+FUNCTION(console_error) {
 	if (argCount > 0) {
 		u16 prev = consoleSetColor(ERROR);
 		logIndent();
@@ -182,7 +183,7 @@ static jerry_value_t consoleErrorHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleAssertHandler(CALL_INFO) {
+FUNCTION(console_assert) {
 	if (argCount == 0 || !jerry_value_to_boolean(args[0])) {
 		u16 prev = consoleSetColor(ERROR);
 		logIndent();
@@ -193,7 +194,7 @@ static jerry_value_t consoleAssertHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleDebugHandler(CALL_INFO) {
+FUNCTION(console_debug) {
 	if (argCount > 0) {
 		u16 prev = consoleSetColor(DEBUG);
 		logIndent();
@@ -203,7 +204,7 @@ static jerry_value_t consoleDebugHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleTraceHandler(CALL_INFO) {
+FUNCTION(console_trace) {
 	logIndent();
 	if (argCount == 0) printf("Trace\n");
 	else log(args, argCount);
@@ -221,7 +222,7 @@ static jerry_value_t consoleTraceHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleDirHandler(CALL_INFO) {
+FUNCTION(console_dir) {
 	consolePause();
 	if (argCount > 0) {
 		logIndent();
@@ -233,12 +234,12 @@ static jerry_value_t consoleDirHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleTableHandler(CALL_INFO) {
+FUNCTION(console_table) {
 	if (argCount > 0) logTable(args, argCount);
 	return undefined;
 }
 
-static jerry_value_t consoleGroupHandler(CALL_INFO) {
+FUNCTION(console_group) {
 	logIndentAdd();
 	if (argCount > 0) {
 		logIndent();
@@ -247,12 +248,12 @@ static jerry_value_t consoleGroupHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleGroupEndHandler(CALL_INFO) {
+FUNCTION(console_groupEnd) {
 	logIndentRemove();
 	return undefined;
 }
 
-static jerry_value_t consoleCountHandler(CALL_INFO) {
+FUNCTION(console_count) {
 	jerry_value_t label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		label = jerry_value_to_string(args[0]);
@@ -277,7 +278,7 @@ static jerry_value_t consoleCountHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleCountResetHandler(CALL_INFO) {
+FUNCTION(console_countReset) {
 	jerry_value_t label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		label = jerry_value_to_string(args[0]);
@@ -302,7 +303,7 @@ static jerry_value_t consoleCountResetHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleTimeHandler(CALL_INFO) {
+FUNCTION(console_time) {
 	jerry_value_t label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		label = jerry_value_to_string(args[0]);
@@ -327,7 +328,7 @@ static jerry_value_t consoleTimeHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleTimeLogHandler(CALL_INFO) {
+FUNCTION(console_timeLog) {
 	jerry_value_t label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		label = jerry_value_to_string(args[0]);
@@ -356,7 +357,7 @@ static jerry_value_t consoleTimeLogHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
+FUNCTION(console_timeEnd) {
 	jerry_value_t label;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		label = jerry_value_to_string(args[0]);
@@ -383,13 +384,13 @@ static jerry_value_t consoleTimeEndHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t consoleClearHandler(CALL_INFO) {
+FUNCTION(console_clear) {
 	consoleClear();
 	return undefined;
 }
 
-static jerry_value_t TextEncodeHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(Text_encode) {
+	REQUIRE_FIRST();
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
 		EXPECT(jerry_value_is_typedarray(args[1]), Uint8Array);
 		jerry_value_t text = jerry_value_to_string(args[0]);
@@ -417,8 +418,8 @@ static jerry_value_t TextEncodeHandler(CALL_INFO) {
 	return u8Array;
 }
 
-static jerry_value_t TextDecodeHandler(CALL_INFO) {
-	REQUIRE_1(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
+FUNCTION(Text_decode) {
+	REQUIRE_FIRST(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
 	u32 byteOffset = 0, dataLen = 0;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
@@ -427,8 +428,8 @@ static jerry_value_t TextDecodeHandler(CALL_INFO) {
 	return jerry_create_string_sz_from_utf8(data, dataLen);
 }
 
-static jerry_value_t TextEncodeUTF16Handler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(Text_encodeUTF16) {
+	REQUIRE_FIRST();
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
 		EXPECT(jerry_value_is_typedarray(args[1]), Uint8Array);
 	}
@@ -476,8 +477,8 @@ static jerry_value_t TextEncodeUTF16Handler(CALL_INFO) {
 	return u8Array;
 }
 
-static jerry_value_t TextDecodeUTF16Handler(CALL_INFO) {
-	REQUIRE_1(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
+FUNCTION(Text_decodeUTF16) {
+	REQUIRE_FIRST(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
 	u32 byteOffset = 0, dataLen = 0;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
@@ -486,8 +487,8 @@ static jerry_value_t TextDecodeUTF16Handler(CALL_INFO) {
 }
 
 const char b64Map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-static jerry_value_t Base64EncodeHandler(CALL_INFO) {
-	REQUIRE_1(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
+FUNCTION(Base64_encode) {
+	REQUIRE_FIRST(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
 	jerry_length_t byteOffset, dataSize;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataSize);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
@@ -528,8 +529,8 @@ static inline u8 b64CharValue(char ch, bool *bad) {
 	*bad = true;
 	return 0;
 }
-static jerry_value_t Base64DecodeHandler(CALL_INFO) {
-	REQUIRE_1(); EXPECT(jerry_value_is_string(args[0]), string);
+FUNCTION(Base64_decode) {
+	REQUIRE_FIRST(); EXPECT(jerry_value_is_string(args[0]), string);
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
 		EXPECT(jerry_value_is_typedarray(args[1]), Uint8Array);
 	}
@@ -590,8 +591,8 @@ static jerry_value_t Base64DecodeHandler(CALL_INFO) {
 	return u8Array;
 }
 
-static jerry_value_t FileReadHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(File_read) {
+	REQUIRE_FIRST();
 
 	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
 	char *mode = getString(modeStr);
@@ -624,8 +625,8 @@ static jerry_value_t FileReadHandler(CALL_INFO) {
 	}
 }
 
-static jerry_value_t FileWriteHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(File_write) {
+	REQUIRE_FIRST();
 	EXPECT(jerry_value_is_object(args[0]) && jerry_value_is_typedarray(args[0]) && jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 
 	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
@@ -652,8 +653,8 @@ static jerry_value_t FileWriteHandler(CALL_INFO) {
 	else return jerry_create_number(bytesWritten);
 }
 
-static jerry_value_t FileSeekHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(File_seek) {
+	REQUIRE_FIRST();
 
 	int mode = 10;
 	if (argCount > 1) {
@@ -673,15 +674,15 @@ static jerry_value_t FileSeekHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t FileCloseHandler(CALL_INFO) {
+FUNCTION(File_close) {
 	FILE *file;
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
 	if (fclose(file) != 0) return throwError("File close failed.");
 	return undefined;
 }
 
-static jerry_value_t FileStaticOpenHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(FileStatic_open) {
+	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	char defaultMode[2] = "r";
 	char *mode = defaultMode;
@@ -713,7 +714,7 @@ static jerry_value_t FileStaticOpenHandler(CALL_INFO) {
 	}
 }
 
-static jerry_value_t FileStaticCopyHandler(CALL_INFO) {
+FUNCTION(FileStatic_copy) {
 	REQUIRE(2);
 	char *sourcePath = getAsString(args[0]);
 	FILE *source = fopen(sourcePath, "r");
@@ -750,7 +751,7 @@ static jerry_value_t FileStaticCopyHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t FileStaticRenameHandler(CALL_INFO) {
+FUNCTION(FileStatic_rename) {
 	REQUIRE(2);
 	char *sourcePath = getAsString(args[0]);
 	char *destPath = getAsString(args[1]);
@@ -761,15 +762,15 @@ static jerry_value_t FileStaticRenameHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t FileStaticRemoveHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(FileStatic_remove) {
+	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	if (remove(path) != 0) return throwError("Failed to delete file.");
 	return undefined;
 }
 
-static jerry_value_t FileStaticReadHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(FileStatic_read) {
+	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "r");
 	free(path);
@@ -793,8 +794,8 @@ static jerry_value_t FileStaticReadHandler(CALL_INFO) {
 	return u8Array;
 }
 
-static jerry_value_t FileStaticReadTextHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(FileStatic_readText) {
+	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "r");
 	free(path);
@@ -817,7 +818,7 @@ static jerry_value_t FileStaticReadTextHandler(CALL_INFO) {
 	return str;
 }
 
-static jerry_value_t FileStaticWriteHandler(CALL_INFO) {
+FUNCTION(FileStatic_write) {
 	REQUIRE(2);
 	EXPECT(jerry_value_is_object(args[1]) && jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	char *path = getAsString(args[0]);
@@ -839,7 +840,7 @@ static jerry_value_t FileStaticWriteHandler(CALL_INFO) {
 	return jerry_create_number(bytesWritten);
 }
 
-static jerry_value_t FileStaticWriteTextHandler(CALL_INFO) {
+FUNCTION(FileStatic_writeText) {
 	REQUIRE(2);
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "w");
@@ -859,8 +860,8 @@ static jerry_value_t FileStaticWriteTextHandler(CALL_INFO) {
 	return jerry_create_number(bytesWritten);
 }
 
-static jerry_value_t FileStaticMakeDirHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(FileStatic_makeDir) {
+	REQUIRE_FIRST();
 	bool recursive = argCount > 1 ? jerry_value_to_boolean(args[1]) : false;
 	char *path = getAsString(args[0]);
 	int status = -1;
@@ -881,8 +882,8 @@ static jerry_value_t FileStaticMakeDirHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t FileStaticReadDirHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(FileStatic_readDir) {
+	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	DIR *dir = opendir(path);
 	free(path);
@@ -907,15 +908,15 @@ static jerry_value_t FileStaticReadDirHandler(CALL_INFO) {
 	return arr;
 }
 
-static jerry_value_t storageLengthGetter(CALL_INFO) {
+FUNCTION(storage_length) {
 	jerry_value_t propNames = jerry_get_object_keys(ref_storage);
 	u32 length = jerry_get_array_length(propNames);
 	jerry_release_value(propNames);
 	return jerry_create_number(length);
 }
 
-static jerry_value_t storageKeyHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(storage_key) {
+	REQUIRE_FIRST();
 	jerry_value_t key = null;
 	jerry_value_t propNames = jerry_get_object_keys(ref_storage);
 	jerry_value_t nVal = jerry_value_to_number(args[0]);
@@ -930,8 +931,8 @@ static jerry_value_t storageKeyHandler(CALL_INFO) {
 	return key;
 }
 
-static jerry_value_t storageGetItemHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(storage_getItem) {
+	REQUIRE_FIRST();
 	jerry_value_t hasOwnVal = jerry_has_own_property(ref_storage, args[0]);
 	bool hasOwn = jerry_get_boolean_value(hasOwnVal);
 	jerry_release_value(hasOwnVal);
@@ -939,7 +940,7 @@ static jerry_value_t storageGetItemHandler(CALL_INFO) {
 	else return null;
 }
 
-static jerry_value_t storageSetItemHandler(CALL_INFO) {
+FUNCTION(storage_setItem) {
 	REQUIRE(2);
 	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
 	jerry_value_t valAsString = jerry_value_to_string(args[1]);
@@ -949,8 +950,8 @@ static jerry_value_t storageSetItemHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t storageRemoveItemHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(storage_removeItem) {
+	REQUIRE_FIRST();
 	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
 	jerry_value_t hasOwn = jerry_has_own_property(ref_storage, propertyAsString);
 	if (jerry_get_boolean_value(hasOwn)) {
@@ -961,18 +962,18 @@ static jerry_value_t storageRemoveItemHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t storageClearHandler(CALL_INFO) {
+FUNCTION(storage_clear) {
 	jerry_release_value(ref_storage);
 	ref_storage = jerry_create_object();
 	return undefined;
 }
 
-static jerry_value_t storageSaveHandler(CALL_INFO) {
+FUNCTION(storage_save) {
 	return jerry_create_boolean(storageSave());
 }
 
-static jerry_value_t EventConstructor(CALL_INFO) {
-	CONSTRUCTOR(Event); REQUIRE_1();
+FUNCTION(EventConstructor) {
+	CONSTRUCTOR(Event); REQUIRE_FIRST();
 
 	setInternalProperty(thisValue, "initialized", True);               // initialized flag
 	setInternalProperty(thisValue, "dispatch", False);                 // dispatch flag
@@ -1000,12 +1001,12 @@ static jerry_value_t EventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t EventStopImmediatePropagationHandler(CALL_INFO) {
+FUNCTION(Event_stopImmediatePropagation) {
 	setInternalProperty(thisValue, "stopImmediatePropagation", True);
 	return undefined;
 }
 
-static jerry_value_t EventPreventDefaultHandler(CALL_INFO) {
+FUNCTION(Event_preventDefault) {
 	jerry_value_t cancelable = getInternalProperty(thisValue, "cancelable");
 	if (jerry_value_to_boolean(cancelable)) {
 		setInternalProperty(thisValue, "defaultPrevented", True);
@@ -1014,7 +1015,7 @@ static jerry_value_t EventPreventDefaultHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t EventTargetConstructor(CALL_INFO) {
+FUNCTION(EventTargetConstructor) {
 	if (thisValue != ref_global) CONSTRUCTOR(EventTarget);
 
 	jerry_value_t eventListenerList = jerry_create_object();
@@ -1024,7 +1025,7 @@ static jerry_value_t EventTargetConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
+FUNCTION(EventTarget_addEventListener) {
 	REQUIRE(2);
 	if (jerry_value_is_null(args[1])) return undefined;
 	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
@@ -1103,7 +1104,7 @@ static jerry_value_t EventTargetAddEventListenerHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
+FUNCTION(EventTarget_removeEventListener) {
 	REQUIRE(2);
 	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 	
@@ -1162,8 +1163,8 @@ static jerry_value_t EventTargetRemoveEventListenerHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
-	REQUIRE_1();
+FUNCTION(EventTarget_dispatchEvent) {
+	REQUIRE_FIRST();
 	jerry_value_t isInstanceVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, args[0], ref_Event);
 	bool isInstance = jerry_get_boolean_value(isInstanceVal);
 	jerry_release_value(isInstanceVal);
@@ -1179,8 +1180,8 @@ static jerry_value_t EventTargetDispatchEventHandler(CALL_INFO) {
 	return jerry_create_boolean(!canceled);
 }
 
-static jerry_value_t ErrorEventConstructor(CALL_INFO) {
-	CONSTRUCTOR(ErrorEvent); REQUIRE_1();
+FUNCTION(ErrorEventConstructor) {
+	CONSTRUCTOR(ErrorEvent); REQUIRE_FIRST();
 	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), ErrorEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
@@ -1232,7 +1233,7 @@ static jerry_value_t ErrorEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t PromiseRejectionEventConstructor(CALL_INFO) {
+FUNCTION(PromiseRejectionEventConstructor) {
 	CONSTRUCTOR(PromiseRejectionEvent); REQUIRE(2);
 	EXPECT(jerry_value_is_object(args[1]), PromiseRejectionEventInit);
 
@@ -1265,8 +1266,8 @@ static jerry_value_t PromiseRejectionEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
-	CONSTRUCTOR(KeyboardEvent); REQUIRE_1();
+FUNCTION(KeyboardEventConstructor) {
+	CONSTRUCTOR(KeyboardEvent); REQUIRE_FIRST();
 	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), KeyboardEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
@@ -1324,8 +1325,8 @@ static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t CustomEventConstructor(CALL_INFO) {
-	CONSTRUCTOR(CustomEvent); REQUIRE_1();
+FUNCTION(CustomEventConstructor) {
+	CONSTRUCTOR(CustomEvent); REQUIRE_FIRST();
 	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), CustomEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
@@ -1343,8 +1344,8 @@ static jerry_value_t CustomEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t ButtonEventConstructor(CALL_INFO) {
-	CONSTRUCTOR(ButtonEvent); REQUIRE_1();
+FUNCTION(ButtonEventConstructor) {
+	CONSTRUCTOR(ButtonEvent); REQUIRE_FIRST();
 	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), ButtonEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
@@ -1366,8 +1367,8 @@ static jerry_value_t ButtonEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t TouchEventConstructor(CALL_INFO) {
-	CONSTRUCTOR(TouchEvent); REQUIRE_1();
+FUNCTION(TouchEventConstructor) {
+	CONSTRUCTOR(TouchEvent); REQUIRE_FIRST();
 	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), TouchEventInit);
 	EventConstructor(function, thisValue, args, argCount);
 
@@ -1415,7 +1416,7 @@ static jerry_value_t TouchEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t DSGetBatteryLevelHandler(CALL_INFO) {
+FUNCTION(DS_getBatteryLevel) {
 	u32 level = getBatteryLevel();
 	if (level & BIT(7)) return createString("charging");
 	level = level & 0xF;
@@ -1427,7 +1428,7 @@ static jerry_value_t DSGetBatteryLevelHandler(CALL_INFO) {
 	else return jerry_create_number_nan();
 }
 
-static jerry_value_t DSSetMainScreenHandler(CALL_INFO) {
+FUNCTION(DS_setMainScreen) {
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
 		bool set = false;
 		char *str = getString(args[0]);
@@ -1445,7 +1446,7 @@ static jerry_value_t DSSetMainScreenHandler(CALL_INFO) {
 	return throwTypeError("Invalid screen value");
 }
 
-static jerry_value_t DSSleepHandler(CALL_INFO) {
+FUNCTION(DS_sleep) {
 	jerry_value_t eventArgs[2] = {createString("sleep"), jerry_create_object()};
 	setProperty(eventArgs[1], "cancelable", True);
 	jerry_value_t event = jerry_construct_object(ref_Event, eventArgs, 2);
@@ -1468,7 +1469,7 @@ static jerry_value_t DSSleepHandler(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t DSTouchGetPositionHandler(CALL_INFO) {
+FUNCTION(DS_touchGetPosition) {
 	if ((keysHeld() & KEY_TOUCH) == 0) {
 		jerry_value_t position = jerry_create_object();
 		jerry_value_t NaN = jerry_create_number_nan();
@@ -1488,14 +1489,14 @@ static jerry_value_t DSTouchGetPositionHandler(CALL_INFO) {
 	return position;
 }
 
-static jerry_value_t BETA_gfxInit(CALL_INFO) {
+FUNCTION(BETA_gfxInit) {
 	videoSetMode(MODE_3_2D);
 	vramSetBankA(VRAM_A_MAIN_BG);
 	bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
 	return undefined;
 }
 
-static jerry_value_t BETA_gfxPixel(CALL_INFO) {
+FUNCTION(BETA_gfxPixel) {
 	REQUIRE(3);
 	u8 x = jerry_value_as_uint32(args[0]);
 	u8 y = jerry_value_as_uint32(args[1]);
@@ -1504,7 +1505,7 @@ static jerry_value_t BETA_gfxPixel(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t BETA_gfxRect(CALL_INFO) {
+FUNCTION(BETA_gfxRect) {
 	REQUIRE(5);
 	u8 x = jerry_value_as_uint32(args[0]);
 	u8 y = jerry_value_as_uint32(args[1]) % 192;
@@ -1549,93 +1550,93 @@ void exposeAPI() {
 	setProperty(ref_global, "self", ref_global);
 	ref_Error = getProperty(ref_global, "Error");
 
-	setMethod(ref_global, "alert", alertHandler);
-	setMethod(ref_global, "clearInterval", clearTimeoutHandler);
-	setMethod(ref_global, "clearTimeout", clearTimeoutHandler);
-	setMethod(ref_global, "close", closeHandler);
-	setMethod(ref_global, "confirm", confirmHandler);
-	setMethod(ref_global, "prompt", promptHandler);
-	setMethod(ref_global, "setInterval", setIntervalHandler);
-	setMethod(ref_global, "setTimeout", setTimeoutHandler);
+	setMethod(ref_global, "alert", alert);
+	setMethod(ref_global, "clearInterval", clearInterval);
+	setMethod(ref_global, "clearTimeout", clearInterval);
+	setMethod(ref_global, "close", closeJSDS);
+	setMethod(ref_global, "confirm", confirm);
+	setMethod(ref_global, "prompt", prompt);
+	setMethod(ref_global, "setInterval", setInterval);
+	setMethod(ref_global, "setTimeout", setTimeout);
 	
-	jerry_value_t console = createNamespace(ref_global, "console");
-	setMethod(console, "assert", consoleAssertHandler);
-	setMethod(console, "clear", consoleClearHandler);
-	setMethod(console, "count", consoleCountHandler);
-	setMethod(console, "countReset", consoleCountResetHandler);
-	setMethod(console, "debug", consoleDebugHandler);
-	setMethod(console, "dir", consoleDirHandler);
-	setMethod(console, "error", consoleErrorHandler);
-	setMethod(console, "group", consoleGroupHandler);
-	setMethod(console, "groupEnd", consoleGroupEndHandler);
-	setMethod(console, "info", consoleInfoHandler);
-	setMethod(console, "log", consoleLogHandler);
-	setMethod(console, "table", consoleTableHandler);
-	setMethod(console, "time", consoleTimeHandler);
-	setMethod(console, "timeLog", consoleTimeLogHandler);
-	setMethod(console, "timeEnd", consoleTimeEndHandler);
-	setMethod(console, "trace", consoleTraceHandler);
-	setMethod(console, "warn", consoleWarnHandler);
+	jerry_value_t console = createObject(ref_global, "console");
+	setMethod(console, "assert", console_assert);
+	setMethod(console, "clear", console_clear);
+	setMethod(console, "count", console_count);
+	setMethod(console, "countReset", console_countReset);
+	setMethod(console, "debug", console_debug);
+	setMethod(console, "dir", console_dir);
+	setMethod(console, "error", console_error);
+	setMethod(console, "group", console_group);
+	setMethod(console, "groupEnd", console_groupEnd);
+	setMethod(console, "info", console_info);
+	setMethod(console, "log", console_log);
+	setMethod(console, "table", console_table);
+	setMethod(console, "time", console_time);
+	setMethod(console, "timeLog", console_timeLog);
+	setMethod(console, "timeEnd", console_timeEnd);
+	setMethod(console, "trace", console_trace);
+	setMethod(console, "warn", console_warn);
 	jerry_release_value(console);
 
-	jerry_value_t keyboard = createNamespace(ref_global, "keyboard");
-	setMethod(keyboard, "hide", [](CALL_INFO) -> jerry_value_t { keyboardHide(); return undefined; });
-	setMethod(keyboard, "show", [](CALL_INFO) -> jerry_value_t { keyboardShow(); return undefined; });
+	jerry_value_t keyboard = createObject(ref_global, "keyboard");
+	setMethod(keyboard, "hide", LAMBDA((keyboardHide(), undefined)));
+	setMethod(keyboard, "show", LAMBDA((keyboardShow(), undefined)));
 	jerry_release_value(keyboard);
 
-	jerry_value_t Text = createNamespace(ref_global, "Text");
-	setMethod(Text, "encode", TextEncodeHandler);
-	setMethod(Text, "decode", TextDecodeHandler);
-	setMethod(Text, "encodeUTF16", TextEncodeUTF16Handler);
-	setMethod(Text, "decodeUTF16", TextDecodeUTF16Handler);
+	jerry_value_t Text = createObject(ref_global, "Text");
+	setMethod(Text, "encode", Text_encode);
+	setMethod(Text, "decode", Text_decode);
+	setMethod(Text, "encodeUTF16", Text_encodeUTF16);
+	setMethod(Text, "decodeUTF16", Text_decodeUTF16);
 	jerry_release_value(Text);
 
-	jerry_value_t Base64 = createNamespace(ref_global, "Base64");
-	setMethod(Base64, "encode", Base64EncodeHandler);
-	setMethod(Base64, "decode", Base64DecodeHandler);
+	jerry_value_t Base64 = createObject(ref_global, "Base64");
+	setMethod(Base64, "encode", Base64_encode);
+	setMethod(Base64, "decode", Base64_decode);
 	jerry_release_value(Base64);
 
 	// Simple custom File class, nothing like the web version
 	jsClass File = createClass(ref_global, "File", IllegalConstructor);
-	setMethod(File.constructor, "open", FileStaticOpenHandler);
-	setMethod(File.constructor, "copy", FileStaticCopyHandler);
-	setMethod(File.constructor, "rename", FileStaticRenameHandler);
-	setMethod(File.constructor, "remove", FileStaticRemoveHandler);
-	setMethod(File.constructor, "read", FileStaticReadHandler);
-	setMethod(File.constructor, "readText", FileStaticReadTextHandler);
-	setMethod(File.constructor, "write", FileStaticWriteHandler);
-	setMethod(File.constructor, "writeText", FileStaticWriteTextHandler);
-	setMethod(File.constructor, "makeDir", FileStaticMakeDirHandler);
-	setMethod(File.constructor, "readDir", FileStaticReadDirHandler);
-	setMethod(File.prototype, "read", FileReadHandler);
-	setMethod(File.prototype, "write", FileWriteHandler);
-	setMethod(File.prototype, "seek", FileSeekHandler);
-	setMethod(File.prototype, "close", FileCloseHandler);
+	setMethod(File.constructor, "open", FileStatic_open);
+	setMethod(File.constructor, "copy", FileStatic_copy);
+	setMethod(File.constructor, "rename", FileStatic_rename);
+	setMethod(File.constructor, "remove", FileStatic_remove);
+	setMethod(File.constructor, "read", FileStatic_read);
+	setMethod(File.constructor, "readText", FileStatic_readText);
+	setMethod(File.constructor, "write", FileStatic_write);
+	setMethod(File.constructor, "writeText", FileStatic_writeText);
+	setMethod(File.constructor, "makeDir", FileStatic_makeDir);
+	setMethod(File.constructor, "readDir", FileStatic_readDir);
+	setMethod(File.prototype, "read", File_read);
+	setMethod(File.prototype, "write", File_write);
+	setMethod(File.prototype, "seek", File_seek);
+	setMethod(File.prototype, "close", File_close);
 	releaseClass(File);
 
-	jerry_value_t storage = createNamespace(ref_global, "storage");
-	defGetter(storage, "length", storageLengthGetter);
-	setMethod(storage, "key", storageKeyHandler);
-	setMethod(storage, "getItem", storageGetItemHandler);
-	setMethod(storage, "setItem", storageSetItemHandler);
-	setMethod(storage, "removeItem", storageRemoveItemHandler);
-	setMethod(storage, "clear", storageClearHandler);
-	setMethod(storage, "save", storageSaveHandler);
+	jerry_value_t storage = createObject(ref_global, "storage");
+	defGetter(storage, "length", storage_length);
+	setMethod(storage, "key", storage_key);
+	setMethod(storage, "getItem", storage_getItem);
+	setMethod(storage, "setItem", storage_setItem);
+	setMethod(storage, "removeItem", storage_removeItem);
+	setMethod(storage, "clear", storage_clear);
+	setMethod(storage, "save", storage_save);
 	jerry_release_value(storage);
 	ref_storage = jerry_create_object();
 
 	jsClass EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
-	setMethod(EventTarget.prototype, "addEventListener", EventTargetAddEventListenerHandler);
-	setMethod(EventTarget.prototype, "removeEventListener", EventTargetRemoveEventListenerHandler);
-	setMethod(EventTarget.prototype, "dispatchEvent", EventTargetDispatchEventHandler);
+	setMethod(EventTarget.prototype, "addEventListener", EventTarget_addEventListener);
+	setMethod(EventTarget.prototype, "removeEventListener", EventTarget_removeEventListener);
+	setMethod(EventTarget.prototype, "dispatchEvent", EventTarget_dispatchEvent);
 	// turn global into an EventTarget
 	jerry_release_value(jerry_set_prototype(ref_global, EventTarget.prototype));
 	EventTargetConstructor(EventTarget.constructor, ref_global, NULL, 0);
 	releaseClass(EventTarget);
 
 	jsClass Event = createClass(ref_global, "Event", EventConstructor);
-	setMethod(Event.prototype, "stopImmediatePropagation", EventStopImmediatePropagationHandler);
-	setMethod(Event.prototype, "preventDefault", EventPreventDefaultHandler);
+	setMethod(Event.prototype, "stopImmediatePropagation", Event_stopImmediatePropagation);
+	setMethod(Event.prototype, "preventDefault", Event_preventDefault);
 	releaseClass(extendClass(ref_global, "ErrorEvent", ErrorEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "PromiseRejectionEvent", PromiseRejectionEventConstructor, Event.prototype));
 	releaseClass(extendClass(ref_global, "KeyboardEvent", KeyboardEventConstructor, Event.prototype));
@@ -1658,111 +1659,66 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onvblank");
 	defEventAttribute(ref_global, "onwake");
 
-	// DS namespace, where most DS-specific functionality lives
-	ref_DS = createNamespace(ref_global, "DS");
+	jerry_value_t DS = createObject(ref_global, "DS");
 
-	setMethod(ref_DS, "getBatteryLevel", DSGetBatteryLevelHandler);
-	setMethod(ref_DS, "getMainScreen", [](CALL_INFO) -> jerry_value_t { return createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom"); });
-	setReadonly(ref_DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
-	setMethod(ref_DS, "setMainScreen", DSSetMainScreenHandler);
-	setMethod(ref_DS, "shutdown", [](CALL_INFO) -> jerry_value_t { systemShutDown(); return undefined; });
-	setMethod(ref_DS, "sleep", DSSleepHandler);
-	setMethod(ref_DS, "swapScreens", [](CALL_INFO) -> jerry_value_t { lcdSwap(); return undefined; });
+	setMethod(DS, "getBatteryLevel", DS_getBatteryLevel);
+	setMethod(DS, "getMainScreen", LAMBDA(createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom")));
+	setReadonly(DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
+	setMethod(DS, "setMainScreen", DS_setMainScreen);
+	setMethod(DS, "shutdown", LAMBDA((systemShutDown(), undefined)));
+	setMethod(DS, "sleep", DS_sleep);
+	setMethod(DS, "swapScreens", LAMBDA((lcdSwap(), undefined)));
 
-	jerry_value_t profile = createNamespace(ref_DS, "profile");
+	jerry_value_t profile = createObject(DS, "profile");
 	setReadonlyNumber(profile, "alarmHour", PersonalData->alarmHour);
 	setReadonlyNumber(profile, "alarmMinute", PersonalData->alarmMinute);
 	setReadonlyNumber(profile, "birthDay", PersonalData->birthDay);
 	setReadonlyNumber(profile, "birthMonth", PersonalData->birthMonth);
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-	jerry_value_t nameStr = createStringU16((u16 *) PersonalData->name, PersonalData->nameLen);
-	setReadonly(profile, "name", nameStr);
-	jerry_release_value(nameStr);
-	jerry_value_t messageStr = createStringU16((u16 *) PersonalData->message, PersonalData->messageLen);
-	setReadonly(profile, "message", messageStr);
-	jerry_release_value(messageStr);
+	setReadonlyStringU16(profile, "name", (u16 *) PersonalData->name, PersonalData->nameLen);
+	setReadonlyStringU16(profile, "message", (u16 *) PersonalData->message, PersonalData->messageLen);
 	#pragma GCC diagnostic pop
 	u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
-	setReadonlyNumber(profile, "color", themeColors[PersonalData->theme]);
+	setReadonlyNumber(profile, "color", PersonalData->theme < 16 ? themeColors[PersonalData->theme] : 0);
 	setReadonly(profile, "autoMode", jerry_create_boolean(PersonalData->autoMode));
-	jerry_value_t gbaScreenStr = createString(PersonalData->gbaScreen ? "bottom" : "top");
-	setReadonly(profile, "gbaScreen", gbaScreenStr);
-	jerry_release_value(gbaScreenStr);
-	u8 language = PersonalData->language;
-	jerry_value_t languageStr = createString(
-		language == 0 ? "日本語" :
-		language == 1 ? "English" :
-		language == 2 ? "Français" :
-		language == 3 ? "Deutsch" :
-		language == 4 ? "Italiano" :
-		language == 5 ? "Español" :
-		language == 6 ? "中文" :
-		language == 7 ? "한국어" :
-		""
-	);
-	setReadonly(profile, "language", languageStr);
-	jerry_release_value(languageStr);
+	setReadonlyString(profile, "gbaScreen", PersonalData->gbaScreen ? "bottom" : "top");
+	const char languages[8][10] = {"日本語", "English", "Français", "Deutsch", "Italiano", "Español", "中文", "한국어"};
+	setReadonlyString(profile, "language", PersonalData->language < 8 ? languages[PersonalData->language] : "");
 	jerry_release_value(profile);
 
-	jerry_value_t buttons = createNamespace(ref_DS, "buttons");
-	jerry_value_t pressed = createNamespace(buttons, "pressed");
-	defGetter(pressed, "A",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_A); });
-	defGetter(pressed, "B",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_B); });
-	defGetter(pressed, "X",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_X); });
-	defGetter(pressed, "Y",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_Y); });
-	defGetter(pressed, "L",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_L); });
-	defGetter(pressed, "R",      [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_R); });
-	defGetter(pressed, "Up",     [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_UP); });
-	defGetter(pressed, "Down",   [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_DOWN); });
-	defGetter(pressed, "Left",   [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_LEFT); });
-	defGetter(pressed, "Right",  [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_RIGHT); });
-	defGetter(pressed, "START",  [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_START); });
-	defGetter(pressed, "SELECT", [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_SELECT); });
+	jerry_value_t buttons = createObject(DS, "buttons");
+	jerry_value_t pressed = createObject(buttons, "pressed");
+	jerry_value_t held = createObject(buttons, "held");
+	jerry_value_t released = createObject(buttons, "released");
+	#define FOR_BUTTONS(DO) \
+		DO("A", KEY_A); DO("B", KEY_B); DO("X", KEY_X); DO("Y", KEY_Y); DO("L", KEY_L);  DO("R", KEY_R); \
+		DO("Up", KEY_UP);  DO("Down", KEY_DOWN); DO("Left", KEY_LEFT);  DO("Right", KEY_RIGHT); \
+		DO("START", KEY_START); DO("SELECT", KEY_SELECT)
+	#define DEF_GETTER_KEY_DOWN(name, value) defGetter(pressed, name, LAMBDA(jerry_create_boolean(keysDown() & value)));
+	#define DEF_GETTER_KEY_HELD(name, value) defGetter(held, name, LAMBDA(jerry_create_boolean(keysHeld() & value)));
+	#define DEF_GETTER_KEY_UP(name, value) defGetter(released, name, LAMBDA(jerry_create_boolean(keysUp() & value)));
+	FOR_BUTTONS(DEF_GETTER_KEY_DOWN);
+	FOR_BUTTONS(DEF_GETTER_KEY_HELD);
+	FOR_BUTTONS(DEF_GETTER_KEY_UP);
 	jerry_release_value(pressed);
-	jerry_value_t held = createNamespace(buttons, "held");
-	defGetter(held, "A",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_A); });
-	defGetter(held, "B",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_B); });
-	defGetter(held, "X",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_X); });
-	defGetter(held, "Y",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_Y); });
-	defGetter(held, "L",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_L); });
-	defGetter(held, "R",      [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_R); });
-	defGetter(held, "Up",     [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_UP); });
-	defGetter(held, "Down",   [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_DOWN); });
-	defGetter(held, "Left",   [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_LEFT); });
-	defGetter(held, "Right",  [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_RIGHT); });
-	defGetter(held, "START",  [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_START); });
-	defGetter(held, "SELECT", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_SELECT); });
 	jerry_release_value(held);
-	jerry_value_t released = createNamespace(buttons, "released");
-	defGetter(released, "A",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_A); });
-	defGetter(released, "B",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_B); });
-	defGetter(released, "X",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_X); });
-	defGetter(released, "Y",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_Y); });
-	defGetter(released, "L",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_L); });
-	defGetter(released, "R",      [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_R); });
-	defGetter(released, "Up",     [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_UP); });
-	defGetter(released, "Down",   [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_DOWN); });
-	defGetter(released, "Left",   [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_LEFT); });
-	defGetter(released, "Right",  [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_RIGHT); });
-	defGetter(released, "START",  [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_START); });
-	defGetter(released, "SELECT", [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_SELECT); });
 	jerry_release_value(released);
 	jerry_release_value(buttons);
 
-	jerry_value_t touch = createNamespace(ref_DS, "touch");
-	defGetter(touch, "start", [](CALL_INFO) { return jerry_create_boolean(keysDown() & KEY_TOUCH); });
-	defGetter(touch, "active", [](CALL_INFO) { return jerry_create_boolean(keysHeld() & KEY_TOUCH); });
-	defGetter(touch, "end", [](CALL_INFO) { return jerry_create_boolean(keysUp() & KEY_TOUCH); });
-	setMethod(touch, "getPosition", DSTouchGetPositionHandler);
+	jerry_value_t touch = createObject(DS, "touch");
+	defGetter(touch, "start", LAMBDA(jerry_create_boolean(keysDown() & KEY_TOUCH)));
+	defGetter(touch, "active", LAMBDA(jerry_create_boolean(keysHeld() & KEY_TOUCH)));
+	defGetter(touch, "end", LAMBDA(jerry_create_boolean(keysUp() & KEY_TOUCH)));
+	setMethod(touch, "getPosition", DS_touchGetPosition);
 	jerry_release_value(touch);
 
+	jerry_release_value(DS);
 	exposeBetaAPI();
 }
 
 void releaseReferences() {
 	jerry_release_value(ref_global);
-	jerry_release_value(ref_DS);
 	jerry_release_value(ref_storage);
 	jerry_release_value(ref_Event);
 	jerry_release_value(ref_Error);

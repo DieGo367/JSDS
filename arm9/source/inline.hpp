@@ -166,8 +166,8 @@ inline jerry_value_t createMethod(jerry_value_t object, const char *method, jerr
 	return func;
 }
 
-// Creates a "namespace" on object via c string. Return value must be released!
-inline jerry_value_t createNamespace(jerry_value_t object, const char *name) {
+// Creates an empty object on object via c string. Return value must be released!
+inline jerry_value_t createObject(jerry_value_t object, const char *name) {
 	jerry_value_t ns = jerry_create_object();
 	jerry_value_t nameStr = jerry_create_string((jerry_char_t *) name);
 	jerry_release_value(jerry_set_property(object, nameStr, ns));
@@ -272,6 +272,20 @@ inline void setReadonlyNumber(jerry_value_t object, const char *property, double
 	jerry_value_t n = jerry_create_number(value);
 	setReadonly(object, property, n);
 	jerry_release_value(n);
+}
+
+// Sets a getter to a string on object via c strings.
+inline void setReadonlyString(jerry_value_t object, const char *property, const char *value) {
+	jerry_value_t string = createString(value);
+	setReadonly(object, property, string);
+	jerry_release_value(string);
+}
+
+// Sets a getter to a string on object via c string and a list of UTF-16 codepoints
+inline void setReadonlyStringU16(jerry_value_t object, const char *property, u16 *codepoints, u32 length) {
+	jerry_value_t string = createStringU16(codepoints, length);
+	setReadonly(object, property, string);
+	jerry_release_value(string);
 }
 
 // Returns whether new.target is undefined.
