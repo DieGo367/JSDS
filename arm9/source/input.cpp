@@ -153,7 +153,7 @@ void touchEvents() {
 	prevY = pos.py;
 }
 
-bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 location, bool shift, bool caps, int layout) {
+bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 location, bool shift, bool caps, int layout, bool repeat) {
 	jerry_value_t kbdEventArgs[2] = {createString(down ? "keydown" : "keyup"), jerry_create_object()};
 	setProperty(kbdEventArgs[1], "cancelable", True);
 
@@ -180,6 +180,7 @@ bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 
 	setProperty(kbdEventArgs[1], "key", keyStr);
 	setProperty(kbdEventArgs[1], "code", codeStr);
 	setProperty(kbdEventArgs[1], "layout", layoutStr);
+	setProperty(kbdEventArgs[1], "repeat", jerry_create_boolean(repeat));
 	jerry_release_value(keyStr);
 	jerry_release_value(codeStr);
 	jerry_release_value(layoutStr);
@@ -198,15 +199,15 @@ bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 
 }
 
 bool pauseKeyEvents = false;
-bool onKeyDown(const u16 codepoint, const char *name, bool shift, bool caps, int layout) {
+bool onKeyDown(const u16 codepoint, const char *name, bool shift, bool caps, int layout, bool repeat) {
 	if (!pauseKeyEvents && dependentEvents & keydown) {
-		return dispatchKeyboardEvent(true, codepoint, name, 0, shift, caps, layout);
+		return dispatchKeyboardEvent(true, codepoint, name, 0, shift, caps, layout, repeat);
 	}
 	return false;
 }
 bool onKeyUp(const u16 codepoint, const char *name, bool shift, bool caps, int layout) {
 	if (!pauseKeyEvents && dependentEvents & keyup) {
-		return dispatchKeyboardEvent(false, codepoint, name, 0, shift, caps, layout);
+		return dispatchKeyboardEvent(false, codepoint, name, 0, shift, caps, layout, false);
 	}
 	return false;
 }
