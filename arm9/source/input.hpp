@@ -12,7 +12,7 @@ u32 getCanceledButtons();
 void touchEvents();
 
 extern bool pauseKeyEvents;
-bool onKeyDown(const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps);
-bool onKeyUp(const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps);
+bool onKeyDown(const u16 codepoint, const char *name, bool shift, bool caps, int layout);
+bool onKeyUp(const u16 codepoint, const char *name, bool shift, bool caps, int layout);
 
 #endif /* JSDS_INPUT_HPP */

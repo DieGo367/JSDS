@@ -13,8 +13,8 @@ void keyboardUpdate(u32 blockedButtons = 0);
 bool keyboardShow();
 bool keyboardHide(); 
 
-void keyboardSetPressHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps));
-void keyboardSetReleaseHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps));
+void keyboardSetPressHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, bool caps, int layout));
+void keyboardSetReleaseHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, bool caps, int layout));
 
 void keyboardCompose(bool allowCancel);
 ComposeStatus keyboardComposeStatus();

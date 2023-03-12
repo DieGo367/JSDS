@@ -403,7 +403,7 @@ NitroFont keyFont = {0};
 bool showing = false;
 u8 currentBoard = 0;
 bool cancelEnabled = false;
-bool shiftToggle = false, ctrlToggle = false, altToggle = false, metaToggle = false, capsToggle = false;
+bool shiftToggle = false, capsToggle = false;
 enum HoldMode { NO_HOLD, TOUCHING, A_PRESS, B_PRESS, D_PAD_PRESS};
 HoldMode heldMode = NO_HOLD;
 int heldTime = 0;
@@ -414,8 +414,8 @@ ComposeStatus composing = INACTIVE;
 bool closeOnAccept = false;
 u16 *compCursor = compositionBuffer;
 const u16 *compEnd = compositionBuffer + 255;
-bool (*onPress) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
-bool (*onRelease) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) = NULL;
+bool (*onPress) (const u16 codepoint, const char *name, bool shift, bool caps, int layout) = NULL;
+bool (*onRelease) (const u16 codepoint, const char *name, bool shift, bool caps, int layout) = NULL;
 
 
 
@@ -568,7 +568,7 @@ void composeKey(u16 codepoint) {
 
 void pressKey(KeyDef key, u8 keyWidth, u8 keyHeight, int idx, HoldMode mode) {
 	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
-	if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+	if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, capsToggle, currentBoard);
 	heldKeyIdx = idx;
 	heldTime = 1;
 	heldMode = mode;
@@ -579,7 +579,7 @@ void holdKey() {
 	if (++heldTime >= REPEAT_START && (heldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
 		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 		bool canceled = false;
-		if (onPress != NULL) canceled = onPress(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+		if (onPress != NULL) canceled = onPress(codepoint, key.name, shiftToggle, capsToggle, currentBoard);
 		if (!canceled && composing == COMPOSING) composeKey(codepoint);
 		heldTime = REPEAT_START;
 	}
@@ -594,12 +594,12 @@ void releaseKey() {
 	else if (key.lower == KATAKANA) shiftToggle = true;
 	else if (key.lower >= INPUT_ALPHANUMERIC && key.lower <= INPUT_PICTOGRAM) {
 		currentBoard = key.lower - INPUT_ALPHANUMERIC;
-		shiftToggle = ctrlToggle = altToggle = metaToggle = capsToggle = false;
+		shiftToggle = capsToggle = false;
 	}
 	else updateBoard = false;
 	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 	bool canceled = false;
-	if (onRelease != NULL) canceled = onRelease(codepoint, key.name, shiftToggle, ctrlToggle, altToggle, metaToggle, capsToggle);
+	if (onRelease != NULL) canceled = onRelease(codepoint, key.name, shiftToggle, capsToggle, currentBoard);
 	if (!canceled && composing == COMPOSING && heldTime < REPEAT_START) composeKey(codepoint);
 	if (currentBoard == 0 && key.lower != SHIFT) {
 		shiftToggle = false;
@@ -793,10 +793,10 @@ bool keyboardHide() {
 	return true;
 }
 
-void keyboardSetPressHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps)) {
+void keyboardSetPressHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, bool caps, int layout)) {
 	onPress = handler;
 }
-void keyboardSetReleaseHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps)) {
+void keyboardSetReleaseHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, bool caps, int layout)) {
 	onRelease = handler;
 }
 

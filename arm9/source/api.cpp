@@ -1212,15 +1212,13 @@ static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
 
 	jerry_value_t keyStr = createString("key");
 	jerry_value_t codeStr = createString("code");
-	jerry_value_t locationStr = createString("location");
+	jerry_value_t layoutStr = createString("layout");
 
 	jerry_value_t empty = createString("");
 	setReadonlyJV(thisValue, keyStr, empty);
 	setReadonlyJV(thisValue, codeStr, empty);
+	setReadonlyJV(thisValue, layoutStr, empty);
 	jerry_release_value(empty);
-	jerry_value_t zero = jerry_create_number(0);
-	setReadonlyJV(thisValue, locationStr, zero);
-	jerry_release_value(zero);
 
 	if (argCount > 1) {
 		jerry_value_t keyVal = jerry_get_property(args[1], keyStr);
@@ -1237,16 +1235,16 @@ static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
 			jerry_release_value(codeAsStr);
 		}
 		jerry_release_value(codeVal);
-		jerry_value_t locationVal = jerry_get_property(args[1], locationStr);
-		if (!jerry_value_is_undefined(locationVal)) {
-			jerry_value_t locationNum = jerry_create_number(jerry_value_as_uint32(locationVal));
-			jerry_set_internal_property(thisValue, locationStr, locationNum);
-			jerry_release_value(locationNum);
+		jerry_value_t layoutVal = jerry_get_property(args[1], layoutStr);
+		if (!jerry_value_is_undefined(layoutVal)) {
+			jerry_value_t layoutAsStr = jerry_value_to_string(layoutVal);
+			jerry_set_internal_property(thisValue, layoutStr, layoutAsStr);
+			jerry_release_value(layoutAsStr);
 		}
-		jerry_release_value(locationVal);
+		jerry_release_value(layoutVal);
 	}
 
-	jerry_release_value(locationStr);
+	jerry_release_value(layoutStr);
 	jerry_release_value(codeStr);
 	jerry_release_value(keyStr);
 

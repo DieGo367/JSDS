@@ -153,7 +153,7 @@ void touchEvents() {
 	prevY = pos.py;
 }
 
-bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 location, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
+bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 location, bool shift, bool caps, int layout) {
 	jerry_value_t kbdEventArgs[2] = {createString(down ? "keydown" : "keyup"), jerry_create_object()};
 	setProperty(kbdEventArgs[1], "cancelable", True);
 
@@ -170,19 +170,21 @@ bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 
 		keyStr = createString(converted);
 	}
 	jerry_value_t codeStr = createString(name);
-	jerry_value_t locationNum = jerry_create_number(location);
+	jerry_value_t layoutStr = createString(
+		layout == 0 ? "AlphaNumeric" : 
+		layout == 1 ? "LatinAccented" :
+		layout == 2 ? "Kana" :
+		layout == 3 ? "Symbol" :
+		layout == 4 ? "Pictogram"
+	: "");
 	setProperty(kbdEventArgs[1], "key", keyStr);
 	setProperty(kbdEventArgs[1], "code", codeStr);
-	setProperty(kbdEventArgs[1], "location", locationNum);
+	setProperty(kbdEventArgs[1], "layout", layoutStr);
 	jerry_release_value(keyStr);
 	jerry_release_value(codeStr);
-	jerry_release_value(locationNum);
+	jerry_release_value(layoutStr);
 
 	setProperty(kbdEventArgs[1], "shiftKey", jerry_create_boolean(shift));
-	setProperty(kbdEventArgs[1], "ctrlKey", jerry_create_boolean(ctrl));
-	setProperty(kbdEventArgs[1], "altKey", jerry_create_boolean(alt));
-	setProperty(kbdEventArgs[1], "metaKey", jerry_create_boolean(meta));
-	setProperty(kbdEventArgs[1], "modifierAltGraph", jerry_create_boolean(ctrl && alt));
 	setProperty(kbdEventArgs[1], "modifierCapsLock", jerry_create_boolean(caps));
 
 	jerry_value_t keyboardEventConstructor = getProperty(ref_global, "KeyboardEvent");
@@ -196,15 +198,15 @@ bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 
 }
 
 bool pauseKeyEvents = false;
-bool onKeyDown(const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
+bool onKeyDown(const u16 codepoint, const char *name, bool shift, bool caps, int layout) {
 	if (!pauseKeyEvents && dependentEvents & keydown) {
-		return dispatchKeyboardEvent(true, codepoint, name, 0, shift, ctrl, alt, meta, caps);
+		return dispatchKeyboardEvent(true, codepoint, name, 0, shift, caps, layout);
 	}
 	return false;
 }
-bool onKeyUp(const u16 codepoint, const char *name, bool shift, bool ctrl, bool alt, bool meta, bool caps) {
+bool onKeyUp(const u16 codepoint, const char *name, bool shift, bool caps, int layout) {
 	if (!pauseKeyEvents && dependentEvents & keyup) {
-		return dispatchKeyboardEvent(false, codepoint, name, 0, shift, ctrl, alt, meta, caps);
+		return dispatchKeyboardEvent(false, codepoint, name, 0, shift, caps, layout);
 	}
 	return false;
 }
