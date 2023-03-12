@@ -31,7 +31,7 @@ extern "C" {
 
 jerry_value_t ref_global;
 jerry_value_t ref_DS;
-jerry_value_t ref_localStorage;
+jerry_value_t ref_storage;
 jerry_value_t ref_Event;
 jerry_value_t ref_Error;
 jerry_value_t ref_str_name;
@@ -39,14 +39,10 @@ jerry_value_t ref_str_constructor;
 jerry_value_t ref_str_prototype;
 jerry_value_t ref_str_backtrace;
 jerry_value_t ref_sym_toStringTag;
-jerry_value_t ref_proxyHandler_storage;
 jerry_value_t ref_consoleCounters;
 jerry_value_t ref_consoleTimers;
 
-const u32 STORAGE_API_MAX_CAPACITY = 4096; // 4 KiB
-const u32 STORAGE_API_LENGTH_BYTES = 8;
-
-const char ONE_ARG[21] = "1 argument required.";
+const char ONE_ARG[] = "1 argument required.";
 
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
 #define REQUIRE_1() if (argCount == 0) return throwTypeError(ONE_ARG);
@@ -911,6 +907,70 @@ static jerry_value_t FileStaticReadDirHandler(CALL_INFO) {
 	return arr;
 }
 
+static jerry_value_t storageLengthGetter(CALL_INFO) {
+	jerry_value_t propNames = jerry_get_object_keys(ref_storage);
+	u32 length = jerry_get_array_length(propNames);
+	jerry_release_value(propNames);
+	return jerry_create_number(length);
+}
+
+static jerry_value_t storageKeyHandler(CALL_INFO) {
+	REQUIRE_1();
+	jerry_value_t key = null;
+	jerry_value_t propNames = jerry_get_object_keys(ref_storage);
+	jerry_value_t nVal = jerry_value_to_number(args[0]);
+	u32 n = jerry_value_as_uint32(nVal);
+	if (n < jerry_get_array_length(propNames)) {
+		jerry_value_t prop = jerry_get_property_by_index(propNames, n);
+		if (!jerry_value_is_undefined(prop)) key = prop;
+		else jerry_release_value(prop);
+	}
+	jerry_release_value(nVal);
+	jerry_release_value(propNames);
+	return key;
+}
+
+static jerry_value_t storageGetItemHandler(CALL_INFO) {
+	REQUIRE_1();
+	jerry_value_t hasOwnVal = jerry_has_own_property(ref_storage, args[0]);
+	bool hasOwn = jerry_get_boolean_value(hasOwnVal);
+	jerry_release_value(hasOwnVal);
+	if (hasOwn) return jerry_get_property(ref_storage, args[0]);
+	else return null;
+}
+
+static jerry_value_t storageSetItemHandler(CALL_INFO) {
+	REQUIRE(2);
+	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
+	jerry_value_t valAsString = jerry_value_to_string(args[1]);
+	jerry_set_property(ref_storage, propertyAsString, valAsString);
+	jerry_release_value(valAsString);
+	jerry_release_value(propertyAsString);
+	return undefined;
+}
+
+static jerry_value_t storageRemoveItemHandler(CALL_INFO) {
+	REQUIRE_1();
+	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
+	jerry_value_t hasOwn = jerry_has_own_property(ref_storage, propertyAsString);
+	if (jerry_get_boolean_value(hasOwn)) {
+		jerry_delete_property(ref_storage, propertyAsString);
+	}
+	jerry_release_value(hasOwn);
+	jerry_release_value(propertyAsString);
+	return undefined;
+}
+
+static jerry_value_t storageClearHandler(CALL_INFO) {
+	jerry_release_value(ref_storage);
+	ref_storage = jerry_create_object();
+	return undefined;
+}
+
+static jerry_value_t storageSaveHandler(CALL_INFO) {
+	return jerry_create_boolean(storageSave());
+}
+
 static jerry_value_t EventConstructor(CALL_INFO) {
 	CONSTRUCTOR(Event); REQUIRE_1();
 
@@ -1355,205 +1415,6 @@ static jerry_value_t TouchEventConstructor(CALL_INFO) {
 	return undefined;
 }
 
-static jerry_value_t StorageLengthGetter(CALL_INFO) {
-	jerry_value_t propNames = jerry_get_object_keys(thisValue);
-	u32 length = jerry_get_array_length(propNames);
-	jerry_release_value(propNames);
-	return jerry_create_number(length);
-}
-
-static jerry_value_t StorageKeyHandler(CALL_INFO) {
-	REQUIRE_1();
-	jerry_value_t key = null;
-	jerry_value_t propNames = jerry_get_object_keys(thisValue);
-	jerry_value_t nVal = jerry_value_to_number(args[0]);
-	u32 n = jerry_value_as_uint32(nVal);
-	if (n < jerry_get_array_length(propNames)) {
-		jerry_value_t prop = jerry_get_property_by_index(propNames, n);
-		if (!jerry_value_is_undefined(prop)) key = prop;
-		else jerry_release_value(prop);
-	}
-	jerry_release_value(nVal);
-	jerry_release_value(propNames);
-	return key;
-}
-
-static jerry_value_t StorageGetItemHandler(CALL_INFO) {
-	REQUIRE_1();
-	jerry_value_t hasOwnVal = jerry_has_own_property(thisValue, args[0]);
-	bool hasOwn = jerry_get_boolean_value(hasOwnVal);
-	jerry_release_value(hasOwnVal);
-	if (hasOwn) return jerry_get_property(thisValue, args[0]);
-	else return null;
-}
-
-static jerry_value_t StorageSetItemHandler(CALL_INFO) {
-	REQUIRE(2);
-
-	jerry_value_t storageSizeVal = getInternalProperty(thisValue, "size");
-	u32 storageFilled = jerry_value_as_uint32(storageSizeVal);
-	jerry_release_value(storageSizeVal);
-
-	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
-	jerry_value_t valAsString = jerry_value_to_string(args[1]);
-	u32 propertyNameSize;
-	char *propertyName = getString(propertyAsString, &propertyNameSize);
-
-	jerry_value_t hasOwn = jerry_has_own_property(thisValue, propertyAsString);
-	if (jerry_get_boolean_value(hasOwn)) {
-		jerry_value_t currentValue = jerry_get_property(thisValue, propertyAsString);
-		storageFilled -= propertyNameSize + jerry_get_string_size(currentValue) + STORAGE_API_LENGTH_BYTES;
-		jerry_release_value(currentValue);
-	}
-	jerry_release_value(hasOwn);
-	storageFilled += propertyNameSize + jerry_get_string_size(valAsString) + STORAGE_API_LENGTH_BYTES;
-
-	jerry_value_t result = undefined;
-	if (storageFilled > STORAGE_API_MAX_CAPACITY) {
-		result = throwError("Exceeded the quota.");
-	}
-	else {
-		if (strcmp(propertyName, "length") == 0) {
-			jerry_property_descriptor_t lengthDesc = {
-				.is_value_defined = true,
-				.is_enumerable_defined = true,
-				.is_enumerable = true,
-				.is_configurable_defined = true,
-				.is_configurable = true,
-				.value = valAsString
-			};
-			jerry_release_value(jerry_define_own_property(thisValue, propertyAsString, &lengthDesc));
-		}
-		else jerry_set_property(thisValue, propertyAsString, valAsString);
-
-		jerry_value_t newSize = jerry_create_number(storageFilled);
-		setInternalProperty(thisValue, "size", newSize);
-		jerry_release_value(newSize);
-		jerry_value_t isLocal = getInternalProperty(thisValue, "isLocal");
-		if (jerry_get_boolean_value(isLocal)) storageRequestSave();
-		jerry_release_value(isLocal);
-	}
-
-	free(propertyName);
-	jerry_release_value(valAsString);
-	jerry_release_value(propertyAsString);
-	return result;
-}
-
-static jerry_value_t StorageRemoveItemHandler(CALL_INFO) {
-	REQUIRE_1();
-	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
-	jerry_value_t hasOwn = jerry_has_own_property(thisValue, propertyAsString);
-	if (jerry_get_boolean_value(hasOwn)) {
-		jerry_value_t storageSizeVal = getInternalProperty(thisValue, "size");
-		u32 storageFilled = jerry_value_as_uint32(storageSizeVal);
-		jerry_release_value(storageSizeVal);
-
-		jerry_value_t currentValue = jerry_get_property(thisValue, propertyAsString);
-		if (jerry_delete_property(thisValue, propertyAsString)) {
-			storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + STORAGE_API_LENGTH_BYTES;
-			jerry_value_t newSize = jerry_create_number(storageFilled);
-			setInternalProperty(thisValue, "size", newSize);
-			jerry_release_value(newSize);
-			jerry_value_t isLocal = getInternalProperty(thisValue, "isLocal");
-			if (jerry_get_boolean_value(isLocal)) storageRequestSave();
-			jerry_release_value(isLocal);
-		}
-		jerry_release_value(currentValue);
-	}
-	jerry_release_value(hasOwn);
-	jerry_release_value(propertyAsString);
-	return undefined;
-}
-
-static jerry_value_t StorageClearHandler(CALL_INFO) {
-	jerry_value_t props = jerry_get_object_keys(thisValue);
-	u32 length = jerry_get_array_length(props);
-	for (u32 i = 0; i < length; i++) {
-		jerry_value_t prop = jerry_get_property_by_index(props, i);
-		jerry_delete_property(thisValue, prop);
-		jerry_release_value(prop);
-	}
-	jerry_release_value(props);
-	jerry_value_t zero = jerry_create_number(0);
-	setInternalProperty(thisValue, "size", zero);
-	jerry_release_value(zero);
-	jerry_value_t isLocal = getInternalProperty(thisValue, "isLocal");
-	if (jerry_get_boolean_value(isLocal)) storageRequestSave();
-	jerry_release_value(isLocal);
-	return undefined;
-}
-
-static jerry_value_t StorageProxySetHandler(CALL_INFO) {
-	jerry_value_t storageSizeVal = getInternalProperty(args[3], "size");
-	u32 storageFilled = jerry_value_as_uint32(storageSizeVal);
-	jerry_release_value(storageSizeVal);
-
-	jerry_value_t propertyAsString = jerry_value_to_string(args[1]);
-	jerry_value_t valAsString = jerry_value_to_string(args[2]);
-
-	jerry_value_t hasOwn = jerry_has_own_property(args[0], propertyAsString);
-	if (jerry_get_boolean_value(hasOwn)) {
-		jerry_value_t currentValue = jerry_get_property(args[0], propertyAsString);
-		storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + STORAGE_API_LENGTH_BYTES;
-		jerry_release_value(currentValue);
-	}
-	jerry_release_value(hasOwn);
-	storageFilled += jerry_get_string_size(propertyAsString) + jerry_get_string_size(valAsString) + STORAGE_API_LENGTH_BYTES;
-
-	jerry_value_t result;
-	if (storageFilled > STORAGE_API_MAX_CAPACITY) {
-		result = throwError("Exceeded the quota.");
-	}
-	else {
-		jerry_value_t assignment = jerry_set_property(args[0], propertyAsString, valAsString);
-		if (jerry_value_is_error(assignment)) result = assignment;
-		else {
-			result = True;
-			jerry_release_value(assignment);
-			jerry_value_t newSize = jerry_create_number(storageFilled);
-			setInternalProperty(args[3], "size", newSize);
-			jerry_release_value(newSize);
-			jerry_value_t isLocal = getInternalProperty(args[3], "isLocal");
-			if (jerry_get_boolean_value(isLocal)) storageRequestSave();
-			jerry_release_value(isLocal);
-		}
-	}
-
-	jerry_release_value(propertyAsString);
-	jerry_release_value(valAsString);
-	return result;
-}
-
-static jerry_value_t StorageProxyDeletePropertyHandler(CALL_INFO) {
-	jerry_value_t result = True;
-	jerry_value_t propertyAsString = jerry_value_to_string(args[1]);
-	jerry_value_t hasOwn = jerry_has_own_property(args[0], propertyAsString);
-	if (jerry_get_boolean_value(hasOwn)) {
-		jerry_value_t proxy = getInternalProperty(args[0], "proxy");
-		jerry_value_t storageSizeVal = getInternalProperty(proxy, "size");
-		u32 storageFilled = jerry_value_as_uint32(storageSizeVal);
-		jerry_release_value(storageSizeVal);
-		
-		jerry_value_t currentValue = jerry_get_property(args[0], propertyAsString);
-		if (jerry_delete_property(args[0], propertyAsString)) {
-			storageFilled -= jerry_get_string_size(propertyAsString) + jerry_get_string_size(currentValue) + STORAGE_API_LENGTH_BYTES;
-			jerry_value_t newSize = jerry_create_number(storageFilled);
-			setInternalProperty(proxy, "size", newSize);
-			jerry_release_value(newSize);
-			jerry_value_t isLocal = getInternalProperty(proxy, "isLocal");
-			if (jerry_get_boolean_value(isLocal)) storageRequestSave();
-			jerry_release_value(isLocal);
-		}
-		else result = False;
-		jerry_release_value(currentValue);
-		jerry_release_value(proxy);
-	}
-	jerry_release_value(hasOwn);
-	jerry_release_value(propertyAsString);
-	return result;
-}
-
 static jerry_value_t DSGetBatteryLevelHandler(CALL_INFO) {
 	u32 level = getBatteryLevel();
 	if (level & BIT(7)) return createString("charging");
@@ -1752,6 +1613,17 @@ void exposeAPI() {
 	setMethod(File.prototype, "close", FileCloseHandler);
 	releaseClass(File);
 
+	jerry_value_t storage = createNamespace(ref_global, "storage");
+	defGetter(storage, "length", storageLengthGetter);
+	setMethod(storage, "key", storageKeyHandler);
+	setMethod(storage, "getItem", storageGetItemHandler);
+	setMethod(storage, "setItem", storageSetItemHandler);
+	setMethod(storage, "removeItem", storageRemoveItemHandler);
+	setMethod(storage, "clear", storageClearHandler);
+	setMethod(storage, "save", storageSaveHandler);
+	jerry_release_value(storage);
+	ref_storage = jerry_create_object();
+
 	jsClass EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
 	setMethod(EventTarget.prototype, "addEventListener", EventTargetAddEventListenerHandler);
 	setMethod(EventTarget.prototype, "removeEventListener", EventTargetRemoveEventListenerHandler);
@@ -1772,22 +1644,6 @@ void exposeAPI() {
 	releaseClass(extendClass(ref_global, "TouchEvent", TouchEventConstructor, Event.prototype));
 	ref_Event = Event.constructor;
 	jerry_release_value(Event.prototype);
-
-	jsClass Storage = createClass(ref_global, "Storage", IllegalConstructor);
-	defGetter(Storage.prototype, "length", StorageLengthGetter);
-	setMethod(Storage.prototype, "key", StorageKeyHandler);
-	setMethod(Storage.prototype, "getItem", StorageGetItemHandler);
-	setMethod(Storage.prototype, "setItem", StorageSetItemHandler);
-	setMethod(Storage.prototype, "removeItem", StorageRemoveItemHandler);
-	setMethod(Storage.prototype, "clear", StorageClearHandler);
-	releaseClass(Storage);
-	ref_proxyHandler_storage = jerry_create_object();
-	setMethod(ref_proxyHandler_storage, "set", StorageProxySetHandler);
-	setMethod(ref_proxyHandler_storage, "deleteProperty", StorageProxyDeletePropertyHandler);
-
-	ref_localStorage = newStorage();
-	setProperty(ref_global, "localStorage", ref_localStorage);
-	setInternalProperty(ref_localStorage, "isLocal", True);
 
 	defEventAttribute(ref_global, "onerror");
 	defEventAttribute(ref_global, "onunhandledrejection");
@@ -1907,7 +1763,7 @@ void exposeAPI() {
 void releaseReferences() {
 	jerry_release_value(ref_global);
 	jerry_release_value(ref_DS);
-	jerry_release_value(ref_localStorage);
+	jerry_release_value(ref_storage);
 	jerry_release_value(ref_Event);
 	jerry_release_value(ref_Error);
 	jerry_release_value(ref_str_name);
@@ -1915,7 +1771,6 @@ void releaseReferences() {
 	jerry_release_value(ref_str_prototype);
 	jerry_release_value(ref_str_backtrace);
 	jerry_release_value(ref_sym_toStringTag);
-	jerry_release_value(ref_proxyHandler_storage);
 	jerry_release_value(ref_consoleCounters);
 	jerry_release_value(ref_consoleTimers);
 }

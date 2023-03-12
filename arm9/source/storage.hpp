@@ -7,10 +7,7 @@
 
 
 void storageLoad(const char *resourceName);
-void storageRequestSave();
-void storageUpdate();
-
-jerry_value_t newStorage();
+bool storageSave();
 
 extern jerry_object_native_info_t fileNativeInfo;
 jerry_value_t newFile(FILE *file, jerry_value_t mode);

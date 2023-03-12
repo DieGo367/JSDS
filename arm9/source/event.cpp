@@ -261,6 +261,5 @@ void eventLoop() {
 				jerry_release_value(parsedCode);
 			}
 		}
-		storageUpdate();
 	}
 }
