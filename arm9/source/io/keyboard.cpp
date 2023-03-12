@@ -414,8 +414,8 @@ ComposeStatus composing = INACTIVE;
 bool closeOnAccept = false;
 u16 *compCursor = compositionBuffer;
 const u16 *compEnd = compositionBuffer + 255;
-bool (*onPress) (const u16 codepoint, const char *name, bool shift, bool caps, int layout, bool repeat) = NULL;
-bool (*onRelease) (const u16 codepoint, const char *name, bool shift, bool caps, int layout) = NULL;
+bool (*onPress) (const u16 codepoint, const char *name, bool shift, int layout, bool repeat) = NULL;
+bool (*onRelease) (const u16 codepoint, const char *name, bool shift, int layout) = NULL;
 
 
 
@@ -568,7 +568,7 @@ void composeKey(u16 codepoint) {
 
 void pressKey(KeyDef key, u8 keyWidth, u8 keyHeight, int idx, HoldMode mode) {
 	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
-	if (onPress != NULL) onPress(codepoint, key.name, shiftToggle, capsToggle, currentBoard, false);
+	if (onPress != NULL) onPress(codepoint, key.name, shiftToggle != capsToggle, currentBoard, false);
 	heldKeyIdx = idx;
 	heldTime = 1;
 	heldMode = mode;
@@ -579,7 +579,7 @@ void holdKey() {
 	if (++heldTime >= REPEAT_START && (heldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
 		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 		bool canceled = false;
-		if (onPress != NULL) canceled = onPress(codepoint, key.name, shiftToggle, capsToggle, currentBoard, true);
+		if (onPress != NULL) canceled = onPress(codepoint, key.name, shiftToggle != capsToggle, currentBoard, true);
 		if (!canceled && composing == COMPOSING) composeKey(codepoint);
 		heldTime = REPEAT_START;
 	}
@@ -599,7 +599,7 @@ void releaseKey() {
 	else updateBoard = false;
 	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 	bool canceled = false;
-	if (onRelease != NULL) canceled = onRelease(codepoint, key.name, shiftToggle, capsToggle, currentBoard);
+	if (onRelease != NULL) canceled = onRelease(codepoint, key.name, shiftToggle != capsToggle, currentBoard);
 	if (!canceled && composing == COMPOSING && heldTime < REPEAT_START) composeKey(codepoint);
 	if (currentBoard == 0 && key.lower != SHIFT) {
 		shiftToggle = false;
@@ -793,10 +793,10 @@ bool keyboardHide() {
 	return true;
 }
 
-void keyboardSetPressHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, bool caps, int layout, bool repeat)) {
+void keyboardSetPressHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, int layout, bool repeat)) {
 	onPress = handler;
 }
-void keyboardSetReleaseHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, bool caps, int layout)) {
+void keyboardSetReleaseHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, int layout)) {
 	onRelease = handler;
 }
 

@@ -1248,10 +1248,9 @@ static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
 	jerry_release_value(codeStr);
 	jerry_release_value(keyStr);
 
-	char eventInitBooleanProperties[][12] = {"repeat", "isComposing", "shiftKey"};
-
+	char eventInitBooleanProperties[][8] = {"repeat", "shifted"};
 	if (argCount > 1) {
-		for (u8 i = 0; i < 3; i++) {
+		for (u8 i = 0; i < 2; i++) {
 			jerry_value_t prop = createString(eventInitBooleanProperties[i]);
 			jerry_value_t val = jerry_get_property(args[1], prop);
 			bool setTrue = jerry_value_to_boolean(val);
@@ -1260,7 +1259,7 @@ static jerry_value_t KeyboardEventConstructor(CALL_INFO) {
 			jerry_release_value(prop);
 		}
 	}
-	else for (u8 i = 0; i < 3; i++) setReadonly(thisValue, eventInitBooleanProperties[i], False);
+	else for (u8 i = 0; i < 2; i++) setReadonly(thisValue, eventInitBooleanProperties[i], False);
 
 	return undefined;
 }

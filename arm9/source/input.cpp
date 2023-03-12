@@ -153,7 +153,7 @@ void touchEvents() {
 	prevY = pos.py;
 }
 
-bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 location, bool shift, bool caps, int layout, bool repeat) {
+bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 location, bool shift, int layout, bool repeat) {
 	jerry_value_t kbdEventArgs[2] = {createString(down ? "keydown" : "keyup"), jerry_create_object()};
 	setProperty(kbdEventArgs[1], "cancelable", True);
 
@@ -185,8 +185,7 @@ bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 
 	jerry_release_value(codeStr);
 	jerry_release_value(layoutStr);
 
-	setProperty(kbdEventArgs[1], "shiftKey", jerry_create_boolean(shift));
-	setProperty(kbdEventArgs[1], "modifierCapsLock", jerry_create_boolean(caps));
+	setProperty(kbdEventArgs[1], "shifted", jerry_create_boolean(shift));
 
 	jerry_value_t keyboardEventConstructor = getProperty(ref_global, "KeyboardEvent");
 	jerry_value_t kbdEvent = jerry_construct_object(keyboardEventConstructor, kbdEventArgs, 2);
@@ -199,15 +198,15 @@ bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 
 }
 
 bool pauseKeyEvents = false;
-bool onKeyDown(const u16 codepoint, const char *name, bool shift, bool caps, int layout, bool repeat) {
+bool onKeyDown(const u16 codepoint, const char *name, bool shift, int layout, bool repeat) {
 	if (!pauseKeyEvents && dependentEvents & keydown) {
-		return dispatchKeyboardEvent(true, codepoint, name, 0, shift, caps, layout, repeat);
+		return dispatchKeyboardEvent(true, codepoint, name, 0, shift, layout, repeat);
 	}
 	return false;
 }
-bool onKeyUp(const u16 codepoint, const char *name, bool shift, bool caps, int layout) {
+bool onKeyUp(const u16 codepoint, const char *name, bool shift, int layout) {
 	if (!pauseKeyEvents && dependentEvents & keyup) {
-		return dispatchKeyboardEvent(false, codepoint, name, 0, shift, caps, layout, false);
+		return dispatchKeyboardEvent(false, codepoint, name, 0, shift, layout, false);
 	}
 	return false;
 }
