@@ -4,6 +4,11 @@
 #include "api.hpp"
 #include "jerry/jerryscript.h"
 
+#define FOR_BUTTONS(DO) \
+	DO("A", KEY_A) DO("B", KEY_B) DO("X", KEY_X) DO("Y", KEY_Y) DO("L", KEY_L)  DO("R", KEY_R) \
+	DO("Up", KEY_UP)  DO("Down", KEY_DOWN) DO("Left", KEY_LEFT)  DO("Right", KEY_RIGHT) \
+	DO("START", KEY_START) DO("SELECT", KEY_SELECT)
+
 // constant js values, these do not need to be freed and can be used without restraint
 // Values copied from Jerry internals, would need to be changed if Jerry changes them in the future
 enum {

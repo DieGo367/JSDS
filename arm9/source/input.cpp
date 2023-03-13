@@ -30,73 +30,19 @@ void buttonEvents(bool down) {
 	canceledButtons = 0;
 	u32 set = down ? keysDown() : keysUp();
 	if (set) {
-		jerry_value_t buttonEventConstructor = getProperty(ref_global, "ButtonEvent");
 		jerry_value_t buttonStr = createString("button");
 		jerry_value_t args[2] = {createString(down ? "buttondown" : "buttonup"), jerry_create_object()};
 		jerry_release_value(jerry_set_property(args[1], buttonStr, null));
 		if (down) setProperty(args[1], "cancelable", True);
-		jerry_value_t event = jerry_construct_object(buttonEventConstructor, args, 2);
+		jerry_value_t event = jerry_construct_object(ref_Event, args, 2);
 		bool valueWritten = true;
-		if (set & KEY_A) {
-			jerry_value_t value = createString("A");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
+		#define TEST_VALUE(name, value) else if (set & value) {\
+			jerry_value_t value = createString(name); \
+			jerry_set_internal_property(event, buttonStr, value); \
+			jerry_release_value(value); \
 		}
-		else if (set & KEY_B) {
-			jerry_value_t value = createString("B");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
-		else if (set & KEY_X) {
-			jerry_value_t value = createString("X");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
-		else if (set & KEY_Y) {
-			jerry_value_t value = createString("Y");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
-		else if (set & KEY_L) {
-			jerry_value_t value = createString("L");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
-		else if (set & KEY_R) {
-			jerry_value_t value = createString("R");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
-		else if (set & KEY_UP) {
-			jerry_value_t value = createString("Up");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
-		else if (set & KEY_DOWN) {
-			jerry_value_t value = createString("Down");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
-		else if (set & KEY_LEFT) {
-			jerry_value_t value = createString("Left");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
-		else if (set & KEY_RIGHT) {
-			jerry_value_t value = createString("Right");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
-		else if (set & KEY_START) {
-			jerry_value_t value = createString("START");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
-		else if (set & KEY_SELECT) {
-			jerry_value_t value = createString("SELECT");
-			jerry_set_internal_property(event, buttonStr, value);
-			jerry_release_value(value);
-		}
+		if (false);
+		FOR_BUTTONS(TEST_VALUE)
 		else valueWritten = false;
 		if (valueWritten) {
 			if (down) {
@@ -109,7 +55,6 @@ void buttonEvents(bool down) {
 		jerry_release_value(args[0]);
 		jerry_release_value(args[1]);
 		jerry_release_value(buttonStr);
-		jerry_release_value(buttonEventConstructor);
 	}
 }
 
@@ -120,25 +65,21 @@ void queueTouchEvent(const char *name, int curX, int curY, bool usePrev) {
 	jerry_value_t args[2] = {createString(name), jerry_create_object()};
 	jerry_value_t x = jerry_create_number(curX);
 	jerry_value_t y = jerry_create_number(curY);
+	jerry_value_t dx = usePrev ? jerry_create_number(curX - (int) prevX) : jerry_create_number_nan();
+	jerry_value_t dy = usePrev ? jerry_create_number(curY - (int) prevY) : jerry_create_number_nan();
 	setProperty(args[1], "x", x);
 	setProperty(args[1], "y", y);
+	setProperty(args[1], "dx", dx);
+	setProperty(args[1], "dy", dy);
 	jerry_release_value(x);
 	jerry_release_value(y);
-	if (usePrev) {
-		jerry_value_t dx = jerry_create_number(curX - (int) prevX);
-		jerry_value_t dy = jerry_create_number(curY - (int) prevY);
-		setProperty(args[1], "dx", dx);
-		setProperty(args[1], "dy", dy);
-		jerry_release_value(dx);
-		jerry_release_value(dy);
-	}
-	jerry_value_t touchEventConstructor = getProperty(ref_global, "TouchEvent");
-	jerry_value_t event = jerry_construct_object(touchEventConstructor, args, 2);
+	jerry_release_value(dx);
+	jerry_release_value(dy);
+	jerry_value_t event = jerry_construct_object(ref_Event, args, 2);
 	queueEvent(ref_global, event);
 	jerry_release_value(args[0]);
 	jerry_release_value(args[1]);
 	jerry_release_value(event);
-	jerry_release_value(touchEventConstructor);
 }
 
 void touchEvents() {
@@ -187,11 +128,9 @@ bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 
 
 	setProperty(kbdEventArgs[1], "shifted", jerry_create_boolean(shift));
 
-	jerry_value_t keyboardEventConstructor = getProperty(ref_global, "KeyboardEvent");
-	jerry_value_t kbdEvent = jerry_construct_object(keyboardEventConstructor, kbdEventArgs, 2);
+	jerry_value_t kbdEvent = jerry_construct_object(ref_Event, kbdEventArgs, 2);
 	bool canceled = dispatchEvent(ref_global, kbdEvent, false);
 	jerry_release_value(kbdEvent);
-	jerry_release_value(keyboardEventConstructor);
 	jerry_release_value(kbdEventArgs[0]);
 	jerry_release_value(kbdEventArgs[1]);
 	return canceled;

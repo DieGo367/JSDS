@@ -96,13 +96,8 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
  * Returns true if the event was canceled, false otherwise.
  */
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
-	jerry_value_t dispatchStr = createString("dispatch");
 	jerry_value_t targetStr = createString("target");
-	jerry_value_t currentTargetStr = createString("currentTarget");
-
-	jerry_set_internal_property(event, dispatchStr, True);
 	jerry_set_internal_property(event, targetStr, target);
-	jerry_set_internal_property(event, currentTargetStr, target);
 
 	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
 	jerry_value_t eventType = getInternalProperty(event, "type");
@@ -168,13 +163,8 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_release_value(eventListeners);
 
 	jerry_set_internal_property(event, targetStr, null);
-	jerry_set_internal_property(event, currentTargetStr, null);
-	jerry_set_internal_property(event, dispatchStr, False);
 	setInternalProperty(event, "stopImmediatePropagation", False);
-	
-	jerry_release_value(currentTargetStr);
 	jerry_release_value(targetStr);
-	jerry_release_value(dispatchStr);
 	
 	jerry_value_t canceledVal = getInternalProperty(event, "defaultPrevented");
 	bool canceled = jerry_get_boolean_value(canceledVal);
@@ -198,7 +188,6 @@ void queueEventName(const char *eventName) {
 	jerry_value_t eventNameVal = createString(eventName);
 	jerry_value_t event = jerry_construct_object(ref_Event, &eventNameVal, 1);
 	jerry_release_value(eventNameVal);
-	setInternalProperty(event, "isTrusted", True);
 	queueEvent(ref_global, event);
 	jerry_release_value(event);
 }

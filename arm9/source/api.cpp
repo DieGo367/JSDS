@@ -975,11 +975,8 @@ FUNCTION(storage_save) {
 FUNCTION(EventConstructor) {
 	CONSTRUCTOR(Event); REQUIRE_FIRST();
 
-	setInternalProperty(thisValue, "initialized", True);               // initialized flag
-	setInternalProperty(thisValue, "dispatch", False);                 // dispatch flag
 	setInternalProperty(thisValue, "stopImmediatePropagation", False); // stop immediate propagation flag
 	setReadonly(thisValue, "target", null);
-	setReadonly(thisValue, "currentTarget", null);
 	setReadonly(thisValue, "cancelable", False);
 	setReadonly(thisValue, "defaultPrevented", False);                 // canceled flag
 	jerry_value_t currentTime = jerry_create_number(time(NULL));
@@ -991,11 +988,16 @@ FUNCTION(EventConstructor) {
 	jerry_release_value(typeAsString);
 
 	if (argCount > 1 && jerry_value_is_object(args[1])) {
-		jerry_value_t cancelableVal = getProperty(args[1], "cancelable");
-		jerry_value_t cancelableBool = jerry_create_boolean(jerry_value_to_boolean(cancelableVal));
-		setInternalProperty(thisValue, "cancelable", cancelableBool);
-		jerry_release_value(cancelableBool);
-		jerry_release_value(cancelableVal);
+		jerry_value_t keys = jerry_get_object_keys(args[1]);
+		jerry_length_t length = jerry_get_array_length(keys);
+		for (u32 i = 0; i < length; i++) {
+			jerry_value_t key = jerry_get_property_by_index(keys, i);
+			jerry_value_t value = jerry_get_property(args[1], key);
+			setReadonlyJV(thisValue, key, value);
+			jerry_release_value(value);
+			jerry_release_value(key);
+		}
+		jerry_release_value(keys);
 	}
 
 	return undefined;
@@ -1170,250 +1172,8 @@ FUNCTION(EventTarget_dispatchEvent) {
 	jerry_release_value(isInstanceVal);
 	EXPECT(isInstance, Event);
 	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
-
-	jerry_value_t dispatchVal = getProperty(args[0], "dispatch");
-	bool dispatched = jerry_value_to_boolean(dispatchVal);
-	jerry_release_value(dispatchVal);
-	if (dispatched) return throwError("Invalid event state");
-
 	bool canceled = dispatchEvent(target, args[0], true);
 	return jerry_create_boolean(!canceled);
-}
-
-FUNCTION(ErrorEventConstructor) {
-	CONSTRUCTOR(ErrorEvent); REQUIRE_FIRST();
-	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), ErrorEventInit);
-	EventConstructor(function, thisValue, args, argCount);
-
-	jerry_value_t messageProp = createString("message");
-	jerry_value_t filenameProp = createString("filename");
-	jerry_value_t linenoProp = createString("lineno");
-	jerry_value_t emptyStr = createString("");
-	jerry_value_t zero = jerry_create_number(0);
-	setReadonly(thisValue, "error", undefined);
-	setReadonlyJV(thisValue, messageProp, emptyStr);
-	setReadonlyJV(thisValue, filenameProp, emptyStr);
-	setReadonlyJV(thisValue, linenoProp, zero);
-	jerry_release_value(zero);
-	jerry_release_value(emptyStr);
-
-	if (argCount > 1) {
-		jerry_value_t messageVal = jerry_get_property(args[1], messageProp);
-		if (!jerry_value_is_undefined(messageVal)) {
-			jerry_value_t messageStr = jerry_value_to_string(messageVal);
-			jerry_set_internal_property(thisValue, messageProp, messageStr);
-			jerry_release_value(messageStr);
-		}
-		jerry_release_value(messageVal);
-		jerry_value_t filenameVal = jerry_get_property(args[1], filenameProp);
-		if (!jerry_value_is_undefined(filenameVal)) {
-			jerry_value_t filenameStr = jerry_value_to_string(filenameVal);
-			jerry_set_internal_property(thisValue, filenameProp, filenameStr);
-			jerry_release_value(filenameStr);
-		}
-		jerry_release_value(filenameVal);
-		jerry_value_t linenoVal = jerry_get_property(args[1], linenoProp);
-		if (!jerry_value_is_undefined(linenoVal)) {
-			jerry_value_t linenoNum = jerry_value_to_number(linenoVal);
-			jerry_set_internal_property(thisValue, linenoProp, linenoNum);
-			jerry_release_value(linenoNum);
-		}
-		jerry_release_value(linenoVal);
-		jerry_value_t errorProp = createString("error");
-		jerry_value_t errorVal = jerry_get_property(args[1], errorProp);
-		jerry_set_internal_property(thisValue, errorProp, errorVal);
-		jerry_release_value(errorVal);
-		jerry_release_value(errorProp);
-	}
-
-	jerry_release_value(linenoProp);
-	jerry_release_value(filenameProp);
-	jerry_release_value(messageProp);
-
-	return undefined;
-}
-
-FUNCTION(PromiseRejectionEventConstructor) {
-	CONSTRUCTOR(PromiseRejectionEvent); REQUIRE(2);
-	EXPECT(jerry_value_is_object(args[1]), PromiseRejectionEventInit);
-
-	jerry_value_t promiseStr = createString("promise");
-	jerry_value_t promiseVal = jerry_get_property(args[1], promiseStr);
-	if (jerry_value_is_undefined(promiseVal)) {
-		jerry_release_value(promiseStr);
-		jerry_release_value(promiseVal);
-		return throwTypeError("Failed to read the 'promise' property from options.");
-	}
-	EventConstructor(function, thisValue, args, argCount);
-
-	if (jerry_value_is_promise(promiseVal)) {
-		setReadonlyJV(thisValue, promiseStr, promiseVal);
-		jerry_value_t reason = jerry_get_promise_result(promiseVal);
-		setReadonly(thisValue, "reason", reason);
-		jerry_release_value(reason);
-	}
-	else {
-		jerry_value_t promise = jerry_create_promise();
-		jerry_resolve_or_reject_promise(promise, promiseVal, true);
-		setReadonlyJV(thisValue, promiseStr, promise);
-		jerry_release_value(promise);
-		setReadonly(thisValue, "reason", undefined);
-	}
-
-	jerry_release_value(promiseVal);
-	jerry_release_value(promiseStr);
-
-	return undefined;
-}
-
-FUNCTION(KeyboardEventConstructor) {
-	CONSTRUCTOR(KeyboardEvent); REQUIRE_FIRST();
-	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), KeyboardEventInit);
-	EventConstructor(function, thisValue, args, argCount);
-
-	jerry_value_t keyStr = createString("key");
-	jerry_value_t codeStr = createString("code");
-	jerry_value_t layoutStr = createString("layout");
-
-	jerry_value_t empty = createString("");
-	setReadonlyJV(thisValue, keyStr, empty);
-	setReadonlyJV(thisValue, codeStr, empty);
-	setReadonlyJV(thisValue, layoutStr, empty);
-	jerry_release_value(empty);
-
-	if (argCount > 1) {
-		jerry_value_t keyVal = jerry_get_property(args[1], keyStr);
-		if (!jerry_value_is_undefined(keyVal)) {
-			jerry_value_t keyAsStr = jerry_value_to_string(keyVal);
-			jerry_set_internal_property(thisValue, keyStr, keyAsStr);
-			jerry_release_value(keyAsStr);
-		}
-		jerry_release_value(keyVal);
-		jerry_value_t codeVal = jerry_get_property(args[1], codeStr);
-		if (!jerry_value_is_undefined(codeVal)) {
-			jerry_value_t codeAsStr = jerry_value_to_string(codeVal);
-			jerry_set_internal_property(thisValue, codeStr, codeAsStr);
-			jerry_release_value(codeAsStr);
-		}
-		jerry_release_value(codeVal);
-		jerry_value_t layoutVal = jerry_get_property(args[1], layoutStr);
-		if (!jerry_value_is_undefined(layoutVal)) {
-			jerry_value_t layoutAsStr = jerry_value_to_string(layoutVal);
-			jerry_set_internal_property(thisValue, layoutStr, layoutAsStr);
-			jerry_release_value(layoutAsStr);
-		}
-		jerry_release_value(layoutVal);
-	}
-
-	jerry_release_value(layoutStr);
-	jerry_release_value(codeStr);
-	jerry_release_value(keyStr);
-
-	char eventInitBooleanProperties[][8] = {"repeat", "shifted"};
-	if (argCount > 1) {
-		for (u8 i = 0; i < 2; i++) {
-			jerry_value_t prop = createString(eventInitBooleanProperties[i]);
-			jerry_value_t val = jerry_get_property(args[1], prop);
-			bool setTrue = jerry_value_to_boolean(val);
-			setReadonlyJV(thisValue, prop, jerry_create_boolean(setTrue));
-			jerry_release_value(val);
-			jerry_release_value(prop);
-		}
-	}
-	else for (u8 i = 0; i < 2; i++) setReadonly(thisValue, eventInitBooleanProperties[i], False);
-
-	return undefined;
-}
-
-FUNCTION(CustomEventConstructor) {
-	CONSTRUCTOR(CustomEvent); REQUIRE_FIRST();
-	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), CustomEventInit);
-	EventConstructor(function, thisValue, args, argCount);
-
-	jerry_value_t detailProp = createString("detail");
-	setReadonlyJV(thisValue, detailProp, null);
-	if (argCount > 1) {
-		jerry_value_t detailVal = jerry_get_property(args[1], detailProp);
-		if (!jerry_value_is_undefined(detailVal)) {
-			jerry_set_internal_property(thisValue, detailProp, detailVal);
-		}
-		jerry_release_value(detailVal);
-	}
-	jerry_release_value(detailProp);
-
-	return undefined;
-}
-
-FUNCTION(ButtonEventConstructor) {
-	CONSTRUCTOR(ButtonEvent); REQUIRE_FIRST();
-	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), ButtonEventInit);
-	EventConstructor(function, thisValue, args, argCount);
-
-	jerry_value_t buttonStr = createString("button");
-	if (argCount > 1) {
-		jerry_value_t buttonVal = jerry_get_property(args[1], buttonStr);
-		jerry_value_t buttonAsStr = jerry_value_to_string(buttonVal);
-		setReadonlyJV(thisValue, buttonStr, buttonAsStr);
-		jerry_release_value(buttonAsStr);
-		jerry_release_value(buttonVal);
-	}
-	else {
-		jerry_value_t empty = createString("");
-		setReadonlyJV(thisValue, buttonStr, empty);
-		jerry_release_value(empty);
-	}
-	jerry_release_value(buttonStr);
-
-	return undefined;
-}
-
-FUNCTION(TouchEventConstructor) {
-	CONSTRUCTOR(TouchEvent); REQUIRE_FIRST();
-	if (argCount > 1) EXPECT(jerry_value_is_object(args[1]), TouchEventInit);
-	EventConstructor(function, thisValue, args, argCount);
-
-	jerry_value_t xStr = createString("x");
-	jerry_value_t yStr = createString("y");
-	jerry_value_t dxStr = createString("dx");
-	jerry_value_t dyStr = createString("dy");
-
-	if (argCount > 1) {
-		jerry_value_t xVal = jerry_get_property(args[1], xStr);
-		jerry_value_t xNum = jerry_value_to_number(xVal);
-		setReadonlyJV(thisValue, xStr, xNum);
-		jerry_release_value(xNum);
-		jerry_release_value(xVal);
-		jerry_value_t yVal = jerry_get_property(args[1], yStr);
-		jerry_value_t yNum = jerry_value_to_number(yVal);
-		setReadonlyJV(thisValue, yStr, yNum);
-		jerry_release_value(yNum);
-		jerry_release_value(yVal);
-		jerry_value_t dxVal = jerry_get_property(args[1], dxStr);
-		jerry_value_t dxNum = jerry_value_to_number(dxVal);
-		setReadonlyJV(thisValue, dxStr, dxNum);
-		jerry_release_value(dxNum);
-		jerry_release_value(dxVal);
-		jerry_value_t dyVal = jerry_get_property(args[1], dyStr);
-		jerry_value_t dyNum = jerry_value_to_number(dyVal);
-		setReadonlyJV(thisValue, dyStr, dyNum);
-		jerry_release_value(dyNum);
-		jerry_release_value(dyVal);
-	}
-	else {
-		jerry_value_t NaN = jerry_create_number_nan();
-		setReadonlyJV(thisValue, xStr, NaN);
-		setReadonlyJV(thisValue, yStr, NaN);
-		setReadonlyJV(thisValue, dxStr, NaN);
-		setReadonlyJV(thisValue, dyStr, NaN);
-		jerry_release_value(NaN);
-	}
-
-	jerry_release_value(xStr);
-	jerry_release_value(yStr);
-	jerry_release_value(dxStr);
-	jerry_release_value(dyStr);
-
-	return undefined;
 }
 
 FUNCTION(DS_getBatteryLevel) {
@@ -1545,6 +1305,7 @@ void exposeAPI() {
 	ref_sym_toStringTag = jerry_get_well_known_symbol(JERRY_SYMBOL_TO_STRING_TAG);
 	ref_consoleCounters = jerry_create_object();
 	ref_consoleTimers = jerry_create_object();
+	ref_storage = jerry_create_object();
 
 	ref_global = jerry_get_global_object();
 	setProperty(ref_global, "self", ref_global);
@@ -1623,7 +1384,6 @@ void exposeAPI() {
 	setMethod(storage, "clear", storage_clear);
 	setMethod(storage, "save", storage_save);
 	jerry_release_value(storage);
-	ref_storage = jerry_create_object();
 
 	jsClass EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
 	setMethod(EventTarget.prototype, "addEventListener", EventTarget_addEventListener);
@@ -1637,12 +1397,6 @@ void exposeAPI() {
 	jsClass Event = createClass(ref_global, "Event", EventConstructor);
 	setMethod(Event.prototype, "stopImmediatePropagation", Event_stopImmediatePropagation);
 	setMethod(Event.prototype, "preventDefault", Event_preventDefault);
-	releaseClass(extendClass(ref_global, "ErrorEvent", ErrorEventConstructor, Event.prototype));
-	releaseClass(extendClass(ref_global, "PromiseRejectionEvent", PromiseRejectionEventConstructor, Event.prototype));
-	releaseClass(extendClass(ref_global, "KeyboardEvent", KeyboardEventConstructor, Event.prototype));
-	releaseClass(extendClass(ref_global, "CustomEvent", CustomEventConstructor, Event.prototype));
-	releaseClass(extendClass(ref_global, "ButtonEvent", ButtonEventConstructor, Event.prototype));
-	releaseClass(extendClass(ref_global, "TouchEvent", TouchEventConstructor, Event.prototype));
 	ref_Event = Event.constructor;
 	jerry_release_value(Event.prototype);
 
@@ -1679,7 +1433,7 @@ void exposeAPI() {
 	setReadonlyStringU16(profile, "name", (u16 *) PersonalData->name, PersonalData->nameLen);
 	setReadonlyStringU16(profile, "message", (u16 *) PersonalData->message, PersonalData->messageLen);
 	#pragma GCC diagnostic pop
-	u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
+	const u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
 	setReadonlyNumber(profile, "color", PersonalData->theme < 16 ? themeColors[PersonalData->theme] : 0);
 	setReadonly(profile, "autoMode", jerry_create_boolean(PersonalData->autoMode));
 	setReadonlyString(profile, "gbaScreen", PersonalData->gbaScreen ? "bottom" : "top");
@@ -1691,10 +1445,6 @@ void exposeAPI() {
 	jerry_value_t pressed = createObject(buttons, "pressed");
 	jerry_value_t held = createObject(buttons, "held");
 	jerry_value_t released = createObject(buttons, "released");
-	#define FOR_BUTTONS(DO) \
-		DO("A", KEY_A); DO("B", KEY_B); DO("X", KEY_X); DO("Y", KEY_Y); DO("L", KEY_L);  DO("R", KEY_R); \
-		DO("Up", KEY_UP);  DO("Down", KEY_DOWN); DO("Left", KEY_LEFT);  DO("Right", KEY_RIGHT); \
-		DO("START", KEY_START); DO("SELECT", KEY_SELECT)
 	#define DEF_GETTER_KEY_DOWN(name, value) defGetter(pressed, name, LAMBDA(jerry_create_boolean(keysDown() & value)));
 	#define DEF_GETTER_KEY_HELD(name, value) defGetter(held, name, LAMBDA(jerry_create_boolean(keysHeld() & value)));
 	#define DEF_GETTER_KEY_UP(name, value) defGetter(released, name, LAMBDA(jerry_create_boolean(keysUp() & value)));

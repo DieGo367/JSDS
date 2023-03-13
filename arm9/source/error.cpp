@@ -62,16 +62,10 @@ void handleError(jerry_value_t error, bool sync) {
 		}
 		jerry_release_value(errorThrown);
 
-		jerry_value_t ErrorEvent = getProperty(ref_global, "ErrorEvent");
 		jerry_value_t args[2] = {errorStr, errorEventInit};
-		jerry_value_t errorEvent = jerry_construct_object(ErrorEvent, args, 2);
-		jerry_release_value(ErrorEvent);
+		jerry_value_t errorEvent = jerry_construct_object(ref_Event, args, 2);
 		jerry_release_value(errorEventInit);
-
-		setInternalProperty(errorEvent, "isTrusted", True);
-
 		errorHandled = dispatchEvent(ref_global, errorEvent, sync);
-
 		jerry_release_value(errorEvent);
 	}
 	jerry_release_value(errorEventListeners);
@@ -100,16 +94,10 @@ void handleRejection(jerry_value_t promise) {
 		setProperty(rejectionEventInit, "reason", reason);
 		jerry_release_value(reason);
 
-		jerry_value_t PromiseRejectionEvent = getProperty(ref_global, "PromiseRejectionEvent");
 		jerry_value_t args[2] = {rejectionStr, rejectionEventInit};
-		jerry_value_t rejectionEvent = jerry_construct_object(PromiseRejectionEvent, args, 2);
-		jerry_release_value(PromiseRejectionEvent);
+		jerry_value_t rejectionEvent = jerry_construct_object(ref_Event, args, 2);
 		jerry_release_value(rejectionEventInit);
-
-		setInternalProperty(rejectionEvent, "isTrusted", True);
-
-		rejectionHandled = dispatchEvent(ref_global, rejectionEvent, false);
-
+		rejectionHandled = dispatchEvent(ref_global, rejectionEvent, true);
 		jerry_release_value(rejectionEvent);
 	}
 	jerry_release_value(rejectionEventListeners);
