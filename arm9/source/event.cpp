@@ -133,7 +133,7 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 					jerry_release_value(jerry_call_function(spliceFunc, listenersOfType, spliceArgs, 2));
 					jerry_release_value(spliceArgs[1]);
 					jerry_release_value(spliceArgs[0]);
-					jerry_release_value(jerry_set_property(listener, removedStr, True));
+					jerry_release_value(jerry_set_property(listener, removedStr, JS_TRUE));
 				}
 				
 				jerry_value_t callbackVal = jerry_get_property(listener, callbackStr);
@@ -162,8 +162,8 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_release_value(eventType);
 	jerry_release_value(eventListeners);
 
-	jerry_set_internal_property(event, targetStr, null);
-	setInternalProperty(event, "stopImmediatePropagation", False);
+	jerry_set_internal_property(event, targetStr, JS_NULL);
+	setInternalProperty(event, "stopImmediatePropagation", JS_FALSE);
 	jerry_release_value(targetStr);
 	
 	jerry_value_t canceledVal = getInternalProperty(event, "defaultPrevented");
@@ -194,7 +194,7 @@ void queueEventName(const char *eventName) {
 
 void onSleep() {
 	jerry_value_t args[2] = {createString("sleep"), jerry_create_object()};
-	setProperty(args[1], "cancelable", True);
+	setProperty(args[1], "cancelable", JS_TRUE);
 	jerry_value_t event = jerry_construct_object(ref_Event, args, 2);
 	bool canceled = dispatchEvent(ref_global, event, false);
 	jerry_release_value(event);
@@ -230,11 +230,11 @@ void eventLoop() {
 		runTasks();
 		keyboardUpdate(getCanceledButtons());
 		if (inREPL) {
-			if (keyboardComposeStatus() == INACTIVE) {
+			if (keyboardComposeStatus() == KEYBOARD_INACTIVE) {
 				putchar('>'); putchar(' ');
 				keyboardCompose(false);
 			}
-			else if (keyboardComposeStatus() == FINISHED) {
+			else if (keyboardComposeStatus() == KEYBOARD_FINISHED) {
 				char *inputStr;
 				int inputSize;
 				keyboardComposeAccept(&inputStr, &inputSize);

@@ -32,8 +32,8 @@ void buttonEvents(bool down) {
 	if (set) {
 		jerry_value_t buttonStr = createString("button");
 		jerry_value_t args[2] = {createString(down ? "buttondown" : "buttonup"), jerry_create_object()};
-		jerry_release_value(jerry_set_property(args[1], buttonStr, null));
-		if (down) setProperty(args[1], "cancelable", True);
+		jerry_release_value(jerry_set_property(args[1], buttonStr, JS_NULL));
+		if (down) setProperty(args[1], "cancelable", JS_TRUE);
 		jerry_value_t event = jerry_construct_object(ref_Event, args, 2);
 		bool valueWritten = true;
 		#define TEST_VALUE(name, value) else if (set & value) {\
@@ -96,7 +96,7 @@ void touchEvents() {
 
 bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 location, bool shift, int layout, bool repeat) {
 	jerry_value_t kbdEventArgs[2] = {createString(down ? "keydown" : "keyup"), jerry_create_object()};
-	setProperty(kbdEventArgs[1], "cancelable", True);
+	setProperty(kbdEventArgs[1], "cancelable", JS_TRUE);
 
 	jerry_value_t keyStr;
 	if (codepoint == 2) keyStr = createString("Shift"); // hardcoded override to remove Left/Right variants of Shift

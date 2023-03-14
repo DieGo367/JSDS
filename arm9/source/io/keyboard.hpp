@@ -5,7 +5,7 @@
 
 
 
-enum ComposeStatus { INACTIVE, COMPOSING, FINISHED };
+enum ComposeStatus { KEYBOARD_INACTIVE, KEYBOARD_COMPOSING, KEYBOARD_FINISHED };
 
 void keyboardInit();
 void keyboardUpdate(u32 blockedButtons = 0);

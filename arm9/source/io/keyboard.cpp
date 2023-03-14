@@ -410,7 +410,7 @@ int heldTime = 0;
 int heldKeyIdx = -1;
 int heldDir = 0;
 int highlightedKeyIdx = -1;
-ComposeStatus composing = INACTIVE;
+ComposeStatus composing = KEYBOARD_INACTIVE;
 bool closeOnAccept = false;
 u16 *compCursor = compositionBuffer;
 const u16 *compEnd = compositionBuffer + 255;
@@ -508,7 +508,7 @@ void drawComposedText() {
 void composeKey(u16 codepoint) {
 	u16 *lastChar = compCursor - 1;
 	if (codepoint == ENTER) {
-		composing = FINISHED;
+		composing = KEYBOARD_FINISHED;
 		return;
 	}
 	else if (codepoint == CANCEL) {
@@ -580,7 +580,7 @@ void holdKey() {
 		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 		bool canceled = false;
 		if (onPress != NULL) canceled = onPress(codepoint, key.name, shiftToggle != capsToggle, currentBoard, true);
-		if (!canceled && composing == COMPOSING) composeKey(codepoint);
+		if (!canceled && composing == KEYBOARD_COMPOSING) composeKey(codepoint);
 		heldTime = REPEAT_START;
 	}
 }
@@ -600,7 +600,7 @@ void releaseKey() {
 	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 	bool canceled = false;
 	if (onRelease != NULL) canceled = onRelease(codepoint, key.name, shiftToggle != capsToggle, currentBoard);
-	if (!canceled && composing == COMPOSING && heldTime < REPEAT_START) composeKey(codepoint);
+	if (!canceled && composing == KEYBOARD_COMPOSING && heldTime < REPEAT_START) composeKey(codepoint);
 	if (currentBoard == 0 && key.lower != SHIFT) {
 		shiftToggle = false;
 		updateBoard = true;
@@ -801,7 +801,7 @@ void keyboardSetReleaseHandler(bool (*handler) (const u16 codepoint, const char 
 }
 
 void keyboardCompose(bool allowCancel) {
-	composing = COMPOSING;
+	composing = KEYBOARD_COMPOSING;
 	closeOnAccept = !showing;
 	if (cancelEnabled != allowCancel) {
 		showing = false;
@@ -841,7 +841,7 @@ void keyboardComposeAccept(char **strPtr, int *strSize) {
 	keyboardComposeCancel();
 }
 void keyboardComposeCancel() {
-	composing = INACTIVE;
+	composing = KEYBOARD_INACTIVE;
 	cancelEnabled = false;
 	if (closeOnAccept) keyboardHide();
 	else drawSelectedBoard();

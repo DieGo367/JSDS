@@ -26,7 +26,7 @@ void handleError(jerry_value_t error, bool sync) {
 
 		jerry_error_t errorCode = jerry_get_error_type(error);
 		jerry_value_t errorThrown = jerry_get_value_from_error(error, false);
-		setProperty(errorEventInit, "cancelable", True);
+		setProperty(errorEventInit, "cancelable", JS_TRUE);
 		jerry_release_value(jerry_set_property(errorEventInit, errorStr, errorThrown));
 		if (errorCode == JERRY_ERROR_NONE) {
 			jerry_value_t strVal = jerry_value_to_string(errorThrown);
@@ -88,7 +88,7 @@ void handleRejection(jerry_value_t promise) {
 	if (jerry_value_is_array(rejectionEventListeners) && jerry_get_array_length(rejectionEventListeners) > 0) {
 		jerry_value_t rejectionEventInit = jerry_create_object();
 		
-		setProperty(rejectionEventInit, "cancelable", True);
+		setProperty(rejectionEventInit, "cancelable", JS_TRUE);
 		setProperty(rejectionEventInit, "promise", promise);
 		jerry_value_t reason = jerry_get_promise_result(promise);
 		setProperty(rejectionEventInit, "reason", reason);

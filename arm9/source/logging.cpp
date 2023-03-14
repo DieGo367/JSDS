@@ -171,20 +171,20 @@ void logLiteral(jerry_value_t value, u8 level) {
 		case JERRY_TYPE_BOOLEAN:
 		case JERRY_TYPE_NUMBER:
 		case JERRY_TYPE_BIGINT: {}
-			consoleSetColor(VALUE);
+			consoleSetColor(LOGCOLOR_VALUE);
 			printValue(value);
 			if (type == JERRY_TYPE_BIGINT) putchar('n');
 			break;
 		case JERRY_TYPE_NULL:
-			consoleSetColor(NULLED);
+			consoleSetColor(LOGCOLOR_NULL);
 			printf("null");
 			break;
 		case JERRY_TYPE_UNDEFINED:
-			consoleSetColor(UNDEFINED);
+			consoleSetColor(LOGCOLOR_UNDEFINED);
 			printf("undefined");
 			break;
 		case JERRY_TYPE_STRING: {
-			consoleSetColor(STRING);
+			consoleSetColor(LOGCOLOR_STRING);
 			char *string = getString(value);
 			if (strchr(string, '"') == NULL) printf("\"%s\"", string);
 			else if (strchr(string, '\'') == NULL) printf("'%s'", string);
@@ -204,13 +204,13 @@ void logLiteral(jerry_value_t value, u8 level) {
 			free(string);
 		} break;
 		case JERRY_TYPE_SYMBOL: {
-			consoleSetColor(STRING);
+			consoleSetColor(LOGCOLOR_STRING);
 			jerry_value_t description = jerry_get_symbol_descriptive_string(value);
 			printString(description);
 			jerry_release_value(description);
 		} break;
 		case JERRY_TYPE_FUNCTION: {
-			consoleSetColor(FUNCTION);
+			consoleSetColor(LOGCOLOR_FUNCTION);
 			char *name = getStringProperty(value, "name");
 			putchar('[');
 			if (jerry_value_is_async_function(value)) printf("Async");
@@ -298,12 +298,12 @@ void logLiteral(jerry_value_t value, u8 level) {
 				printf("Promise {");
 				switch (jerry_get_promise_state(value)) {
 					case JERRY_PROMISE_STATE_PENDING:
-						consoleSetColor(INFO);
+						consoleSetColor(LOGCOLOR_INFO);
 						printf("<pending>");
 						consoleSetColor(prev);
 						break;
 					case JERRY_PROMISE_STATE_REJECTED:
-						consoleSetColor(ERROR);
+						consoleSetColor(LOGCOLOR_ERROR);
 						printf("<rejected> ");
 						consoleSetColor(prev);
 						// intentional fall-through
@@ -340,7 +340,7 @@ void logObject(jerry_value_t obj, u8 level) {
 				printf(keyStr);
 			}
 			else {
-				u16 prev = consoleSetColor(STRING);
+				u16 prev = consoleSetColor(LOGCOLOR_STRING);
 				if (strchr(keyStr, '"') == NULL) printf("\"%s\"", keyStr);
 				else if (strchr(keyStr, '\'') == NULL) printf("'%s'", keyStr);
 				else {
@@ -402,7 +402,7 @@ static void tableValuePrint(jerry_value_t value, u8 width) {
 		} break;
 		case JERRY_TYPE_NUMBER:
 		case JERRY_TYPE_BIGINT: {
-			consoleSetColor(VALUE);
+			consoleSetColor(LOGCOLOR_VALUE);
 			jerry_value_t asString = jerry_value_to_string(value);
 			u32 numLen = jerry_get_string_length(asString);
 			printString(asString);
@@ -414,23 +414,23 @@ static void tableValuePrint(jerry_value_t value, u8 width) {
 			printf("%-*s", (int) (width - numLen), "");
 		} break;
 		case JERRY_TYPE_BOOLEAN:
-			consoleSetColor(VALUE);
+			consoleSetColor(LOGCOLOR_VALUE);
 			printf("%-*s", width, jerry_value_to_boolean(value) ? "true" : "false");
 			break;
 		case JERRY_TYPE_NULL:
-			consoleSetColor(NULLED);
+			consoleSetColor(LOGCOLOR_NULL);
 			printf("%-*s", width, "null");
 			break;
 		case JERRY_TYPE_FUNCTION:
-			consoleSetColor(FUNCTION);
+			consoleSetColor(LOGCOLOR_FUNCTION);
 			printf("%-*s", width, "Function");
 			break;
 		case JERRY_TYPE_SYMBOL:
-			consoleSetColor(STRING);
+			consoleSetColor(LOGCOLOR_STRING);
 			printf("%-*s", width, "Symbol");
 			break;
 		case JERRY_TYPE_OBJECT:
-			consoleSetColor(NULLED);
+			consoleSetColor(LOGCOLOR_NULL);
 			printf("%-*s", width, jerry_value_is_array(value) ? "[...]" : "{...}");
 			break;
 		default: printf("%-*s", width, "");; // undefined and anything else

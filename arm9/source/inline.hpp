@@ -11,11 +11,11 @@
 
 // constant js values, these do not need to be freed and can be used without restraint
 // Values copied from Jerry internals, would need to be changed if Jerry changes them in the future
-enum {
-	True = 56,
-	False = 40,
-	null = 88,
-	undefined = 72
+enum JSConstants {
+	JS_TRUE = 56,
+	JS_FALSE = 40,
+	JS_NULL = 88,
+	JS_UNDEFINED = 72
 };
 
 // helper inline functions
@@ -343,11 +343,11 @@ static jerry_value_t eventAttributeSetter(const jerry_value_t function, const je
 		jerry_release_value(jerry_call_function(add, thisValue, addArgs, 2));
 		jerry_release_value(add);
 	}
-	else jerry_set_internal_property(thisValue, attrNameVal, null);
+	else jerry_set_internal_property(thisValue, attrNameVal, JS_NULL);
 
 	jerry_release_value(eventType);
 	jerry_release_value(attrNameVal);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 inline jerry_property_descriptor_t eventAttributeDesc = {
@@ -359,7 +359,7 @@ inline jerry_property_descriptor_t eventAttributeDesc = {
 // Shortcut for making event handlers on event targets.
 inline void defEventAttribute(jerry_value_t eventTarget, const char *attributeName) {
 	nameDesc.value = jerry_create_string((jerry_char_t *) attributeName);
-	jerry_set_internal_property(eventTarget, nameDesc.value, null);
+	jerry_set_internal_property(eventTarget, nameDesc.value, JS_NULL);
 	eventAttributeDesc.getter = jerry_create_external_function(internalGetter);
 	jerry_release_value(jerry_define_own_property(eventAttributeDesc.getter, ref_str_name, &nameDesc));
 	eventAttributeDesc.setter = jerry_create_external_function(eventAttributeSetter);

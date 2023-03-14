@@ -70,7 +70,7 @@ FUNCTION(alert) {
 		scanKeys();
 		if (keysDown() & KEY_A) break;
 	}
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(confirm) {
@@ -81,8 +81,8 @@ FUNCTION(confirm) {
 		swiWaitForVBlank();
 		scanKeys();
 		u32 keys = keysDown();
-		if (keys & KEY_A) return True;
-		else if (keys & KEY_B) return False;
+		if (keys & KEY_A) return JS_TRUE;
+		else if (keys & KEY_B) return JS_FALSE;
 	}
 }
 
@@ -93,13 +93,13 @@ FUNCTION(prompt) {
 	pauseKeyEvents = true;
 	keyboardCompose(true);
 	ComposeStatus status = keyboardComposeStatus();
-	while (status == COMPOSING) {
+	while (status == KEYBOARD_COMPOSING) {
 		swiWaitForVBlank();
 		scanKeys();
 		keyboardUpdate();
 		status = keyboardComposeStatus();
 	}
-	if (status == FINISHED) {
+	if (status == KEYBOARD_FINISHED) {
 		char *str;
 		int strSize;
 		keyboardComposeAccept(&str, &strSize);
@@ -115,7 +115,7 @@ FUNCTION(prompt) {
 		keyboardUpdate();
 		pauseKeyEvents = false;
 		if (argCount > 1) return jerry_value_to_string(args[1]);
-		else return null;
+		else return JS_NULL;
 	}
 }
 
@@ -123,7 +123,7 @@ FUNCTION(setTimeout) {
 	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, false);
 	else {
 		jerry_value_t zero = jerry_create_number(0);
-		jerry_value_t result = addTimeout(argCount > 0 ? args[0] : undefined, zero, NULL, 0, false);
+		jerry_value_t result = addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, zero, NULL, 0, false);
 		jerry_release_value(zero);
 		return result;
 	}
@@ -133,7 +133,7 @@ FUNCTION(setInterval) {
 	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, true);
 	else {
 		jerry_value_t zero = jerry_create_number(0);
-		jerry_value_t result = addTimeout(argCount > 0 ? args[0] : undefined, zero, NULL, 0, true);
+		jerry_value_t result = addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, zero, NULL, 0, true);
 		jerry_release_value(zero);
 		return result;
 	}
@@ -141,8 +141,8 @@ FUNCTION(setInterval) {
 
 FUNCTION(clearInterval) {
 	if (argCount > 0) clearTimeout(args[0]);
-	else clearTimeout(undefined);
-	return undefined;
+	else clearTimeout(JS_UNDEFINED);
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_log) {
@@ -150,58 +150,58 @@ FUNCTION(console_log) {
 		logIndent();
 		log(args, argCount);
 	}
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_info) {
 	if (argCount > 0) {
-		u16 prev = consoleSetColor(INFO);
+		u16 prev = consoleSetColor(LOGCOLOR_INFO);
 		logIndent();
 		log(args, argCount);
 		consoleSetColor(prev);
 	}
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_warn) {
 	if (argCount > 0) {
-		u16 prev = consoleSetColor(WARN);
+		u16 prev = consoleSetColor(LOGCOLOR_WARN);
 		logIndent();
 		log(args, argCount);
 		consoleSetColor(prev);
 	}
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_error) {
 	if (argCount > 0) {
-		u16 prev = consoleSetColor(ERROR);
+		u16 prev = consoleSetColor(LOGCOLOR_ERROR);
 		logIndent();
 		log(args, argCount);
 		consoleSetColor(prev);
 	}
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_assert) {
 	if (argCount == 0 || !jerry_value_to_boolean(args[0])) {
-		u16 prev = consoleSetColor(ERROR);
+		u16 prev = consoleSetColor(LOGCOLOR_ERROR);
 		logIndent();
 		printf("Assertion failed: ");
 		log(args + 1, argCount - 1);
 		consoleSetColor(prev);
 	}
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_debug) {
 	if (argCount > 0) {
-		u16 prev = consoleSetColor(DEBUG);
+		u16 prev = consoleSetColor(LOGCOLOR_DEBUG);
 		logIndent();
 		log(args, argCount);
 		consoleSetColor(prev);
 	}
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_trace) {
@@ -219,7 +219,7 @@ FUNCTION(console_trace) {
 		jerry_release_value(traceLine);
 	}
 	jerry_release_value(backtrace);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_dir) {
@@ -231,12 +231,12 @@ FUNCTION(console_dir) {
 		putchar('\n');
 	}
 	consoleResume();
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_table) {
 	if (argCount > 0) logTable(args, argCount);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_group) {
@@ -245,12 +245,12 @@ FUNCTION(console_group) {
 		logIndent();
 		log(args, argCount);
 	}
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_groupEnd) {
 	logIndentRemove();
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_count) {
@@ -275,7 +275,7 @@ FUNCTION(console_count) {
 	jerry_release_value(countVal);
 
 	jerry_release_value(label);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_countReset) {
@@ -300,7 +300,7 @@ FUNCTION(console_countReset) {
 	jerry_release_value(hasLabel);
 
 	jerry_release_value(label);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_time) {
@@ -325,7 +325,7 @@ FUNCTION(console_time) {
 	jerry_release_value(hasLabel);
 	
 	jerry_release_value(label);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_timeLog) {
@@ -354,7 +354,7 @@ FUNCTION(console_timeLog) {
 	jerry_release_value(counterVal);
 
 	jerry_release_value(label);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_timeEnd) {
@@ -381,12 +381,12 @@ FUNCTION(console_timeEnd) {
 	jerry_release_value(counterVal);
 
 	jerry_release_value(label);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(console_clear) {
 	consoleClear();
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(Text_encode) {
@@ -616,7 +616,7 @@ FUNCTION(File_read) {
 	}
 	else if (feof(file) && bytesRead == 0) {
 		jerry_release_value(arrayBuffer);
-		return null;
+		return JS_NULL;
 	}
 	else {
 		jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, bytesRead);
@@ -671,14 +671,14 @@ FUNCTION(File_seek) {
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
 	int success = fseek(file, jerry_value_as_int32(args[0]), mode);
 	if (success != 0) return throwError("File seek failed.");
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(File_close) {
 	FILE *file;
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
 	if (fclose(file) != 0) return throwError("File close failed.");
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(FileStatic_open) {
@@ -748,7 +748,7 @@ FUNCTION(FileStatic_copy) {
 		return throwError("Failed to write destination file during copy.");
 	}
 	fclose(dest);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(FileStatic_rename) {
@@ -759,14 +759,14 @@ FUNCTION(FileStatic_rename) {
 	free(sourcePath);
 	free(destPath);
 	if (status != 0) return throwError("Failed to rename file.");
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(FileStatic_remove) {
 	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	if (remove(path) != 0) return throwError("Failed to delete file.");
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(FileStatic_read) {
@@ -879,7 +879,7 @@ FUNCTION(FileStatic_makeDir) {
 	else status = mkdir(path, 0777);
 	free(path);
 	if (status != 0) return throwError("Failed to make directory.");
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(FileStatic_readDir) {
@@ -920,7 +920,7 @@ FUNCTION(FileStatic_browse) {
 		jerry_value_t messageProp = createString("message");
 		if (jerry_has_property(args[0], pathProp)) {
 			jerry_value_t pathVal = jerry_get_property(args[0], pathProp);
-			if (pathVal != undefined) browsePath = getAsString(pathVal);
+			if (pathVal != JS_UNDEFINED) browsePath = getAsString(pathVal);
 			jerry_release_value(pathVal);
 		}
 		if (jerry_has_property(args[0], extensionsProp)) {
@@ -936,7 +936,7 @@ FUNCTION(FileStatic_browse) {
 		}
 		if (jerry_has_property(args[0], messageProp)) {
 			jerry_value_t messageVal = jerry_get_property(args[0], messageProp);
-			if (messageVal != undefined) message = getAsString(messageVal);
+			if (messageVal != JS_UNDEFINED) message = getAsString(messageVal);
 			jerry_release_value(messageVal);
 		}
 		jerry_release_value(messageProp);
@@ -944,7 +944,7 @@ FUNCTION(FileStatic_browse) {
 		jerry_release_value(pathProp);
 	}
 	char *result = fileBrowse(message, browsePath, extensions);
-	jerry_value_t resultVal = result == NULL ? null : createString(result);
+	jerry_value_t resultVal = result == NULL ? JS_NULL : createString(result);
 	free(result);
 	for (u32 i = 0; i < extensions.size(); i++) free(extensions[i]);
 	if (message != messageDefault) free(message);
@@ -961,7 +961,7 @@ FUNCTION(storage_length) {
 
 FUNCTION(storage_key) {
 	REQUIRE_FIRST();
-	jerry_value_t key = null;
+	jerry_value_t key = JS_NULL;
 	jerry_value_t propNames = jerry_get_object_keys(ref_storage);
 	jerry_value_t nVal = jerry_value_to_number(args[0]);
 	u32 n = jerry_value_as_uint32(nVal);
@@ -981,7 +981,7 @@ FUNCTION(storage_getItem) {
 	bool hasOwn = jerry_get_boolean_value(hasOwnVal);
 	jerry_release_value(hasOwnVal);
 	if (hasOwn) return jerry_get_property(ref_storage, args[0]);
-	else return null;
+	else return JS_NULL;
 }
 
 FUNCTION(storage_setItem) {
@@ -991,7 +991,7 @@ FUNCTION(storage_setItem) {
 	jerry_set_property(ref_storage, propertyAsString, valAsString);
 	jerry_release_value(valAsString);
 	jerry_release_value(propertyAsString);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(storage_removeItem) {
@@ -1003,13 +1003,13 @@ FUNCTION(storage_removeItem) {
 	}
 	jerry_release_value(hasOwn);
 	jerry_release_value(propertyAsString);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(storage_clear) {
 	jerry_release_value(ref_storage);
 	ref_storage = jerry_create_object();
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(storage_save) {
@@ -1019,10 +1019,10 @@ FUNCTION(storage_save) {
 FUNCTION(EventConstructor) {
 	CONSTRUCTOR(Event); REQUIRE_FIRST();
 
-	setInternalProperty(thisValue, "stopImmediatePropagation", False); // stop immediate propagation flag
-	setReadonly(thisValue, "target", null);
-	setReadonly(thisValue, "cancelable", False);
-	setReadonly(thisValue, "defaultPrevented", False);                 // canceled flag
+	setInternalProperty(thisValue, "stopImmediatePropagation", JS_FALSE); // stop immediate propagation flag
+	setReadonly(thisValue, "target", JS_NULL);
+	setReadonly(thisValue, "cancelable", JS_FALSE);
+	setReadonly(thisValue, "defaultPrevented", JS_FALSE);                 // canceled flag
 	jerry_value_t currentTime = jerry_create_number(time(NULL));
 	setReadonly(thisValue, "timeStamp", currentTime);
 	jerry_release_value(currentTime);
@@ -1044,21 +1044,21 @@ FUNCTION(EventConstructor) {
 		jerry_release_value(keys);
 	}
 
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(Event_stopImmediatePropagation) {
-	setInternalProperty(thisValue, "stopImmediatePropagation", True);
-	return undefined;
+	setInternalProperty(thisValue, "stopImmediatePropagation", JS_TRUE);
+	return JS_UNDEFINED;
 }
 
 FUNCTION(Event_preventDefault) {
 	jerry_value_t cancelable = getInternalProperty(thisValue, "cancelable");
 	if (jerry_value_to_boolean(cancelable)) {
-		setInternalProperty(thisValue, "defaultPrevented", True);
+		setInternalProperty(thisValue, "defaultPrevented", JS_TRUE);
 	}
 	jerry_release_value(cancelable);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(EventTargetConstructor) {
@@ -1068,12 +1068,12 @@ FUNCTION(EventTargetConstructor) {
 	setInternalProperty(thisValue, "eventListeners", eventListenerList);
 	jerry_release_value(eventListenerList);
 
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(EventTarget_addEventListener) {
 	REQUIRE(2);
-	if (jerry_value_is_null(args[1])) return undefined;
+	if (jerry_value_is_null(args[1])) return JS_UNDEFINED;
 	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 	
 	jerry_value_t typeStr = createString("type");
@@ -1116,7 +1116,7 @@ FUNCTION(EventTarget_addEventListener) {
 		jerry_value_t onceVal = jerry_create_boolean(once);
 		jerry_release_value(jerry_set_property(listener, onceStr, onceVal));
 		jerry_release_value(onceVal);
-		setProperty(listener, "removed", False);
+		setProperty(listener, "removed", JS_FALSE);
 
 		jerry_value_t pushFunc = getProperty(listenersOfType, "push");
 		jerry_release_value(jerry_call_function(pushFunc, listenersOfType, &listener, 1));
@@ -1147,7 +1147,7 @@ FUNCTION(EventTarget_addEventListener) {
 	jerry_release_value(callbackStr);
 	jerry_release_value(typeStr);
 
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(EventTarget_removeEventListener) {
@@ -1176,7 +1176,7 @@ FUNCTION(EventTarget_removeEventListener) {
 				jerry_release_value(spliceArgs[1]);
 				jerry_release_value(spliceArgs[0]);
 				jerry_release_value(spliceFunc);
-				setProperty(storedListener, "removed", True);
+				setProperty(storedListener, "removed", JS_TRUE);
 				removed = true;
 				if (jerry_get_array_length(listenersOfType) == 0) {
 					jerry_value_t isGlobal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, target, ref_global);
@@ -1206,7 +1206,7 @@ FUNCTION(EventTarget_removeEventListener) {
 	jerry_release_value(callbackStr);
 	jerry_release_value(typeStr);
 
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(EventTarget_dispatchEvent) {
@@ -1245,14 +1245,14 @@ FUNCTION(DS_setMainScreen) {
 			set = true;
 		}
 		free(str);
-		if (set) return undefined;
+		if (set) return JS_UNDEFINED;
 	}
 	return throwTypeError("Invalid screen value");
 }
 
 FUNCTION(DS_sleep) {
 	jerry_value_t eventArgs[2] = {createString("sleep"), jerry_create_object()};
-	setProperty(eventArgs[1], "cancelable", True);
+	setProperty(eventArgs[1], "cancelable", JS_TRUE);
 	jerry_value_t event = jerry_construct_object(ref_Event, eventArgs, 2);
 	bool canceled = dispatchEvent(ref_global, event, true);
 	jerry_release_value(event);
@@ -1270,7 +1270,7 @@ FUNCTION(DS_sleep) {
 		jerry_release_value(eventArgs[0]);
 		jerry_release_value(eventArgs[1]);
 	}
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(DS_touchGetPosition) {
@@ -1297,7 +1297,7 @@ FUNCTION(BETA_gfxInit) {
 	videoSetMode(MODE_3_2D);
 	vramSetBankA(VRAM_A_MAIN_BG);
 	bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(BETA_gfxPixel) {
@@ -1306,7 +1306,7 @@ FUNCTION(BETA_gfxPixel) {
 	u8 y = jerry_value_as_uint32(args[1]);
 	u16 color = jerry_value_as_uint32(args[2]);
 	bgGetGfxPtr(3)[x + y*256] = color;
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 FUNCTION(BETA_gfxRect) {
@@ -1321,12 +1321,12 @@ FUNCTION(BETA_gfxRect) {
 	if (width + x > 256) width = 256 - x;
 	if (height + y > 192) height = 192 - y;
 
-	if (width == 0 || height == 0) return undefined;
+	if (width == 0 || height == 0) return JS_UNDEFINED;
 
 	for (u8 i = 0; i < height; i++) {
 		dmaFillHalfWords(color, gfx + x + ((y + i) * 256), width * 2);
 	}
-	return undefined;
+	return JS_UNDEFINED;
 }
 
 void exposeBetaAPI() {
@@ -1385,8 +1385,8 @@ void exposeAPI() {
 	jerry_release_value(console);
 
 	jerry_value_t keyboard = createObject(ref_global, "keyboard");
-	setMethod(keyboard, "hide", LAMBDA((keyboardHide(), undefined)));
-	setMethod(keyboard, "show", LAMBDA((keyboardShow(), undefined)));
+	setMethod(keyboard, "hide", LAMBDA((keyboardHide(), JS_UNDEFINED)));
+	setMethod(keyboard, "show", LAMBDA((keyboardShow(), JS_UNDEFINED)));
 	jerry_release_value(keyboard);
 
 	jerry_value_t Text = createObject(ref_global, "Text");
@@ -1464,9 +1464,9 @@ void exposeAPI() {
 	setMethod(DS, "getMainScreen", LAMBDA(createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom")));
 	setReadonly(DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
 	setMethod(DS, "setMainScreen", DS_setMainScreen);
-	setMethod(DS, "shutdown", LAMBDA((systemShutDown(), undefined)));
+	setMethod(DS, "shutdown", LAMBDA((systemShutDown(), JS_UNDEFINED)));
 	setMethod(DS, "sleep", DS_sleep);
-	setMethod(DS, "swapScreens", LAMBDA((lcdSwap(), undefined)));
+	setMethod(DS, "swapScreens", LAMBDA((lcdSwap(), JS_UNDEFINED)));
 
 	jerry_value_t profile = createObject(DS, "profile");
 	setReadonlyNumber(profile, "alarmHour", PersonalData->alarmHour);
