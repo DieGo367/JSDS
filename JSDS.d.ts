@@ -44,16 +44,47 @@ declare var keyboard: Keyboard;
 
 /** Encode or decode text from binary data. */
 interface Text {
+	/**
+	 * Encodes text into UTF-8 binary data.
+	 * @param into A Uint8Array to encode the result into.
+	 * A new one will be created if not provided.
+	 * @throws If the size of the encoded text is too big for the provided Uint8Array.
+	 * @returns The Uint8Array that was encoded into.
+	 */
 	encode(text: string, into?: Uint8Array): Uint8Array;
+	/**
+	 * Decodes a string from UTF-8 binary data.
+	 * @throws If `data` is not valid UTF-8.
+	 */
 	decode(data: Uint8Array): string;
+	/**
+	 * Encodes text into UTF-16 binary data.
+	 * @param into A Uint8Array to encode the result into.
+	 * A new one will be created if not provided.
+	 * @throws If the size of the encoded text is too big for the provided Uint8Array.
+	 * @returns The Uint8Array that was encoded into.
+	 */
 	encodeUTF16(text: string, into?: Uint8Array): Uint8Array;
+	/**
+	 * Decodes a string from UTF-16 binary data.
+	 * @throws If `data` is not valid UTF-16.
+	 */
 	decodeUTF16(data: Uint8Array): string;
 }
 declare var Text: Text;
 
 /** Encode or decode binary data from base64 strings. */
 interface Base64 {
+	/** Encodes binary data into base64 ascii text. */
 	encode(data: Uint8Array): string;
+	/**
+	 * Decodes binary data from a base64 string.
+	 * @param into A Uint8Array to decode the result into.
+	 * A new one will be created if not provided.
+	 * @throws If `base64` is not a valid base64 string.
+	 * @throws If the size of the decoded data is too big for the provided Uint8Array.
+	 * @returns The Uint8Array that was decoded into.
+	 */
 	decode(base64: string, into?: Uint8Array): Uint8Array;
 }
 declare var Base64: Base64;
@@ -81,19 +112,29 @@ interface FileBrowseOptions {
 interface File {
 	/**
 	 * Reads a certain amount of bytes from the file.
-	 * Returns a `Uint8Array` with its size is determined by the number of bytes read.
-	 * Returns `null` if the end-of-file was reached and no bytes were read.
+	 * @returns A `Uint8Array` with its size is determined by the number of bytes read,
+	 * or `null` if the end-of-file was reached and no bytes were read.
+	 * @throws If the current file mode doesn't support reading, or the read fails otherwise.
 	 */
 	read(bytes: number): Uint8Array | null;
-	/** Writes bytes to the file. Returns the number of bytes written. */
+	/**
+	 * Writes bytes to the file.
+	 * @returns The number of bytes written.
+	 * @throws If the current file mode doesn't support writing, or the write fails otherwise.
+	 */
 	write(data: Uint8Array): number;
 	/**
 	 * Seeks to a position in the file.
-	 * The `seekMode` determines whether that position is relative to the start of the file, end of the file, or current position.
-	 * Defaults to the start (aka "seekTo").
+	 * @param seekMode Determines whether that position is relative to the start of the file,
+	 * end of the file, or current position.
+	 * Defaults to `"start"`.
+	 * @throws If the seek fails or a bad seek mode is given.
 	 */
-	seek(n: number, seekMode?: SeekMode): void;
-	/** Closes the file. */
+	seek(n: number, seekMode: SeekMode = "start"): void;
+	/**
+	 * Closes the file.
+	 * @throws If failed.
+	 */
 	close(): void;
 }
 declare var File: {
@@ -102,61 +143,99 @@ declare var File: {
 	/**
 	 * Opens a file and returns a new File instance.
 	 * 
-	 * `mode` determines whether to open the file with read and/or write access.
-	 * Defaults to `"r"`, or read access.
+	 * @param mode Determines whether to open the file with read and/or write access.
+	 * Defaults to `"r"` (read-only access).
+	 * @throws If the file fails top open or a bad file mode is given.
 	 */
 	open(path: string, mode?: FileMode): File;
-	/** Copies the contents of a file to a new location. */
+	/**
+	 * Copies the contents of a file to a new location.
+	 * @throws If failed.
+	 */
 	copy(sourcePath: string, destPath: string): void;
-	/** Renames (aka moves) a file or directory. */
+	/**
+	 * Renames (aka moves) a file or directory.
+	 * @throws If failed.
+	 */
 	rename(currentPath: string, newPath: string): void;
-	/** Deletes a file or directory. */
+	/**
+	 * Deletes a file or directory.
+	 * @throws If failed.
+	 */
 	remove(path: string): void;
-	/** Reads the entire contents of a file into a `Uint8Array`. */
+	/**
+	 * Reads the entire contents of a file into a `Uint8Array`.
+	 * @throws If failed.
+	 */
 	read(path: string): Uint8Array;
-	/** Returns the entire contents of a file as a string. */
+	/**
+	 * Returns the entire contents of a file as a string.
+	 * @throws If failed.
+	 */
 	readText(path: string): string;
-	/** Writes the contents of a `Uint8Array` to a file. */
+	/**
+	 * Writes the contents of a `Uint8Array` to a file.
+	 * @throws If failed.
+	 */
 	write(path: string, data: Uint8Array): number;
-	/** Writes a string to a file. */
+	/**
+	 * Writes a string to a file.
+	 * @throws If failed.
+	 */
 	writeText(path: string, text: string): number;
-	/** Creates a new directory. */
+	/**
+	 * Creates a new directory.
+	 * @param recursive Whether to recursively create
+	 * the nested directories containing the target directory.
+	 * @throws If failed.
+	 */
 	makeDir(path: string, recursive?: boolean): void;
 	/** Returns a list of the files and directories in the given path. */
 	readDir(path: string): DirEntry[];
 	/**
 	 * Opens the file browser and asks the user to select a file.
 	 * 
-	 * The options argument can control various aspects of the browse menu. All of them are optional.
+	 * @param options Controls various aspects of the browse menu. All of them are optional.
 	 * 
-	 * Option's path sets the directory to start browsing from (the user may navigate away from this directory). Defaults to the current working directory.
+	 * @param options.path The directory to start browsing from
+	 * (the user may navigate away from this directory).
+	 * Defaults to the current working directory.
 	 * 
-	 * Option's extensions is an array of extension names to filter the file list by. If the list is empty or not included, all file types will appear in the list.
+	 * @param options.extensions Array of extension names to filter the file list by.
+	 * If the list is empty or not included, all file types will appear in the list.
 	 * 
-	 * Option's message changes the text at the top of the browse menu.
+	 * @param options.message Changes the text at the top of the browse menu.
 	 */
 	browse(options?: FileBrowseOptions): string | null;
 };
 
 /**
- * A storage interface that allows you to quickly and easily save and retrieve string data.
+ * Allows you to quickly and easily save and retrieve string data.
  * 
- * In JSDS, any JavaScript file you run, as distinguished by its filename (not the full path), is given its own storage file in `/_nds/JSDS/`.
+ * In JSDS, any JavaScript file you run, as distinguished by its filename (not the full path),
+ * is given its own storage file in `/_nds/JSDS/`.
  */
 interface Storage {
-	/** Returns the number of key/value pairs. */
+	/** The number of key/value pairs. */
 	get length(): number;
-	/** Returns the name of the nth key, or null if n is greater than or equal to the number of key/value pairs. */
+	/**
+	 * @returns Name of the key at the given `index`,
+	 * or `null` if `index` doesn't match a key/value pair.
+	 */
 	key(index: number): string | null;
-	/** Returns the current value associated with the given key, or null if the given key does not exist. */
+	/** @returns The value associated with the given key, or `null` if the given key does not exist. */
 	getItem(key: string): string | null;
-	/** Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously. */
+	/** Sets the value identified by the key, creating a new key/value pair if necessary. */
 	setItem(key: string, value: string): void;
-	/** Removes the key/value pair with the given key, if a key/value pair with the given key exists. */
+	/** Removes the key/value pair with the given key, if one exists. */
 	removeItem(key: string): void;
 	/** Removes all key/value pairs, if there are any. */
 	clear(): void;
-	/** Writes the current state of the storage object to the storage file. If the storage is empty, deletes the file. Returns `true` when successful. */
+	/**
+	 * Writes the current state of the storage object to the storage file.
+	 * If the storage is empty, deletes the file.
+	 * @returns `true` when successful, `false` otherwise.
+	 */
 	save(): boolean;
 }
 declare var storage: Storage;
@@ -170,16 +249,22 @@ interface AddEventListenerOptions {
 /** Objects that can listen for and receive events. */
 interface EventTarget {
 	/**
-	 * Appends an event listener for events whose type attribute value is type. The callback argument sets the callback that will be invoked when the event is dispatched.
+	 * Appends an event listener for events whose type attribute value is `type`.
+	 * The event listener is not appended if it has the same type and callback as an existing listener.
+	 * 
+	 * @param callback The callback that will be invoked when the event is dispatched.
 	 *
-	 * The options argument sets listener-specific options.
+	 * @param options Sets listener-specific options.
 	 *
-	 * When set to `true`, options's once indicates that the callback will only be invoked once after which the event listener will be removed.
-	 *
-	 * The event listener is appended to target's event listener list and is not appended if it has the same type and callback.
+	 * @param options.once When `true`,
+	 * indicates that the listener should be removed after being invoked once.
 	 */
 	addEventListener(type: string, callback: EventListener | null, options?: AddEventListenerOptions): void;
-	/** Dispatches a synthetic event event to target and returns `true` if either event's cancelable attribute value is `false` or its preventDefault() method was not invoked, and `false` otherwise. */
+	/**
+	 * Dispatches a synthetic event event to target.
+	 * @returns `true` if either event's cancelable attribute value is `false`
+	 * or its preventDefault() method was not invoked, and `false` otherwise.
+	 */
 	dispatchEvent(event: Event): boolean;
 	/** Removes the event listener in target's event listener list with the same type and callback. */
 	removeEventListener(type: string, callback: EventListener | null): void;
@@ -204,20 +289,26 @@ interface GlobalEventHandlersEventMap {
 	"touchend": TouchEvent;
 }
 /**
- * Appends an event listener for events whose type attribute value is type. The callback argument sets the callback that will be invoked when the event is dispatched.
+ * Appends an event listener for events whose type attribute value is `type`.
+ * The event listener is not appended if it has the same type and callback as an existing listener.
+ * 
+ * @param callback The callback that will be invoked when the event is dispatched.
  *
- * The options argument sets listener-specific options.
+ * @param options Sets listener-specific options.
  *
- * When set to `true`, options's once indicates that the callback will only be invoked once after which the event listener will be removed.
- *
- * The event listener is appended to target's event listener list and is not appended if it has the same type and callback.
+ * @param options.once When `true`,
+ * indicates that the listener should be removed after being invoked once.
  */
 declare function addEventListener<K extends keyof GlobalEventHandlersEventMap>(type: K, listener: (this: typeof globalThis, ev: GlobalEventHandlersEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
 declare function addEventListener(type: string, listener: EventListener, options?: AddEventListenerOptions): void;
 /** Removes the event listener in target's event listener list with the same type and callback. */
 declare function removeEventListener<K extends keyof GlobalEventHandlersEventMap>(type: K, listener: (this: typeof globalThis, ev: GlobalEventHandlersEventMap[K]) => any): void;
 declare function removeEventListener(type: string, listener: EventListener): void;
-/** Dispatches a synthetic event event to target and returns `true` if either event's cancelable attribute value is `false` or its preventDefault() method was not invoked, and `false` otherwise. */
+/**
+ * Dispatches a synthetic event event to target.
+ * @returns `true` if either event's cancelable attribute value is `false`
+ * or its preventDefault() method was not invoked, and `false` otherwise.
+ */
 declare function dispatchEvent(event: Event): boolean;
 
 declare var onvblank: ((this: typeof globalThis, ev: Event) => any) | null;
@@ -237,19 +328,19 @@ interface EventInit {
 	cancelable?: boolean;
 }
 interface Event {
-	/** Returns `true` or `false` depending on how event was initialized. Its return value does not always carry meaning, but true can indicate that part of the operation during which event was dispatched, can be canceled by invoking the preventDefault() method. */
+	/** Can be canceled by invoking the preventDefault() method. */
 	readonly cancelable: boolean;
-	/** Returns `true` if preventDefault() was invoked successfully to indicate cancelation, and `false` otherwise. */
+	/** `true` if the event was canceled, and `false` otherwise. */
 	readonly defaultPrevented: boolean;
-	/** Returns the object to which event is dispatched (its target). */
+	/** The object to which event is dispatched (its target). */
 	readonly target: EventTarget | null;
-	/** Returns the event's timestamp as the number of seconds measured relative to the time origin. */
+	/** The event's timestamp as the number of seconds measured relative to the time origin. */
 	readonly timeStamp: number;
-	/** Returns the type of event, e.g. "vblank", "buttondown", or "sleep". */
+	/** The type of event, e.g. "vblank", "buttondown", or "sleep". */
 	readonly type: string;
-	/** If invoked when the cancelable attribute value is `true`, signals to the operation that caused event to be dispatched that it needs to be canceled. */
+	/** If the event is canceleable, cancels the operation that caused the event. */
 	preventDefault(): void;
-	/** Invoking this method prevents event from reaching any registered event listeners after the current one finishes running. */
+	/** Prevents the event from reaching any other registered event listeners after this one. */
 	stopImmediatePropagation(): void;
 }
 declare var Event: {
@@ -271,7 +362,10 @@ interface PromiseRejectionEvent extends Event {
 }
 /** Events that describe a user interaction with the on-screen keyboard. */
 interface KeyboardEvent extends Event {
-	/** For most keys, this will be the value input by pressing the key. For special keys, returns the name of the key's action instead. */
+	/**
+	 * For most keys, this will be the value input by pressing the key.
+	 * For special keys, returns the name of the key's action instead.
+	 */
 	readonly code: string;
 	/** The name of the key that was pressed. */
 	readonly key: string;
@@ -311,7 +405,7 @@ interface Profile {
 	readonly message: string;
 	/** The user's theme color, as a BGR15 color value. */
 	readonly color: number;
-	/** Whether the user has set their DS to autoboot the cartridge. */
+	/** `true` if the user has set their DS to autoboot the cartridge. */
 	readonly autoMode: boolean;
 	/** The screen the user has selected for GBA mode. */
 	readonly gbaScreen: Screen;
@@ -348,7 +442,7 @@ interface Touch {
 	/** `true` if a touch has just ended. */
 	get end(): boolean;
 	/**
-	 * Returns the current touch position.
+	 * @returns The current touch position.
 	 * If the screen is not being touched, both numbers will be `NaN`.
 	*/
 	getPosition(): {x: number, y: number};
@@ -359,20 +453,24 @@ interface DS {
 	readonly isDSiMode: boolean;
 	
 	/**
-	 * Returns either a number or string corresponding to the battery level.
+	 * @returns Either a number or string corresponding to the battery level.
 	 * In DSi Mode, returns `"charging"` while charging, or `0`-`4` otherwise.
 	 * In DS Mode, returns `4` when okay and `1` when low.
 	*/
 	getBatteryLevel(): 0 | 1 | 2 | 3 | 4 | "charging";
-	/** Returns which screen the main engine is currently on. */
+	/** @returns The screen the main engine is currently on. */
 	getMainScreen(): Screen;
-	/** Sets the main engine to display on the given screen. */
+	/**
+	 * Sets the main engine to display on the given screen.
+	 * @throws If a bad screen value is given.
+	 */
 	setMainScreen(screen: Screen): void;
 	/** Switches the main and sub engine screens. */
 	swapScreens(): void;
 	/**
 	 * Forces the DS to enter sleep mode.
 	 * It will reawake when it is closed and opened again.
+	 * 
 	 * Note: Sleep mode will not be entered if the `sleep` Event is canceled.
 	 */
 	sleep(): void;
