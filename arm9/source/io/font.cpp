@@ -74,7 +74,7 @@ void fontLoadDefault() {
 	defaultFont = fontLoad(font_nftr);
 }
 
-u8 fontGetCharWidth(NitroFont font, u16 codepoint) {
+u8 fontGetCodePointWidth(NitroFont font, u16 codepoint) {
 	if (!font.charMap || !font.widthData || font.encoding != 1) return 0;
 
 	u16 tileNum = font.charMap[codepoint];
@@ -86,7 +86,7 @@ u8 fontGetCharWidth(NitroFont font, u16 codepoint) {
 }
 
 // this assumes character is in the buffer's bounds
-void fontPrintChar(NitroFont font, const u16 *palette, u16 codepoint, u16 *buffer, u32 bufferWidth, u32 x, u32 y) {
+void fontPrintCodePoint(NitroFont font, const u16 *palette, u16 codepoint, u16 *buffer, u32 bufferWidth, u32 x, u32 y) {
 	if (!font.tileData || !font.widthData || !font.charMap || font.encoding != 1 || font.bitdepth != 2) return;
 
 	u16 tileNum = font.charMap[codepoint];
@@ -108,4 +108,73 @@ void fontPrintChar(NitroFont font, const u16 *palette, u16 codepoint, u16 *buffe
 			if (color) *buf = color;
 		}
 	}
+}
+
+// this assumes string is in the buffer's bounds.
+void fontPrintUnicode(NitroFont font, const u16 *palette, const u16 *codepoints, u16 *buffer, u32 bufferWidth, u32 x, u32 y, u32 maxWidth) {
+	if (!font.tileData || !font.widthData || !font.charMap || font.encoding != 1 || font.bitdepth != 2) return;
+	
+	buffer += x + y * bufferWidth;
+	u32 totalX = 0;
+
+	while (*codepoints) {
+		u16 tileNum = font.charMap[*(codepoints++)];
+		if (tileNum == NO_TILE) tileNum = font.charMap[REPLACEMENT_CHAR];
+		if (tileNum == NO_TILE) continue;
+
+		u8 *tile = font.tileData + tileNum * font.tileSize;
+		u8 *widths = font.widthData + tileNum * 3;
+
+		totalX += widths[2];
+		if (totalX > maxWidth) return;
+
+		u16 *buff = buffer + totalX - widths[2];
+		for (u8 ty = 0; ty < font.tileHeight; ty++, buff += bufferWidth) {
+			u16 *buf = buff;
+
+			if (palette[0]) toncset16(buf, palette[0], widths[0]);
+			buf += widths[0];
+
+			for (u16 tx = 0, pixel = ty * font.tileWidth; tx < widths[1]; tx++, pixel++, buf++) {
+				u16 color = palette[*(tile + pixel / 4) >> ((3 - pixel % 4) * 2) & 0b11];
+				if (color) *buf = color;
+			}
+		}
+	}
+}
+
+// this assumes string is in the buffer's bounds.
+void fontPrintString(NitroFont font, const u16 *palette, const char *str, u16 *buffer, u32 bufferWidth, u32 x, u32 y, u32 maxWidth) {
+	if (!font.tileData || !font.widthData || !font.charMap || font.encoding != 1 || font.bitdepth != 2) return;
+
+	const char *end = str;
+	while(*(end++));
+	const u32 utf8Size = end - str;
+	u16 *utf16 = (u16 *) malloc(utf8Size * 2);
+	u16 *out = utf16;
+	for (u32 i = 0; i < utf8Size; i++) {
+		u8 byte = str[i];
+		if (byte < 0x80) *(out++) = byte;
+		else if (byte < 0xE0) {
+			u8 byte2 = str[++i];
+			if ((byte2 & 0xC0) != BIT(7)) break;
+			*(out++) = (byte & 0b11111) << 6 | (byte2 & 0b111111);
+		}
+		else if (byte < 0xF0) {
+			u8 byte2 = str[++i], byte3 = str[++i];
+			if ((byte2 & 0xC0) != BIT(7) || (byte3 & 0xC0) != BIT(7)) break;
+			*(out++) = (byte & 0xF) << 12 | (byte2 & 0b111111) << 6 | (byte3 & 0b111111);
+		}
+		else {
+			u8 byte2 = str[++i], byte3 = str[++i], byte4 = str[++i];
+			if ((byte2 & 0xC0) != BIT(7) || (byte3 & 0xC0) != BIT(7) || (byte4 & 0xC0) != BIT(7)) break;
+			u32 codepoint = (byte & 0b111) << 18 | (byte2 & 0b111111) << 12 | (byte3 & 0b111111) << 6 | (byte4 & 0b111111);
+			codepoint -= 0x10000;
+			*(out++) = 0xD800 | codepoint >> 10;
+			*(out++) = 0xDC00 | (codepoint & 0x3FF);
+		}
+	}
+	*out = 0;
+	fontPrintUnicode(font, palette, utf16, buffer, bufferWidth, x, y, maxWidth);
+	free(utf16);
 }

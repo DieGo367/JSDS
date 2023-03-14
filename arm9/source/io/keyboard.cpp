@@ -450,12 +450,12 @@ void renderKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
 	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 	if (codepoint == '\n' && currentBoard > 0) {
 		// hardcoded set of extra tiles that form the tall enter graphic
-		fontPrintChar(keyFont, PALETTE_FONT_KEY, 0x1E, gfxKbdBuffer, SCREEN_WIDTH, key.x + (keyWidth - fontGetCharWidth(keyFont, 0x1E)) / 2, key.y);
-		fontPrintChar(keyFont, PALETTE_FONT_KEY, 0x1F, gfxKbdBuffer, SCREEN_WIDTH, key.x + (keyWidth - fontGetCharWidth(keyFont, 0x1F)) / 2, key.y + keyFont.tileHeight);
+		fontPrintCodePoint(keyFont, PALETTE_FONT_KEY, 0x1E, gfxKbdBuffer, SCREEN_WIDTH, key.x + (keyWidth - fontGetCodePointWidth(keyFont, 0x1E)) / 2, key.y);
+		fontPrintCodePoint(keyFont, PALETTE_FONT_KEY, 0x1F, gfxKbdBuffer, SCREEN_WIDTH, key.x + (keyWidth - fontGetCodePointWidth(keyFont, 0x1F)) / 2, key.y + keyFont.tileHeight);
 	}
 	else {
-		u8 charWidth = fontGetCharWidth(keyFont, codepoint);
-		fontPrintChar(keyFont, PALETTE_FONT_KEY, codepoint, gfxKbdBuffer, SCREEN_WIDTH, key.x + (keyWidth - charWidth) / 2, key.y);
+		u8 charWidth = fontGetCodePointWidth(keyFont, codepoint);
+		fontPrintCodePoint(keyFont, PALETTE_FONT_KEY, codepoint, gfxKbdBuffer, SCREEN_WIDTH, key.x + (keyWidth - charWidth) / 2, key.y);
 	}
 }
 void drawSingleKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
@@ -481,14 +481,14 @@ void drawComposedText() {
 	int x = 0;
 	for (u16 *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
 		u16 codepoint = *codePtr;
-		int width = fontGetCharWidth(defaultFont, codepoint);
+		int width = fontGetCodePointWidth(defaultFont, codepoint);
 		if (codepoint == '\t') {
-			width = fontGetCharWidth(defaultFont, ' ') * 3;
+			width = fontGetCodePointWidth(defaultFont, ' ') * 3;
 			codepoint = ' ';
 		}
 		int diff = x + width - SCREEN_WIDTH;
 		if (diff <= 0) {
-			fontPrintChar(defaultFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, x, 0);
+			fontPrintCodePoint(defaultFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, x, 0);
 			x += width;
 		}
 		else {
@@ -497,7 +497,7 @@ void drawComposedText() {
 				u16 *row = gfxCmpBuffer + (j + 1) * SCREEN_WIDTH - width;
 				toncset16(row, COLOR_COMPOSING_BACKDROP, width);
 			}
-			fontPrintChar(defaultFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
+			fontPrintCodePoint(defaultFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
 			x = SCREEN_WIDTH;
 		}
 	}

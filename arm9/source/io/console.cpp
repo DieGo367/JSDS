@@ -76,7 +76,7 @@ bool writeCodepoint(u16 codepoint) {
 		return true;
 	}
 	else if (codepoint == '\t') {
-		u8 tabWidth = fontGetCharWidth(defaultFont, ' ') * TAB_SIZE;
+		u8 tabWidth = fontGetCodePointWidth(defaultFont, ' ') * TAB_SIZE;
 		lineWidth = (lineWidth / tabWidth + 1) * tabWidth;
 		if (lineWidth > SCREEN_WIDTH) {
 			newLine();
@@ -86,13 +86,13 @@ bool writeCodepoint(u16 codepoint) {
 	}
 
 	bool newLined = false;
-	u8 width = fontGetCharWidth(defaultFont, codepoint);
+	u8 width = fontGetCodePointWidth(defaultFont, codepoint);
 	if (lineWidth + width > SCREEN_WIDTH) {
 		newLine();
 		newLined = true;
 	}
 
-	fontPrintChar(defaultFont, colors, codepoint, gfxBuffer, SCREEN_WIDTH, lineWidth, linePos % BUFFER_HEIGHT);
+	fontPrintCodePoint(defaultFont, colors, codepoint, gfxBuffer, SCREEN_WIDTH, lineWidth, linePos % BUFFER_HEIGHT);
 
 	lineWidth += width;
 	return newLined;
