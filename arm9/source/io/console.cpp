@@ -49,6 +49,10 @@ u16 consoleSetBackground(u16 color) {
 }
 u16 consoleGetBackground() { return colors[0]; }
 
+const u16 *consolePalette() {
+	return colors;
+}
+
 void consoleDraw() {
 	int pos = linePos + defaultFont.tileHeight;
 	if (pos <= consoleHeight) dmaCopyWords(0, gfxBuffer, bgGetGfxPtr(7), pos * SCREEN_WIDTH * sizeof(u16));

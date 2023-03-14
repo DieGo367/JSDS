@@ -17,13 +17,13 @@ extern "C" {
 
 #include "error.hpp"
 #include "event.hpp"
+#include "file.hpp"
 #include "inline.hpp"
 #include "input.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
 #include "jerry/jerryscript.h"
 #include "logging.hpp"
-#include "storage.hpp"
 #include "timeouts.hpp"
 #include "tonccpy.h"
 
@@ -908,6 +908,50 @@ FUNCTION(FileStatic_readDir) {
 	return arr;
 }
 
+FUNCTION(FileStatic_browse) {
+	char browsePathDefault[] = ".";
+	char messageDefault[] = "Select a file.";
+	char *browsePath = browsePathDefault;
+	char *message = messageDefault;
+	std::vector<char *> extensions;
+	if (argCount > 0 && jerry_value_is_object(args[0])) {
+		jerry_value_t pathProp = createString("path");
+		jerry_value_t extensionsProp = createString("extensions");
+		jerry_value_t messageProp = createString("message");
+		if (jerry_has_property(args[0], pathProp)) {
+			jerry_value_t pathVal = jerry_get_property(args[0], pathProp);
+			if (pathVal != undefined) browsePath = getAsString(pathVal);
+			jerry_release_value(pathVal);
+		}
+		if (jerry_has_property(args[0], extensionsProp)) {
+			jerry_value_t extensionsVal = jerry_get_property(args[0], extensionsProp);
+			if (jerry_value_is_array(extensionsVal)) {
+				u32 length = jerry_get_array_length(extensionsVal);
+				for (u32 i = 0; i < length; i++) {
+					jerry_value_t extVal = jerry_get_property_by_index(extensionsVal, i);
+					extensions.emplace_back(getAsString(extVal));
+					jerry_release_value(extVal);
+				}
+			}
+		}
+		if (jerry_has_property(args[0], messageProp)) {
+			jerry_value_t messageVal = jerry_get_property(args[0], messageProp);
+			if (messageVal != undefined) message = getAsString(messageVal);
+			jerry_release_value(messageVal);
+		}
+		jerry_release_value(messageProp);
+		jerry_release_value(extensionsProp);
+		jerry_release_value(pathProp);
+	}
+	char *result = fileBrowse(message, browsePath, extensions);
+	jerry_value_t resultVal = result == NULL ? null : createString(result);
+	free(result);
+	for (u32 i = 0; i < extensions.size(); i++) free(extensions[i]);
+	if (message != messageDefault) free(message);
+	if (browsePath != browsePathDefault) free(browsePath);
+	return resultVal;
+}
+
 FUNCTION(storage_length) {
 	jerry_value_t propNames = jerry_get_object_keys(ref_storage);
 	u32 length = jerry_get_array_length(propNames);
@@ -1359,6 +1403,10 @@ void exposeAPI() {
 
 	// Simple custom File class, nothing like the web version
 	jsClass File = createClass(ref_global, "File", IllegalConstructor);
+	setMethod(File.prototype, "read", File_read);
+	setMethod(File.prototype, "write", File_write);
+	setMethod(File.prototype, "seek", File_seek);
+	setMethod(File.prototype, "close", File_close);
 	setMethod(File.constructor, "open", FileStatic_open);
 	setMethod(File.constructor, "copy", FileStatic_copy);
 	setMethod(File.constructor, "rename", FileStatic_rename);
@@ -1369,10 +1417,7 @@ void exposeAPI() {
 	setMethod(File.constructor, "writeText", FileStatic_writeText);
 	setMethod(File.constructor, "makeDir", FileStatic_makeDir);
 	setMethod(File.constructor, "readDir", FileStatic_readDir);
-	setMethod(File.prototype, "read", File_read);
-	setMethod(File.prototype, "write", File_write);
-	setMethod(File.prototype, "seek", File_seek);
-	setMethod(File.prototype, "close", File_close);
+	setMethod(File.constructor, "browse", FileStatic_browse);
 	releaseClass(File);
 
 	jerry_value_t storage = createObject(ref_global, "storage");

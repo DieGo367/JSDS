@@ -68,6 +68,11 @@ interface DirEntry {
 	isFile: boolean;
 	name: string;
 }
+interface FileBrowseOptions {
+	path?: string;
+	extensions?: string[];
+	message?: string;
+}
 /**
  * For reading, writing, and managing files and directories.
  * 
@@ -95,7 +100,8 @@ declare var File: {
 	prototype: File;
 	new(): File;
 	/**
-	 * Opens a file and returns a new DS.File instance.
+	 * Opens a file and returns a new File instance.
+	 * 
 	 * `mode` determines whether to open the file with read and/or write access.
 	 * Defaults to `"r"`, or read access.
 	 */
@@ -118,6 +124,18 @@ declare var File: {
 	makeDir(path: string, recursive?: boolean): void;
 	/** Returns a list of the files and directories in the given path. */
 	readDir(path: string): DirEntry[];
+	/**
+	 * Opens the file browser and asks the user to select a file.
+	 * 
+	 * The options argument can control various aspects of the browse menu. All of them are optional.
+	 * 
+	 * Option's path sets the directory to start browsing from (the user may navigate away from this directory). Defaults to the current working directory.
+	 * 
+	 * Option's extensions is an array of extension names to filter the file list by. If the list is empty or not included, all file types will appear in the list.
+	 * 
+	 * Option's message changes the text at the top of the browse menu.
+	 */
+	browse(options?: FileBrowseOptions): string | null;
 };
 
 /**

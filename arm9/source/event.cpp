@@ -10,13 +10,13 @@ extern "C" {
 
 #include "api.hpp"
 #include "error.hpp"
+#include "file.hpp"
 #include "inline.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
 #include "input.hpp"
 #include "jerry/jerryscript.h"
 #include "logging.hpp"
-#include "storage.hpp"
 #include "timeouts.hpp"
 
 

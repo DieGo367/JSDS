@@ -11,6 +11,7 @@ u16 consoleSetColor(u16);
 u16 consoleGetColor();
 u16 consoleSetBackground(u16);
 u16 consoleGetBackground();
+const u16 *consolePalette();
 
 void consolePause();
 void consoleResume();

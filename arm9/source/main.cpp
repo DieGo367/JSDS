@@ -10,6 +10,7 @@
 #include "api.hpp"
 #include "error.hpp"
 #include "event.hpp"
+#include "file.hpp"
 #include "inline.hpp"
 #include "input.hpp"
 #include "io/console.hpp"
@@ -17,7 +18,6 @@
 #include "jerry/jerryscript.h"
 #include "jerry/jerryscript-port-default.h"
 #include "logging.hpp"
-#include "storage.hpp"
 #include "timeouts.hpp"
 
 
@@ -76,8 +76,11 @@ int main(int argc, char **argv) {
 
 	// run
 	if (argc > 1) runFile(argv[1]);
-	else if (access("/BOOT.js", F_OK) == 0) runFile("/BOOT.js");
-	else repl();
+	else {
+		char *filePath = fileBrowse("Select a script to run.", "/", {(char *) "js"});
+		if (filePath != NULL && access(filePath, F_OK) == 0) runFile(filePath);
+		else repl();
+	}
 
 	// cleanup
 	keyboardHide();
