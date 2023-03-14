@@ -392,7 +392,7 @@ FUNCTION(console_clear) {
 FUNCTION(Text_encode) {
 	REQUIRE_FIRST();
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
-		EXPECT(jerry_value_is_typedarray(args[1]), Uint8Array);
+		EXPECT(jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 		jerry_value_t text = jerry_value_to_string(args[0]);
 		jerry_length_t size = jerry_get_utf8_string_size(text);
 		jerry_length_t byteOffset, bufSize;
@@ -419,7 +419,7 @@ FUNCTION(Text_encode) {
 }
 
 FUNCTION(Text_decode) {
-	REQUIRE_FIRST(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
+	REQUIRE_FIRST(); EXPECT(jerry_value_is_typedarray(args[0]) && jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	u32 byteOffset = 0, dataLen = 0;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
@@ -431,7 +431,7 @@ FUNCTION(Text_decode) {
 FUNCTION(Text_encodeUTF16) {
 	REQUIRE_FIRST();
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
-		EXPECT(jerry_value_is_typedarray(args[1]), Uint8Array);
+		EXPECT(jerry_value_is_typedarray(args[1] && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8), Uint8Array);
 	}
 	jerry_length_t utf8Size;
 	char *utf8 = getAsString(args[0], &utf8Size);
@@ -478,7 +478,7 @@ FUNCTION(Text_encodeUTF16) {
 }
 
 FUNCTION(Text_decodeUTF16) {
-	REQUIRE_FIRST(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
+	REQUIRE_FIRST(); EXPECT(jerry_value_is_typedarray(args[0] && jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8), Uint8Array);
 	u32 byteOffset = 0, dataLen = 0;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
@@ -488,7 +488,7 @@ FUNCTION(Text_decodeUTF16) {
 
 const char b64Map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 FUNCTION(Base64_encode) {
-	REQUIRE_FIRST(); EXPECT(jerry_value_is_typedarray(args[0]), Uint8Array);
+	REQUIRE_FIRST(); EXPECT(jerry_value_is_typedarray(args[0] && jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8), Uint8Array);
 	jerry_length_t byteOffset, dataSize;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataSize);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
@@ -532,7 +532,7 @@ static inline u8 b64CharValue(char ch, bool *bad) {
 FUNCTION(Base64_decode) {
 	REQUIRE_FIRST(); EXPECT(jerry_value_is_string(args[0]), string);
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
-		EXPECT(jerry_value_is_typedarray(args[1]), Uint8Array);
+		EXPECT(jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	}
 	jerry_length_t asciiSize;
 	char *ascii = getString(args[0], &asciiSize);
@@ -627,7 +627,7 @@ FUNCTION(File_read) {
 
 FUNCTION(File_write) {
 	REQUIRE_FIRST();
-	EXPECT(jerry_value_is_object(args[0]) && jerry_value_is_typedarray(args[0]) && jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
+	EXPECT(jerry_value_is_typedarray(args[0]) && jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 
 	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
 	char *mode = getString(modeStr);
@@ -820,7 +820,7 @@ FUNCTION(FileStatic_readText) {
 
 FUNCTION(FileStatic_write) {
 	REQUIRE(2);
-	EXPECT(jerry_value_is_object(args[1]) && jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
+	EXPECT(jerry_value_is_typedarray(args[1]) && jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "w");
 	free(path);
