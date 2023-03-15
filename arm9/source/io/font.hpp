@@ -26,15 +26,9 @@ extern NitroFont defaultFont;
 
 NitroFont fontLoad(const u8 *data);
 void fontLoadDefault();
-u8 fontGetCodePointWidth(NitroFont font, u16 codepoint);
-inline u8 fontGetCharWidth(NitroFont font, char chr) {
-	return fontGetCodePointWidth(font, (u16) chr);
-}
-void fontPrintCodePoint(NitroFont font, const u16 *palette, u16 codepoint, u16 *buffer, u32 bufferWidth, u32 x, u32 y);
-inline void fontPrintChar(NitroFont font, const u16 *palette, char chr, u16 *buffer, u32 bufferWidth, u32 x, u32 y) {
-	return fontPrintCodePoint(font, palette, (u16) chr, buffer, bufferWidth, x, y);
-}
-void fontPrintUnicode(NitroFont font, const u16 *palette, const u16 *codepoints, u16 *buffer, u32 bufferWidth, u32 x, u32 y, u32 maxWidth);
+u8 fontGetCodePointWidth(NitroFont font, char16_t codepoint);
+void fontPrintCodePoint(NitroFont font, const u16 *palette, char16_t codepoint, u16 *buffer, u32 bufferWidth, u32 x, u32 y);
+void fontPrintUnicode(NitroFont font, const u16 *palette, const char16_t *codepoints, u16 *buffer, u32 bufferWidth, u32 x, u32 y, u32 maxWidth);
 void fontPrintString(NitroFont font, const u16 *palette, const char *str, u16 *buffer, u32 bufferWidth, u32 x, u32 y, u32 maxWidth);
 
 #endif /* JSDS_FONT_HPP */

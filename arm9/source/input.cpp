@@ -94,7 +94,7 @@ void touchEvents() {
 	prevY = pos.py;
 }
 
-bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 location, bool shift, int layout, bool repeat) {
+bool dispatchKeyboardEvent(bool down, const char16_t codepoint, const char *name, u8 location, bool shift, int layout, bool repeat) {
 	jerry_value_t kbdEventArgs[2] = {createString(down ? "keydown" : "keyup"), jerry_create_object()};
 	setProperty(kbdEventArgs[1], "cancelable", JS_TRUE);
 
@@ -137,13 +137,13 @@ bool dispatchKeyboardEvent(bool down, const u16 codepoint, const char *name, u8 
 }
 
 bool pauseKeyEvents = false;
-bool onKeyDown(const u16 codepoint, const char *name, bool shift, int layout, bool repeat) {
+bool onKeyDown(const char16_t codepoint, const char *name, bool shift, int layout, bool repeat) {
 	if (!pauseKeyEvents && dependentEvents & keydown) {
 		return dispatchKeyboardEvent(true, codepoint, name, 0, shift, layout, repeat);
 	}
 	return false;
 }
-bool onKeyUp(const u16 codepoint, const char *name, bool shift, int layout) {
+bool onKeyUp(const char16_t codepoint, const char *name, bool shift, int layout) {
 	if (!pauseKeyEvents && dependentEvents & keyup) {
 		return dispatchKeyboardEvent(false, codepoint, name, 0, shift, layout, false);
 	}

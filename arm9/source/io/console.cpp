@@ -74,7 +74,7 @@ void newLine() {
 	toncset16(gfxBuffer + ((linePos % BUFFER_HEIGHT) * SCREEN_WIDTH), 0, SCREEN_WIDTH * defaultFont.tileHeight);
 }
 
-bool writeCodepoint(u16 codepoint) {
+bool writeCodepoint(char16_t codepoint) {
 	if (codepoint == '\n') {
 		newLine();
 		return true;

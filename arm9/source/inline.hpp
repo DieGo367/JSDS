@@ -35,19 +35,19 @@ inline jerry_value_t createString(const char *str) {
 }
 
 // Creates a js string out of a list of 16-bit Unicode codepoints. Return value must be released! Throws a TypeError when invalid.
-inline jerry_value_t createStringU16(const u16* codepoints, u32 length) {
+inline jerry_value_t createStringU16(const char16_t* codepoints, u32 length) {
 	u8 utf8[length * 3]; // each codepoint can produce up to 3 bytes (surrogate pairs end up as 4 bytes, but that's still 2 bytes each)
 	u8 *out = utf8;
 	for (u32 i = 0; i < length; i++) {
-		u16 codepoint = codepoints[i];
-		if (codepoint < 0x0080) *(out++) = codepoint;
+		char16_t codepoint = codepoints[i];
+		if (codepoint < 0x80) *(out++) = codepoint;
 		else if (codepoint < 0x800) {
 			out[0] = 0b11000000 | (codepoint >> 6 & 0b00011111);
 			out[1] = BIT(7) | (codepoint & 0b00111111);
 			out += 2;
 		}
 		else if (codepoint >= 0xD800 && codepoint < 0xDC00 && i < length && codepoints[i + 1] >= 0xDC00 && codepoints[i + 1] < 0xF000) {
-			u16 surrogate = codepoints[++i];
+			char16_t surrogate = codepoints[++i];
 			out[0] = 0xF0 | (codepoint >> 7 & 0b111);
 			out[1] = BIT(7) | (codepoint >> 1 & 0b00111111);
 			out[2] = BIT(7) | (codepoint & 1) << 5 | (surrogate >> 5 & 0b00011111); // different mask than the rest
@@ -287,7 +287,7 @@ inline void setReadonlyString(jerry_value_t object, const char *property, const 
 }
 
 // Sets a getter to a string on object via c string and a list of UTF-16 codepoints
-inline void setReadonlyStringU16(jerry_value_t object, const char *property, u16 *codepoints, u32 length) {
+inline void setReadonlyStringU16(jerry_value_t object, const char *property, const char16_t *codepoints, u32 length) {
 	jerry_value_t string = createStringU16(codepoints, length);
 	setReadonly(object, property, string);
 	jerry_release_value(string);

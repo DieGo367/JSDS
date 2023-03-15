@@ -436,7 +436,7 @@ FUNCTION(Text_encodeUTF16) {
 	jerry_length_t utf8Size;
 	char *utf8 = getAsString(args[0], &utf8Size);
 	u8 utf16[utf8Size * 2];
-	u16 *out = (u16 *) utf16;
+	char16_t *out = (char16_t *) utf16;
 	for (u32 i = 0; i < utf8Size; i++) {
 		u8 byte = utf8[i];
 		if (byte < 0x80) *(out++) = byte;
@@ -450,7 +450,7 @@ FUNCTION(Text_encodeUTF16) {
 		}
 		else {
 			u8 byte2 = utf8[++i], byte3 = utf8[++i], byte4 = utf8[++i];
-			u32 codepoint = (byte & 0b111) << 18 | (byte2 & 0b111111) << 12 | (byte3 & 0b111111) << 6 | (byte4 & 0b111111);
+			char32_t codepoint = (byte & 0b111) << 18 | (byte2 & 0b111111) << 12 | (byte3 & 0b111111) << 6 | (byte4 & 0b111111);
 			codepoint -= 0x10000;
 			*(out++) = 0xD800 | codepoint >> 10;
 			*(out++) = 0xDC00 | (codepoint & 0x3FF);
@@ -483,7 +483,7 @@ FUNCTION(Text_decodeUTF16) {
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 	jerry_release_value(arrayBuffer);
-	return createStringU16((u16 *) data, dataLen / 2);
+	return createStringU16((char16_t *) data, dataLen / 2);
 }
 
 const char b64Map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -1475,8 +1475,8 @@ void exposeAPI() {
 	setReadonlyNumber(profile, "birthMonth", PersonalData->birthMonth);
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-	setReadonlyStringU16(profile, "name", (u16 *) PersonalData->name, PersonalData->nameLen);
-	setReadonlyStringU16(profile, "message", (u16 *) PersonalData->message, PersonalData->messageLen);
+	setReadonlyStringU16(profile, "name", (char16_t *) PersonalData->name, PersonalData->nameLen);
+	setReadonlyStringU16(profile, "message", (char16_t *) PersonalData->message, PersonalData->messageLen);
 	#pragma GCC diagnostic pop
 	const u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
 	setReadonlyNumber(profile, "color", PersonalData->theme < 16 ? themeColors[PersonalData->theme] : 0);

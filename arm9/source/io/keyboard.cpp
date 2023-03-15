@@ -53,8 +53,8 @@ enum ControlKeys {
 
 struct KeyDef {
 	char name[20];
-	u16 lower;
-	u16 upper;
+	char16_t lower;
+	char16_t upper;
 	u8 x;
 	u8 y;
 };
@@ -388,16 +388,16 @@ const KeyDef* boards[5] = {boardAlphanumeric, boardLatinAccented, boardKana, boa
 const u8 boardSizes[5] = {lengthof(boardAlphanumeric), lengthof(boardLatinAccented), lengthof(boardKana), lengthof(boardSymbol), lengthof(boardPictogram)};
 
 // kana modifier key conversion maps
-const u16 voiceable[] = {u'か', u'き', u'く', u'け', u'こ', u'さ', u'し', u'す', u'せ', u'そ', u'た', u'ち', u'つ', u'っ', u'て', u'と', u'は', u'ひ', u'ふ', u'へ', u'ほ', u'ぱ', u'ぴ', u'ぷ', u'ぺ', u'ぽ', u'カ', u'ヵ', u'キ', u'ク', u'ケ', u'ヶ', u'コ', u'サ', u'シ', u'ス', u'セ', u'ソ', u'タ', u'チ', u'ツ', u'ッ', u'テ', u'ト', u'ハ', u'ヒ', u'フ', u'ヘ', u'ホ', u'パ', u'ピ', u'プ', u'ペ', u'ポ', u'ウ', u'ゥ'};
-const u16 voiced[]    = {u'が', u'ぎ', u'ぐ', u'げ', u'ご', u'ざ', u'じ', u'ず', u'ぜ', u'ぞ', u'だ', u'ぢ', u'づ', u'づ', u'で', u'ど', u'ば', u'び', u'ぶ', u'べ', u'ぼ', u'ば', u'び', u'ぶ', u'べ', u'ぼ', u'ガ', u'ガ', u'ギ', u'グ', u'ゲ', u'ゲ', u'ゴ', u'ザ', u'ジ', u'ズ', u'ゼ', u'ゾ', u'ダ', u'ヂ', u'ヅ', u'ヅ', u'デ', u'ド', u'バ', u'ビ', u'ブ', u'ベ', u'ボ', u'バ', u'ビ', u'ブ', u'ベ', u'ボ', u'ヴ', u'ヴ'};
-const u16 semivoiceable[] = {u'は', u'ひ', u'ふ', u'へ', u'ほ', u'ば', u'び', u'ぶ', u'べ', u'ぼ', u'ハ', u'ヒ', u'フ', u'ヘ', u'ホ', u'バ', u'ビ', u'ブ', u'ベ', u'ボ'};
-const u16 semivoiced[]    = {u'ぱ', u'ぴ', u'ぷ', u'ぺ', u'ぽ', u'ぱ', u'ぴ', u'ぷ', u'ぺ', u'ぽ', u'パ', u'ピ', u'プ', u'ペ', u'ポ', u'パ', u'ピ', u'プ', u'ペ', u'ポ'};
-const u16 shrinkable[] = {u'あ', u'い', u'う', u'え', u'お', u'つ', u'づ', u'や', u'ゆ', u'よ', u'わ', u'ア', u'イ', u'ウ', u'ヴ', u'エ', u'オ', u'ツ', u'ヅ', u'ヤ', u'ユ', u'ヨ', u'ワ', u'カ', u'ガ', u'ケ', u'ゲ'};
-const u16 shrunk[]     = {u'ぁ', u'ぃ', u'ぅ', u'ぇ', u'ぉ', u'っ', u'っ', u'ゃ', u'ゅ', u'ょ', u'ゎ', u'ァ', u'ィ', u'ゥ', u'ゥ', u'ェ', u'ォ', u'ッ', u'ッ', u'ャ', u'ュ', u'ョ', u'ヮ', u'ヵ', u'ヵ', u'ヶ', u'ヶ'};
+const char16_t voiceable[] = u"かきくけこさしすせそたちつってとはひふへほぱぴぷぺぽカヵキクケヶコサシスセソタチツッテトハヒフヘホパピプペポウゥ";
+const char16_t voiced[]    = u"がぎぐげござじずぜぞだぢづづでどばびぶべぼばびぶべぼガガギグゲゲゴザジズゼゾダヂヅヅデドバビブベボバビブベボヴヴ";
+const char16_t semivoiceable[] = u"はひふへほばびぶべぼハヒフヘホバビブベボ";
+const char16_t semivoiced[]    = u"ぱぴぷぺぽぱぴぷぺぽパピプペポパピプペポ";
+const char16_t shrinkable[] = u"あいうえおつづやゆよわアイウヴエオツヅヤユヨワカガケゲ";
+const char16_t shrunk[]     = u"ぁぃぅぇぉっっゃゅょゎァィゥゥェォッッャュョヮヵヵヶヶ";
 
 static u16 gfxKbdBuffer[SCREEN_WIDTH * KEYBOARD_HEIGHT] = {0};
 static u16 gfxCmpBuffer[SCREEN_WIDTH * TEXT_HEIGHT] = {0};
-u16 compositionBuffer[256] = {0};
+char16_t compositionBuffer[256] = {0};
 NitroFont keyFont = {0};
 
 bool showing = false;
@@ -412,10 +412,10 @@ int heldDir = 0;
 int highlightedKeyIdx = -1;
 ComposeStatus composing = KEYBOARD_INACTIVE;
 bool closeOnAccept = false;
-u16 *compCursor = compositionBuffer;
-const u16 *compEnd = compositionBuffer + 255;
-bool (*onPress) (const u16 codepoint, const char *name, bool shift, int layout, bool repeat) = NULL;
-bool (*onRelease) (const u16 codepoint, const char *name, bool shift, int layout) = NULL;
+char16_t *compCursor = compositionBuffer;
+const char16_t *compEnd = compositionBuffer + 255;
+bool (*onPress) (const char16_t codepoint, const char *name, bool shift, int layout, bool repeat) = NULL;
+bool (*onRelease) (const char16_t codepoint, const char *name, bool shift, int layout) = NULL;
 
 
 
@@ -447,7 +447,7 @@ void renderKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
 	for (u8 y = 0; y < keyHeight && key.y + y < KEYBOARD_HEIGHT-1; y++) {
 		toncset16(gfxKbdBuffer + key.x + (key.y + y) * SCREEN_WIDTH, color, keyWidth);
 	}
-	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+	char16_t codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 	if (codepoint == '\n' && currentBoard > 0) {
 		// hardcoded set of extra tiles that form the tall enter graphic
 		fontPrintCodePoint(keyFont, PALETTE_FONT_KEY, 0x1E, gfxKbdBuffer, SCREEN_WIDTH, key.x + (keyWidth - fontGetCodePointWidth(keyFont, 0x1E)) / 2, key.y);
@@ -479,8 +479,8 @@ void drawSelectedBoard() {
 void drawComposedText() {
 	toncset16(gfxCmpBuffer, COLOR_COMPOSING_BACKDROP, SCREEN_WIDTH * TEXT_HEIGHT);
 	int x = 0;
-	for (u16 *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
-		u16 codepoint = *codePtr;
+	for (char16_t *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
+		char16_t codepoint = *codePtr;
 		int width = fontGetCodePointWidth(defaultFont, codepoint);
 		if (codepoint == '\t') {
 			width = fontGetCodePointWidth(defaultFont, ' ') * 3;
@@ -505,8 +505,8 @@ void drawComposedText() {
 	dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }
 
-void composeKey(u16 codepoint) {
-	u16 *lastChar = compCursor - 1;
+void composeKey(char16_t codepoint) {
+	char16_t *lastChar = compCursor - 1;
 	if (codepoint == ENTER) {
 		composing = KEYBOARD_FINISHED;
 		return;
@@ -567,7 +567,7 @@ void composeKey(u16 codepoint) {
 }
 
 void pressKey(KeyDef key, u8 keyWidth, u8 keyHeight, int idx, HoldMode mode) {
-	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+	char16_t codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 	if (onPress != NULL) onPress(codepoint, key.name, shiftToggle != capsToggle, currentBoard, false);
 	heldKeyIdx = idx;
 	heldTime = 1;
@@ -577,7 +577,7 @@ void pressKey(KeyDef key, u8 keyWidth, u8 keyHeight, int idx, HoldMode mode) {
 void holdKey() {
 	KeyDef key = boards[currentBoard][heldKeyIdx];
 	if (++heldTime >= REPEAT_START && (heldTime - REPEAT_START) % REPEAT_INTERVAL == 0) {
-		u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+		char16_t codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 		bool canceled = false;
 		if (onPress != NULL) canceled = onPress(codepoint, key.name, shiftToggle != capsToggle, currentBoard, true);
 		if (!canceled && composing == KEYBOARD_COMPOSING) composeKey(codepoint);
@@ -597,7 +597,7 @@ void releaseKey() {
 		shiftToggle = capsToggle = false;
 	}
 	else updateBoard = false;
-	u16 codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
+	char16_t codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 	bool canceled = false;
 	if (onRelease != NULL) canceled = onRelease(codepoint, key.name, shiftToggle != capsToggle, currentBoard);
 	if (!canceled && composing == KEYBOARD_COMPOSING && heldTime < REPEAT_START) composeKey(codepoint);
@@ -793,10 +793,10 @@ bool keyboardHide() {
 	return true;
 }
 
-void keyboardSetPressHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, int layout, bool repeat)) {
+void keyboardSetPressHandler(bool (*handler) (const char16_t codepoint, const char *name, bool shift, int layout, bool repeat)) {
 	onPress = handler;
 }
-void keyboardSetReleaseHandler(bool (*handler) (const u16 codepoint, const char *name, bool shift, int layout)) {
+void keyboardSetReleaseHandler(bool (*handler) (const char16_t codepoint, const char *name, bool shift, int layout)) {
 	onRelease = handler;
 }
 
@@ -818,8 +818,8 @@ void keyboardComposeAccept(char **strPtr, int *strSize) {
 	char *str = (char *) malloc((compCursor - compositionBuffer) * 3 + 1);
 	*strPtr = str;
 	int size = 0;
-	for (u16 *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
-		u16 codepoint = *codePtr;
+	for (char16_t *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
+		char16_t codepoint = *codePtr;
 		if (codepoint < 0x80) {
 			*(str++) = codepoint;
 			size++;
