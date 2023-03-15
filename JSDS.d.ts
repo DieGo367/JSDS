@@ -130,7 +130,7 @@ interface File {
 	 * Defaults to `"start"`.
 	 * @throws If the seek fails or a bad seek mode is given.
 	 */
-	seek(n: number, seekMode: SeekMode = "start"): void;
+	seek(n: number, seekMode: SeekMode): void;
 	/**
 	 * Closes the file.
 	 * @throws If failed.
