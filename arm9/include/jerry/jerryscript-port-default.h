@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "jerryscript.h"
+#include "jerry/jerryscript.h"
 
 #ifndef JERRYSCRIPT_PORT_DEFAULT_H
 #define JERRYSCRIPT_PORT_DEFAULT_H

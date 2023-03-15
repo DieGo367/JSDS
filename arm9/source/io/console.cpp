@@ -1,12 +1,12 @@
-#include "console.hpp"
+#include "io/console.hpp"
 
 #include <nds/arm9/background.h>
 #include <nds/arm9/video.h>
 #include <stdio.h>
 #include <sys/iosupport.h>
 
-#include "font.hpp"
-#include "../tonccpy.h"
+#include "io/font.hpp"
+#include "tonccpy.h"
 
 
 

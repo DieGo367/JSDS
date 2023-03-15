@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "jerryscript-config.h"
+#include "jerry/jerryscript-config.h"
 
 #ifndef JERRYSCRIPT_H
 #define JERRYSCRIPT_H

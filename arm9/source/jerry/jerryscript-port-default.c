@@ -12,8 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "jerryscript.h"
-#include "jerryscript-port-default.h"
+#include "jerry/jerryscript.h"
+#include "jerry/jerryscript-port-default.h"
 #include <nds/ndstypes.h>
 #include <nds/arm9/input.h>
 #include <nds/arm9/video.h>

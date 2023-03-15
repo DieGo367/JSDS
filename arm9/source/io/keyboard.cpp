@@ -1,14 +1,14 @@
-#include "keyboard.hpp"
+#include "io/keyboard.hpp"
 
 #include <nds/arm9/background.h>
 #include <nds/arm9/cache.h>
 #include <nds/arm9/input.h>
 #include <stdlib.h>
 
-#include "console.hpp"
-#include "font.hpp"
+#include "io/console.hpp"
+#include "io/font.hpp"
 #include "keyboard_nftr.h"
-#include "../tonccpy.h"
+#include "tonccpy.h"
 
 #define lengthof(arr) sizeof(arr)/sizeof(*arr)
 
