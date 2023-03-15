@@ -18,7 +18,7 @@ extern "C" {
 #include "error.hpp"
 #include "event.hpp"
 #include "file.hpp"
-#include "inline.hpp"
+#include "helpers.hpp"
 #include "input.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
@@ -483,7 +483,7 @@ FUNCTION(Text_decodeUTF16) {
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 	jerry_release_value(arrayBuffer);
-	return createStringU16((char16_t *) data, dataLen / 2);
+	return createStringUTF16((char16_t *) data, dataLen / 2);
 }
 
 const char b64Map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -1037,7 +1037,7 @@ FUNCTION(EventConstructor) {
 		for (u32 i = 0; i < length; i++) {
 			jerry_value_t key = jerry_get_property_by_index(keys, i);
 			jerry_value_t value = jerry_get_property(args[1], key);
-			setReadonlyJV(thisValue, key, value);
+			JS_setReadonly(thisValue, key, value);
 			jerry_release_value(value);
 			jerry_release_value(key);
 		}
@@ -1402,7 +1402,7 @@ void exposeAPI() {
 	jerry_release_value(Base64);
 
 	// Simple custom File class, nothing like the web version
-	jsClass File = createClass(ref_global, "File", IllegalConstructor);
+	JS_class File = createClass(ref_global, "File", IllegalConstructor);
 	setMethod(File.prototype, "read", File_read);
 	setMethod(File.prototype, "write", File_write);
 	setMethod(File.prototype, "seek", File_seek);
@@ -1430,7 +1430,7 @@ void exposeAPI() {
 	setMethod(storage, "save", storage_save);
 	jerry_release_value(storage);
 
-	jsClass EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
+	JS_class EventTarget = createClass(ref_global, "EventTarget", EventTargetConstructor);
 	setMethod(EventTarget.prototype, "addEventListener", EventTarget_addEventListener);
 	setMethod(EventTarget.prototype, "removeEventListener", EventTarget_removeEventListener);
 	setMethod(EventTarget.prototype, "dispatchEvent", EventTarget_dispatchEvent);
@@ -1439,7 +1439,7 @@ void exposeAPI() {
 	EventTargetConstructor(EventTarget.constructor, ref_global, NULL, 0);
 	releaseClass(EventTarget);
 
-	jsClass Event = createClass(ref_global, "Event", EventConstructor);
+	JS_class Event = createClass(ref_global, "Event", EventConstructor);
 	setMethod(Event.prototype, "stopImmediatePropagation", Event_stopImmediatePropagation);
 	setMethod(Event.prototype, "preventDefault", Event_preventDefault);
 	ref_Event = Event.constructor;
@@ -1475,8 +1475,8 @@ void exposeAPI() {
 	setReadonlyNumber(profile, "birthMonth", PersonalData->birthMonth);
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-	setReadonlyStringU16(profile, "name", (char16_t *) PersonalData->name, PersonalData->nameLen);
-	setReadonlyStringU16(profile, "message", (char16_t *) PersonalData->message, PersonalData->messageLen);
+	setReadonlyStringUTF16(profile, "name", (char16_t *) PersonalData->name, PersonalData->nameLen);
+	setReadonlyStringUTF16(profile, "message", (char16_t *) PersonalData->message, PersonalData->messageLen);
 	#pragma GCC diagnostic pop
 	const u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
 	setReadonlyNumber(profile, "color", PersonalData->theme < 16 ? themeColors[PersonalData->theme] : 0);

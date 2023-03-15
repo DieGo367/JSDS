@@ -11,7 +11,7 @@ extern "C" {
 #include "api.hpp"
 #include "error.hpp"
 #include "file.hpp"
-#include "inline.hpp"
+#include "helpers.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
 #include "input.hpp"

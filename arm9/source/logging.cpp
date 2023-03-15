@@ -3,7 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "inline.hpp"
+#include "api.hpp"
+#include "helpers.hpp"
 #include "io/console.hpp"
 #include "jerry/jerryscript.h"
 

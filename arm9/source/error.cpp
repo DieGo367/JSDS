@@ -4,8 +4,9 @@
 #include <string.h>
 #include <unordered_set>
 
+#include "api.hpp"
 #include "event.hpp"
-#include "inline.hpp"
+#include "helpers.hpp"
 #include "jerry/jerryscript-port-default.h"
 #include "logging.hpp"
 

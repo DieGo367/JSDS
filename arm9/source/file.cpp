@@ -12,7 +12,8 @@
 #include <unistd.h>
 #include <vector>
 
-#include "inline.hpp"
+#include "api.hpp"
+#include "helpers.hpp"
 #include "io/console.hpp"
 #include "io/font.hpp"
 #include "tonccpy.h"

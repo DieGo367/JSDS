@@ -7,7 +7,7 @@
 #include "api.hpp"
 #include "error.hpp"
 #include "event.hpp"
-#include "inline.hpp"
+#include "helpers.hpp"
 #include "jerry/jerryscript.h"
 #include "logging.hpp"
 
