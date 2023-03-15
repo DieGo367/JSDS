@@ -32,6 +32,8 @@
  *     @(#)s_tan.c 1.3 95/01/18
  */
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 
 #ifndef JERRY_MATH_INTERNAL_H
 #define JERRY_MATH_INTERNAL_H
@@ -4947,3 +4949,5 @@ acos (double x)
 #undef qS2
 #undef qS3
 #undef qS4
+
+#pragma GCC diagnostic pop
