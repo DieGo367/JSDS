@@ -47,9 +47,6 @@ jerry_value_t ref_sym_toStringTag;
 
 const char ONE_ARG[] = "1 argument required.";
 
-#define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
-#define FUNCTION(name) static jerry_value_t name(CALL_INFO)
-#define LAMBDA(returnVal) [](CALL_INFO) -> jerry_value_t { return returnVal; }
 #define REQUIRE_FIRST() if (argCount == 0) return TypeError(ONE_ARG)
 #define REQUIRE(n) if (argCount < n) return TypeError(#n " arguments required.")
 #define EXPECT(test, type) if (!(test)) return TypeError("Expected type '" #type "'.")

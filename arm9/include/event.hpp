@@ -6,8 +6,9 @@
 
 
 
+typedef void (*TaskFunction) (const jerry_value_t *args, u32 argCount);
 struct Task {
-	void (*run) (const jerry_value_t *args, u32 argCount);
+	TaskFunction run;
 	jerry_value_t *args;
 	u32 argCount;
 };
@@ -29,15 +30,15 @@ enum DependentEvent {
 };
 
 void runTasks();
-void queueTask(void (*run) (const jerry_value_t *, u32), const jerry_value_t *args, u32 argCount);
+void queueTask(TaskFunction run, const jerry_value_t *args, u32 argCount);
 void clearTasks();
 void runMicrotasks();
 
 void runParsedCodeTask(const jerry_value_t *args, u32 argCount);
 
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync);
-void queueEvent(jerry_value_t target, jerry_value_t event);
-void queueEventName(const char *eventName);
+void queueEvent(jerry_value_t target, jerry_value_t event, jerry_external_handler_t callback = NULL);
+void queueEventName(const char *eventName, jerry_external_handler_t callback = NULL);
 
 void eventLoop();
 

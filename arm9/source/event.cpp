@@ -38,7 +38,7 @@ void runTasks() {
 	}
 }
 
-void queueTask(void (*run) (const jerry_value_t *, u32), const jerry_value_t *args, u32 argCount) {
+void queueTask(TaskFunction run, const jerry_value_t *args, u32 argCount) {
 	Task task;
 	task.run = run;
 	task.args = (jerry_value_t *) malloc(argCount * sizeof(jerry_value_t));
@@ -90,7 +90,8 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
 	jerry_release_value(resultVal);
 }
 
-/* Dispatches event onto target.
+/**
+ * Dispatches event onto target.
  * If sync is true, runs "synchronously" (no microtasks are run). JS functions should set it to true.
  * Returns true if the event was canceled, false otherwise.
  */
@@ -164,45 +165,43 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	return canceled;
 }
 
-// Task which dispatches an event. Args: EventTarget, Event
+// Task which dispatches an event. Args: EventTarget, Event, optional callbackFunc
 void dispatchEventTask(const jerry_value_t *args, u32 argCount) {
-	dispatchEvent(args[0], args[1], false);
+	bool canceled = dispatchEvent(args[0], args[1], false);
+	if (!canceled && argCount > 2) jerry_call_function(args[2], args[0], args + 1, 1);
 }
 
 // Queues a task to dispatch event onto target.
-void queueEvent(jerry_value_t target, jerry_value_t event) {
-	jerry_value_t eventArgs[2] = {target, event};
-	queueTask(dispatchEventTask, eventArgs, 2);
+void queueEvent(jerry_value_t target, jerry_value_t event, jerry_external_handler_t callback) {
+	jerry_value_t eventArgs[3] = {target, event};
+	if (callback != NULL) {
+		eventArgs[2] = jerry_create_external_function(callback);
+		queueTask(dispatchEventTask, eventArgs, 3);
+		jerry_release_value(eventArgs[2]);
+	}
+	else queueTask(dispatchEventTask, eventArgs, 2);
 }
 
-// Queues a task that fires a simple, uncancelable event on the global context.
-void queueEventName(const char *eventName) {
+// Queues a task that fires a simple event on the global context. Becomes canceleable if callback is provided.
+void queueEventName(const char *eventName, jerry_external_handler_t callback) {
 	jerry_value_t eventNameStr = String(eventName);
-	jerry_value_t eventObj = jerry_construct_object(ref_Event, &eventNameStr, 1);
+	jerry_value_t eventObj;
+	if (callback != NULL) {
+		jerry_value_t eventArgs[2] = {eventNameStr, jerry_create_object()};
+		setProperty(eventArgs[1], "cancelable", JS_TRUE);
+		eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+		jerry_release_value(eventArgs[1]);
+	}
+	else eventObj = jerry_construct_object(ref_Event, &eventNameStr, 1);
 	jerry_release_value(eventNameStr);
-	queueEvent(ref_global, eventObj);
+	queueEvent(ref_global, eventObj, callback);
 	jerry_release_value(eventObj);
 }
 
-void onSleep() {
-	jerry_value_t eventArgs[2] = {String("sleep"), jerry_create_object()};
-	setProperty(eventArgs[1], "cancelable", JS_TRUE);
-	jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
-	bool canceled = dispatchEvent(ref_global, eventObj, false);
-	jerry_release_value(eventObj);
-	jerry_release_value(eventArgs[0]);
-	jerry_release_value(eventArgs[1]);
-	if (!canceled) systemSleep();
+FUNCTION(sleepCallback) {
+	systemSleep();
+	return JS_UNDEFINED;
 }
-void onWake() {
-	jerry_value_t eventArgs[2] = {String("wake"), jerry_create_object()};
-	jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
-	dispatchEvent(ref_global, eventObj, false);
-	jerry_release_value(eventObj);
-	jerry_release_value(eventArgs[0]);
-	jerry_release_value(eventArgs[1]);
-}
-
 
 /* The Event Loop™
  * On every vblank, run necessary operations before then executing the current task queue.
@@ -213,8 +212,8 @@ void eventLoop() {
 		swiWaitForVBlank();
 		if (dependentEvents & vblank) queueEventName("vblank");
 		scanKeys();
-		if (keysDown() & KEY_LID) onSleep();
-		if (keysUp() & KEY_LID) onWake();
+		if (keysDown() & KEY_LID) queueEventName("sleep", sleepCallback);
+		if (keysUp() & KEY_LID) queueEventName("wake");
 		if (dependentEvents & (buttondown)) buttonEvents(true);
 		if (dependentEvents & (buttonup)) buttonEvents(false);
 		if (dependentEvents & (touchstart | touchmove | touchend)) touchEvents();
