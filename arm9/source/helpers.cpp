@@ -220,11 +220,10 @@ bool isNewTargetUndefined() {
 static jerry_value_t eventAttributeSetter(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
 	jerry_value_t attrNameStr = getProperty(function, "name");
 	jerry_size_t attrNameSize = jerry_get_string_size(attrNameStr);
-	char *attrName = (char *) malloc(attrNameSize + 1);
-	jerry_string_to_utf8_char_buffer(attrNameStr, (jerry_char_t *) attrName, attrNameSize);
-	attrName[attrNameSize] = '\0';
-	jerry_value_t eventTypeStr = StringSized(attrName + 2, attrNameSize - 2); // skip "on" prefix
-	free(attrName);
+	char *eventType = (char *) malloc(attrNameSize - 2);
+	jerry_substring_to_utf8_char_buffer(attrNameStr, 2, attrNameSize, (jerry_char_t *) eventType, attrNameSize - 2); // skip "on" prefix
+	jerry_value_t eventTypeStr = StringSized(eventType, attrNameSize - 2);
+	free(eventType);
 
 	jerry_value_t storedCallbackVal = jerry_get_internal_property(thisValue, attrNameStr);
 	if (jerry_value_is_null(storedCallbackVal) == false) {
