@@ -87,6 +87,7 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
 			abortFlag = true;
 		}
 	}
+	if (inREPL) setProperty(ref_global, "_", resultVal);
 	jerry_release_value(resultVal);
 }
 
