@@ -12,7 +12,6 @@
 #include <unistd.h>
 #include <vector>
 
-#include "api.hpp"
 #include "helpers.hpp"
 #include "io/console.hpp"
 #include "io/font.hpp"

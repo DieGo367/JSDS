@@ -30,16 +30,20 @@ extern "C" {
 
 
 jerry_value_t ref_global;
-jerry_value_t ref_storage;
 jerry_value_t ref_Event;
 jerry_value_t ref_Error;
+jerry_value_t ref_File;
+jerry_value_t ref_consoleCounters;
+jerry_value_t ref_consoleTimers;
+jerry_value_t ref_storage;
+jerry_value_t ref_func_push;
+jerry_value_t ref_func_slice;
+jerry_value_t ref_func_splice;
 jerry_value_t ref_str_name;
 jerry_value_t ref_str_constructor;
 jerry_value_t ref_str_prototype;
 jerry_value_t ref_str_backtrace;
 jerry_value_t ref_sym_toStringTag;
-jerry_value_t ref_consoleCounters;
-jerry_value_t ref_consoleTimers;
 
 const char ONE_ARG[] = "1 argument required.";
 
@@ -889,21 +893,17 @@ FUNCTION(FileStatic_readDir) {
 	if (dir == NULL) return Error("Unable to open directory.");
 
 	jerry_value_t dirArr = jerry_create_array(0);
-	jerry_value_t pushFunc = getProperty(dirArr, "push");
 	dirent *entry = readdir(dir);
 	while (entry != NULL) {
 		jerry_value_t entryObj = jerry_create_object();
 		setProperty(entryObj, "isDirectory", jerry_create_boolean(entry->d_type == DT_DIR));
 		setProperty(entryObj, "isFile", jerry_create_boolean(entry->d_type == DT_REG));
-		jerry_value_t nameStr = String(entry->d_name);
-		setProperty(entryObj, "name", nameStr);
-		jerry_release_value(nameStr);
-		jerry_call_function(pushFunc, dirArr, &entryObj, 1);
+		setStringProperty(entryObj, "name", entry->d_name);
+		jerry_call_function(ref_func_push, dirArr, &entryObj, 1);
 		jerry_release_value(entryObj);
 		entry = readdir(dir);
 	}
 	closedir(dir);
-	jerry_release_value(pushFunc);
 	return dirArr;
 }
 
@@ -1095,13 +1095,11 @@ FUNCTION(EventTarget_addEventListener) {
 	u32 length = jerry_get_array_length(listenersArr);
 	bool shouldAppend = true;
 	for (u32 i = 0; shouldAppend && i < length; i++) {
-		jerry_value_t storedListener = jerry_get_property_by_index(listenersArr, i);
-		jerry_value_t storedCallbackVal = jerry_get_property(storedListener, callbackProp);
-		jerry_value_t callbackEqualityBool = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallbackVal);
-		if (jerry_get_boolean_value(callbackEqualityBool)) shouldAppend = false;
-		jerry_release_value(callbackEqualityBool);
+		jerry_value_t storedListenerObj = jerry_get_property_by_index(listenersArr, i);
+		jerry_value_t storedCallbackVal = jerry_get_property(storedListenerObj, callbackProp);
+		if (strictEqual(callbackVal, storedCallbackVal)) shouldAppend = false;
 		jerry_release_value(storedCallbackVal);
-		jerry_release_value(storedListener);
+		jerry_release_value(storedListenerObj);
 	}
 
 	if (shouldAppend) {
@@ -1111,9 +1109,7 @@ FUNCTION(EventTarget_addEventListener) {
 		jerry_release_value(jerry_set_property(listenerObj, onceProp, jerry_create_boolean(once)));
 		setProperty(listenerObj, "removed", JS_FALSE);
 
-		jerry_value_t pushFunc = getProperty(listenersArr, "push");
-		jerry_release_value(jerry_call_function(pushFunc, listenersArr, &listenerObj, 1));
-		jerry_release_value(pushFunc);
+		jerry_release_value(jerry_call_function(ref_func_push, listenersArr, &listenerObj, 1));
 		jerry_release_value(listenerObj);
 
 		if (targetObj == ref_global) {
@@ -1154,14 +1150,8 @@ FUNCTION(EventTarget_removeEventListener) {
 		for (u32 i = 0; !removed && i < length; i++) {
 			jerry_value_t storedListenerObj = jerry_get_property_by_index(listenersArr, i);
 			jerry_value_t storedCallbackVal = jerry_get_property(storedListenerObj, callbackProp);
-			jerry_value_t callbackEqualityBool = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallbackVal);
-			if (jerry_get_boolean_value(callbackEqualityBool)) {
-				jerry_value_t spliceFunc = getProperty(listenersArr, "splice");
-				jerry_value_t spliceArgs[2] = {jerry_create_number(i), jerry_create_number(1)};
-				jerry_release_value(jerry_call_function(spliceFunc, listenersArr, spliceArgs, 2));
-				jerry_release_value(spliceArgs[1]);
-				jerry_release_value(spliceArgs[0]);
-				jerry_release_value(spliceFunc);
+			if (strictEqual(callbackVal, storedCallbackVal)) {
+				arraySplice(listenersArr, i, 1);
 				setProperty(storedListenerObj, "removed", JS_TRUE);
 				removed = true;
 				if (targetObj == ref_global && jerry_get_array_length(listenersArr) == 0) {
@@ -1177,7 +1167,6 @@ FUNCTION(EventTarget_removeEventListener) {
 					free(type);
 				}
 			}
-			jerry_release_value(callbackEqualityBool);
 			jerry_release_value(storedCallbackVal);
 			jerry_release_value(storedListenerObj);
 		}
@@ -1190,11 +1179,7 @@ FUNCTION(EventTarget_removeEventListener) {
 }
 
 FUNCTION(EventTarget_dispatchEvent) {
-	REQUIRE_FIRST();
-	jerry_value_t isInstanceBool = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, args[0], ref_Event);
-	bool isInstance = jerry_get_boolean_value(isInstanceBool);
-	jerry_release_value(isInstanceBool);
-	EXPECT(isInstance, Event);
+	REQUIRE_FIRST(); EXPECT(isInstance(args[0], ref_Event), Event);
 	jerry_value_t targetObj = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 	bool canceled = dispatchEvent(targetObj, args[0], true);
 	return jerry_create_boolean(!canceled);
@@ -1321,19 +1306,24 @@ void exposeBetaAPI() {
 }
 
 void exposeAPI() {
-	// hold some internal references
+	// hold some internal references first
+	ref_global = jerry_get_global_object();
+	ref_Error = getProperty(ref_global, "Error");
+	ref_consoleCounters = jerry_create_object();
+	ref_consoleTimers = jerry_create_object();
+	ref_storage = jerry_create_object();
+	jerry_value_t tempArr = jerry_create_array(0);
+	ref_func_push = getProperty(tempArr, "push");
+	ref_func_slice = getProperty(tempArr, "slice");
+	ref_func_splice = getProperty(tempArr, "splice");
+	jerry_release_value(tempArr);
 	ref_str_name = String("name");
 	ref_str_constructor = String("constructor");
 	ref_str_prototype = String("prototype");
 	ref_str_backtrace = String("backtrace");
 	ref_sym_toStringTag = jerry_get_well_known_symbol(JERRY_SYMBOL_TO_STRING_TAG);
-	ref_consoleCounters = jerry_create_object();
-	ref_consoleTimers = jerry_create_object();
-	ref_storage = jerry_create_object();
 
-	ref_global = jerry_get_global_object();
 	setProperty(ref_global, "self", ref_global);
-	ref_Error = getProperty(ref_global, "Error");
 
 	setMethod(ref_global, "alert", alert);
 	setMethod(ref_global, "clearInterval", clearInterval);
@@ -1398,7 +1388,8 @@ void exposeAPI() {
 	setMethod(File.constructor, "makeDir", FileStatic_makeDir);
 	setMethod(File.constructor, "readDir", FileStatic_readDir);
 	setMethod(File.constructor, "browse", FileStatic_browse);
-	releaseClass(File);
+	ref_File = File.constructor;
+	jerry_release_value(File.prototype);
 
 	jerry_value_t storage = createObject(ref_global, "storage");
 	defGetter(storage, "length", storage_length);
@@ -1494,14 +1485,18 @@ void exposeAPI() {
 
 void releaseReferences() {
 	jerry_release_value(ref_global);
-	jerry_release_value(ref_storage);
 	jerry_release_value(ref_Event);
 	jerry_release_value(ref_Error);
+	jerry_release_value(ref_File);
+	jerry_release_value(ref_consoleCounters);
+	jerry_release_value(ref_consoleTimers);
+	jerry_release_value(ref_storage);
+	jerry_release_value(ref_func_push);
+	jerry_release_value(ref_func_slice);
+	jerry_release_value(ref_func_splice);
 	jerry_release_value(ref_str_name);
 	jerry_release_value(ref_str_constructor);
 	jerry_release_value(ref_str_prototype);
 	jerry_release_value(ref_str_backtrace);
 	jerry_release_value(ref_sym_toStringTag);
-	jerry_release_value(ref_consoleCounters);
-	jerry_release_value(ref_consoleTimers);
 }

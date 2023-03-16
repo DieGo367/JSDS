@@ -2,8 +2,6 @@
 
 #include <stdlib.h>
 
-#include "api.hpp"
-
 
 
 jerry_value_t createStringUTF16(const char16_t* codepoints, jerry_size_t length) {
@@ -68,16 +66,21 @@ jerry_value_t getProperty(jerry_value_t object, const char *property) {
 	jerry_release_value(propertyStr);
 	return value;
 }
+void setProperty(jerry_value_t object, const char *property, jerry_value_t value) {
+	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
+	jerry_release_value(jerry_set_property(object, propertyStr, value));
+	jerry_release_value(propertyStr);
+}
 char *getStringProperty(jerry_value_t object, const char *property, jerry_length_t *stringSize) {
 	jerry_value_t stringVal = getProperty(object, property);
 	char *string = getString(stringVal, stringSize);
 	jerry_release_value(stringVal);
 	return string;
 }
-void setProperty(jerry_value_t object, const char *property, jerry_value_t value) {
-	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
-	jerry_release_value(jerry_set_property(object, propertyStr, value));
-	jerry_release_value(propertyStr);
+void setStringProperty(jerry_value_t object, const char *property, const char *value) {
+	jerry_value_t stringVal = String(value);
+	setProperty(object, property, stringVal);
+	jerry_release_value(stringVal);
 }
 
 jerry_property_descriptor_t nonEnumerableDesc = {
@@ -89,12 +92,12 @@ jerry_property_descriptor_t nonEnumerableDesc = {
 	.is_configurable_defined = true,
 	.is_configurable = true
 };
-void setPropertyNonEnumerable(jerry_value_t object, const char *property, jerry_value_t value) {
-	jerry_value_t propertyStr = jerry_create_string((jerry_char_t *) property);
-	nonEnumerableDesc.value = value;
-	jerry_define_own_property(object, propertyStr, &nonEnumerableDesc);
-	jerry_release_value(propertyStr);
-}
+// void setPropertyNonEnumerable(jerry_value_t object, const char *property, jerry_value_t value) {
+// 	jerry_value_t propertyStr = jerry_create_string((jerry_char_t *) property);
+// 	nonEnumerableDesc.value = value;
+// 	jerry_define_own_property(object, propertyStr, &nonEnumerableDesc);
+// 	jerry_release_value(propertyStr);
+// }
 
 jerry_property_descriptor_t nameDesc = {
 	.is_value_defined = true,
@@ -210,13 +213,6 @@ void setReadonlyStringUTF16(jerry_value_t object, const char *property, const ch
 	jerry_release_value(string);
 }
 
-bool isNewTargetUndefined() {
-	jerry_value_t newTarget = jerry_get_new_target();
-	bool isUnd = jerry_value_is_undefined(newTarget);
-	jerry_release_value(newTarget);
-	return isUnd;
-}
-
 static jerry_value_t eventAttributeSetter(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
 	jerry_value_t attrNameStr = getProperty(function, "name");
 	jerry_size_t attrNameSize = jerry_get_string_size(attrNameStr);
@@ -265,4 +261,32 @@ void defEventAttribute(jerry_value_t eventTarget, const char *attributeName) {
 	jerry_release_value(eventAttributeDesc.getter);
 	jerry_release_value(eventAttributeDesc.setter);
 	jerry_release_value(nameDesc.value);
+}
+
+bool isNewTargetUndefined() {
+	jerry_value_t newTarget = jerry_get_new_target();
+	bool isUnd = jerry_value_is_undefined(newTarget);
+	jerry_release_value(newTarget);
+	return isUnd;
+}
+
+void arraySplice(jerry_value_t array, u32 start, u32 deleteCount) {
+	jerry_value_t spliceArgs[2] = {jerry_create_number(start), jerry_create_number(deleteCount)};
+	jerry_release_value(jerry_call_function(ref_func_splice, array, spliceArgs, 2));
+	jerry_release_value(spliceArgs[0]);
+	jerry_release_value(spliceArgs[1]);
+}
+
+bool strictEqual(jerry_value_t a, jerry_value_t b) {
+	jerry_value_t equalityBool = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, a, b);
+	bool equal = jerry_get_boolean_value(equalityBool);
+	jerry_release_value(equalityBool);
+	return equal;
+}
+
+bool isInstance(jerry_value_t object, jerry_value_t function) {
+	jerry_value_t isInstanceBool = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, object, function);
+	bool isInstance = jerry_get_boolean_value(isInstanceBool);
+	jerry_release_value(isInstanceBool);
+	return isInstance;
 }

@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "api.hpp"
 #include "helpers.hpp"
 #include "io/console.hpp"
 #include "jerry/jerryscript.h"
@@ -222,8 +221,7 @@ void logLiteral(jerry_value_t value, u8 level) {
 		} break;
 		case JERRY_TYPE_ERROR: {
 			jerry_value_t thrownVal = jerry_get_value_from_error(value, false);
-			jerry_value_t isErrorBool = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, thrownVal, ref_Error);
-			if (jerry_get_boolean_value(isErrorBool)) {
+			if (isInstance(thrownVal, ref_Error)) {
 				char *message = getStringProperty(thrownVal, "message");
 				char *name = getStringProperty(thrownVal, "name");
 				printf("Uncaught %s: %s", name, message);
@@ -245,7 +243,6 @@ void logLiteral(jerry_value_t value, u8 level) {
 				printf("Uncaught ");
 				logLiteral(thrownVal);
 			}
-			jerry_release_value(isErrorBool);
 			jerry_release_value(thrownVal);
 		} break;
 		case JERRY_TYPE_OBJECT:
@@ -454,10 +451,6 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 	jerry_value_t sharedKeysArr = jerry_create_array(0);
 	u32 sharedKeyCount = 0;
 	bool skipSharing = false;
-	jerry_value_t pushFunc = getProperty(sharedKeysArr, "push");
-	jerry_value_t spliceFunc = getProperty(sharedKeysArr, "splice");
-	jerry_value_t spliceArgs[2];
-	spliceArgs[1] = jerry_create_number(1);
 
 	if (argCount >= 2 && jerry_value_is_array(args[1])) {
 		u32 columnsLength = jerry_get_array_length(args[1]);
@@ -465,7 +458,7 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 		for (u32 i = 0; allAreStrings && i < columnsLength; i++) {
 			jerry_value_t value = jerry_get_property_by_index(args[1], i);
 			if (jerry_value_is_string(value)) {
-				jerry_release_value(jerry_call_function(pushFunc, sharedKeysArr, &value, 1));
+				jerry_release_value(jerry_call_function(ref_func_push, sharedKeysArr, &value, 1));
 				sharedKeyCount++;
 			}
 			else allAreStrings = false;
@@ -497,7 +490,7 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 				u32 subKeyCount = jerry_get_array_length(subKeysArr);
 				if (i == 0) for (u32 subIdx = 0; subIdx < subKeyCount; subIdx++) {
 					jerry_value_t subKeyStr = jerry_get_property_by_index(subKeysArr, subIdx);
-					jerry_release_value(jerry_call_function(pushFunc, sharedKeysArr, &subKeyStr, 1));
+					jerry_release_value(jerry_call_function(ref_func_push, sharedKeysArr, &subKeyStr, 1));
 					jerry_release_value(subKeyStr);
 					sharedKeyCount++;
 				}
@@ -506,15 +499,11 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 					bool found = false;
 					for (u32 subIdx = 0; !found && subIdx < subKeyCount; subIdx++) {
 						jerry_value_t subKeyStr = jerry_get_property_by_index(subKeysArr, subIdx);
-						jerry_value_t equalBool = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, subKeyStr, sharedKeyStr);
-						if (jerry_get_boolean_value(equalBool)) found = true; 
-						jerry_release_value(equalBool);
+						if (strictEqual(subKeyStr, sharedKeyStr)) found = true; 
 						jerry_release_value(subKeyStr);
 					}
 					if (!found) {
-						spliceArgs[0] = jerry_create_number(sharedKeyIdx);
-						jerry_release_value(jerry_call_function(spliceFunc, sharedKeysArr, spliceArgs, 2));
-						jerry_release_value(spliceArgs[0]);
+						arraySplice(sharedKeysArr, sharedKeyIdx, 1);
 						sharedKeyIdx--;
 						sharedKeyCount--;
 					}
@@ -615,9 +604,6 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 		}
 	}
 	jerry_release_value(keysArr);
-	jerry_release_value(spliceArgs[1]);
-	jerry_release_value(spliceFunc);
-	jerry_release_value(pushFunc);
 	jerry_release_value(sharedKeysArr);
 	consoleResume();
 }

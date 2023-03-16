@@ -18,6 +18,23 @@ enum JSConstants {
 	JS_UNDEFINED = 72
 };
 
+// held references to JS objects
+extern jerry_value_t ref_global;
+extern jerry_value_t ref_Event;
+extern jerry_value_t ref_Error;
+extern jerry_value_t ref_File;
+extern jerry_value_t ref_consoleCounters;
+extern jerry_value_t ref_consoleTimers;
+extern jerry_value_t ref_storage;
+extern jerry_value_t ref_func_push;
+extern jerry_value_t ref_func_slice;
+extern jerry_value_t ref_func_splice;
+extern jerry_value_t ref_str_name;
+extern jerry_value_t ref_str_constructor;
+extern jerry_value_t ref_str_prototype;
+extern jerry_value_t ref_str_backtrace;
+extern jerry_value_t ref_sym_toStringTag;
+
 // Creates a jerry common error.
 #define Error(message) jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) (message))
 // Creates a jerry type error.
@@ -48,13 +65,15 @@ void printValue(const jerry_value_t value);
 
 // Get property (via c string) from object. Return value must be released!
 jerry_value_t getProperty(jerry_value_t object, const char *property);
+void setProperty(jerry_value_t object, const char *property, jerry_value_t value);
 /*
  * Copy a string value from object via property (c string) into a new c string. Return value must be freed!
  * If stringSize is not NULL, the value it points to will be set to the size as reported by JerryScript (which doesn't count the terminator).
  */
 char *getStringProperty(jerry_value_t object, const char *property, jerry_length_t *stringSize = NULL);
-void setProperty(jerry_value_t object, const char *property, jerry_value_t value);
-void setPropertyNonEnumerable(jerry_value_t object, const char *property, jerry_value_t value);
+void setStringProperty(jerry_value_t object, const char *property, const char *value);
+
+// void setPropertyNonEnumerable(jerry_value_t object, const char *property, jerry_value_t value);
 
 // Sets a function property.
 void setMethod(jerry_value_t object, const char *method, jerry_external_handler_t function);
@@ -99,10 +118,15 @@ void setReadonlyString(jerry_value_t object, const char *property, const char *v
 // Sets a getter to a string on object via c string and UTF-16 string.
 void setReadonlyStringUTF16(jerry_value_t object, const char *property, const char16_t *codepoints, jerry_size_t length);
 
+// Define an event attribute getter/setter on an EventTarget (i.e. "onload").
+void defEventAttribute(jerry_value_t eventTarget, const char *attributeName);
+
 // Returns whether new.target is undefined.
 bool isNewTargetUndefined();
 
-// Define an event attribute getter/setter on an EventTarget (i.e. "onload").
-void defEventAttribute(jerry_value_t eventTarget, const char *attributeName);
+void arraySplice(jerry_value_t array, u32 start, u32 deleteCount);
+
+bool strictEqual(jerry_value_t a, jerry_value_t b);
+bool isInstance(jerry_value_t object, jerry_value_t function);
 
 #endif /* JSDS_HELPERS_HPP */

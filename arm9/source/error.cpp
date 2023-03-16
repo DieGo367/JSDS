@@ -4,7 +4,6 @@
 #include <string.h>
 #include <unordered_set>
 
-#include "api.hpp"
 #include "event.hpp"
 #include "helpers.hpp"
 #include "jerry/jerryscript-port-default.h"
@@ -125,12 +124,10 @@ void onPromiseRejectionOp(jerry_value_t promise, jerry_promise_rejection_operati
 		auto it = rejectedPromises.begin();
 		while (it != rejectedPromises.end()) {
 			const jerry_value_t storedPromiseVal = *(it++);
-			jerry_value_t equalBool = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, promise, storedPromiseVal);
-			if (jerry_get_boolean_value(equalBool)) {
+			if (strictEqual(promise, storedPromiseVal)) {
 				jerry_release_value(storedPromiseVal);
 				rejectedPromises.erase(storedPromiseVal);
 			}
-			jerry_release_value(equalBool);
 		}
 	}
 }

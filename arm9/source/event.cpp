@@ -8,7 +8,6 @@ extern "C" {
 #include <queue>
 #include <stdlib.h>
 
-#include "api.hpp"
 #include "error.hpp"
 #include "file.hpp"
 #include "helpers.hpp"
@@ -103,15 +102,12 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_value_t typeStr = getInternalProperty(event, "type");
 	jerry_value_t listenersArr = jerry_get_property(eventListenersObj, typeStr); // listeners of given type
 	if (jerry_value_is_array(listenersArr)) {
-		jerry_value_t sliceFunc = getProperty(listenersArr, "slice");
-		jerry_value_t listenersCopyArr = jerry_call_function(sliceFunc, listenersArr, NULL, 0);
-		jerry_release_value(sliceFunc);
+		jerry_value_t listenersCopyArr = jerry_call_function(ref_func_slice, listenersArr, NULL, 0);
 
 		u32 length = jerry_get_array_length(listenersCopyArr);
 		jerry_value_t removedProp = String("removed");
 		jerry_value_t onceProp = String("once");
 		jerry_value_t callbackProp = String("callback");
-		jerry_value_t spliceFunc = getProperty(listenersArr, "splice");
 		jerry_value_t stopImmediatePropagationProp = String("stopImmediatePropagation");
 
 		for (u32 i = 0; i < length && !abortFlag; i++) {
@@ -129,10 +125,7 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 				bool once = jerry_get_boolean_value(onceBool);
 				jerry_release_value(onceBool);
 				if (once) {
-					jerry_value_t spliceArgs[2] = {jerry_create_number(i), jerry_create_number(1)};
-					jerry_release_value(jerry_call_function(spliceFunc, listenersArr, spliceArgs, 2));
-					jerry_release_value(spliceArgs[1]);
-					jerry_release_value(spliceArgs[0]);
+					arraySplice(listenersArr, i, 1);
 					jerry_release_value(jerry_set_property(listenerObj, removedProp, JS_TRUE));
 				}
 				
@@ -152,7 +145,6 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 		}
 
 		jerry_release_value(stopImmediatePropagationProp);
-		jerry_release_value(spliceFunc);
 		jerry_release_value(callbackProp);
 		jerry_release_value(onceProp);
 		jerry_release_value(removedProp);

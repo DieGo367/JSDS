@@ -4,7 +4,6 @@
 #include <nds/timers.h>
 #include <stdlib.h>
 
-#include "api.hpp"
 #include "error.hpp"
 #include "event.hpp"
 #include "helpers.hpp"

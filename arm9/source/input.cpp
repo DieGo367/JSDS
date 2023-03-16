@@ -3,7 +3,6 @@
 #include <nds/arm9/input.h>
 #include <stdlib.h>
 
-#include "api.hpp"
 #include "event.hpp"
 #include "helpers.hpp"
 
