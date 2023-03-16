@@ -19,7 +19,6 @@ extern "C" {
 #include "event.hpp"
 #include "file.hpp"
 #include "helpers.hpp"
-#include "input.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
 #include "jerry/jerryscript.h"
