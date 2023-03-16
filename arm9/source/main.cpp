@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 	if (argc > 1) runFile(argv[1]);
 	else {
 		char *filePath = fileBrowse("Select a script to run.", "/", {(char *) "js"});
-		if (filePath != NULL && access(filePath, F_OK) == 0) runFile(filePath);
+		if (filePath != NULL) runFile(filePath);
 		else repl();
 	}
 
