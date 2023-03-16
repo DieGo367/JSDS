@@ -48,6 +48,9 @@ char *fileBrowse(const char *message, const char *path, std::vector<char *> exte
 	char curPath[PATH_MAX];
 	getcwd(curPath, PATH_MAX);
 
+	bool sdFound = access("sd:/", F_OK) == 0;
+	bool fatFound = access("fat:/", F_OK) == 0;
+
 	const u32 bufferLen = SCREEN_WIDTH * SCREEN_HEIGHT;
 	const u32 bufferSize = bufferLen * sizeof(u16);
 	u16 *gfx = (u16 *) malloc(2 * bufferSize);
@@ -75,11 +78,22 @@ char *fileBrowse(const char *message, const char *path, std::vector<char *> exte
 			else if (target.d_type == DT_REG) break;
 		}
 		else if (keys & KEY_B) {
-			if (chdir("..") != 0) continue;
-			getcwd(curPath, PATH_MAX);
 			dirContent.clear();
 			dirValid = false;
 			selected = scrolled = 0;
+			if (chdir("..") == 0) getcwd(curPath, PATH_MAX);
+			else { // got to drive select
+				curPath[0] = '\0';
+				if (sdFound) {
+					dirent sd = {.d_type = DT_DIR, .d_name = "sd:/"};
+					dirContent.emplace_back(sd);
+				}
+				if (fatFound) {
+					dirent fat = {.d_type = DT_DIR, .d_name = "fat:/"};
+					dirContent.emplace_back(fat);
+				}
+				dirValid = true;
+			}
 		}
 		else if (keys & KEY_X) {
 			canceled = true;
