@@ -5,8 +5,9 @@
 #include <stdio.h>
 #include <sys/iosupport.h>
 
-#include "io/font.hpp"
-#include "tonccpy.h"
+#include "util/color.hpp"
+#include "util/font.hpp"
+#include "util/tonccpy.h"
 
 
 
@@ -21,15 +22,6 @@ int linePos = 0;
 bool paused = false;
 
 u16 colors[4] = {0};
-
-u16 colorBlend(u16 baseColor, u16 targetColor, u8 strength) {
-	if (!((baseColor | targetColor) & BIT(15))) return 0x0000;
-	u8 neg = 31 - strength;
-	u16 blue = ((baseColor >> 10) & 0b11111) * neg / 31 + ((targetColor >> 10) & 0b11111) * strength / 31;
-	u16 green = ((baseColor >> 5) & 0b11111) * neg / 31 + ((targetColor >> 5) & 0b11111) * strength / 31;
-	u16 red = (baseColor & 0b11111) * neg / 31 + (targetColor & 0b11111) * strength / 31;
-	return BIT(15) | blue << 10 | green << 5 | red;
-}
 
 u16 consoleSetColor(u16 color) {
 	u16 prev = colors[3];
@@ -48,10 +40,6 @@ u16 consoleSetBackground(u16 color) {
 	return prev;
 }
 u16 consoleGetBackground() { return colors[0]; }
-
-const u16 *consolePalette() {
-	return colors;
-}
 
 void consoleDraw() {
 	int pos = linePos + defaultFont.tileHeight;

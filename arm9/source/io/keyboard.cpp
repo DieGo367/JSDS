@@ -6,9 +6,9 @@
 #include <stdlib.h>
 
 #include "io/console.hpp"
-#include "io/font.hpp"
 #include "keyboard_nftr.h"
-#include "tonccpy.h"
+#include "util/font.hpp"
+#include "util/tonccpy.h"
 
 #define lengthof(arr) sizeof(arr)/sizeof(*arr)
 

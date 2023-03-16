@@ -14,8 +14,9 @@
 
 #include "helpers.hpp"
 #include "io/console.hpp"
-#include "io/font.hpp"
-#include "tonccpy.h"
+#include "util/color.hpp"
+#include "util/font.hpp"
+#include "util/tonccpy.h"
 
 
 
@@ -56,7 +57,7 @@ char *fileBrowse(const char *message, const char *path, std::vector<char *> exte
 	u16 *gfx = (u16 *) malloc(2 * bufferSize);
 	u16 *vramCopy = gfx + bufferLen;
 	dmaCopyWords(0, bgGetGfxPtr(7), vramCopy, bufferSize);
-	const u16 *pal = consolePalette();
+	const u16 pal[] = {0, colorBlend(0, 0xFFFF, 15), colorBlend(0, 0xFFFF, 24), 0xFFFF};
 
 	std::vector<dirent> dirContent;
 	u32 selected = 0, scrolled = 0;

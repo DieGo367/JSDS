@@ -1,9 +1,9 @@
-#include "io/font.hpp"
+#include "util/font.hpp"
 
 #include <stdlib.h>
 
 #include "font_nftr.h"
-#include "tonccpy.h"
+#include "util/tonccpy.h"
 
 #define getU16(src, offset) *((u16 *) (src + offset))
 #define getU32(src, offset) *((u32 *) (src + offset))
