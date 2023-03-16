@@ -96,7 +96,7 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
  * Returns true if the event was canceled, false otherwise.
  */
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
-	jerry_value_t targetProp = createString("target");
+	jerry_value_t targetProp = String("target");
 	jerry_set_internal_property(event, targetProp, target);
 
 	jerry_value_t eventListenersObj = getInternalProperty(target, "eventListeners");
@@ -108,11 +108,11 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 		jerry_release_value(sliceFunc);
 
 		u32 length = jerry_get_array_length(listenersCopyArr);
-		jerry_value_t removedProp = createString("removed");
-		jerry_value_t onceProp = createString("once");
-		jerry_value_t callbackProp = createString("callback");
+		jerry_value_t removedProp = String("removed");
+		jerry_value_t onceProp = String("once");
+		jerry_value_t callbackProp = String("callback");
 		jerry_value_t spliceFunc = getProperty(listenersArr, "splice");
-		jerry_value_t stopImmediatePropagationProp = createString("stopImmediatePropagation");
+		jerry_value_t stopImmediatePropagationProp = String("stopImmediatePropagation");
 
 		for (u32 i = 0; i < length && !abortFlag; i++) {
 			jerry_value_t stopImmediateBool = jerry_get_internal_property(event, stopImmediatePropagationProp);
@@ -185,7 +185,7 @@ void queueEvent(jerry_value_t target, jerry_value_t event) {
 
 // Queues a task that fires a simple, uncancelable event on the global context.
 void queueEventName(const char *eventName) {
-	jerry_value_t eventNameStr = createString(eventName);
+	jerry_value_t eventNameStr = String(eventName);
 	jerry_value_t eventObj = jerry_construct_object(ref_Event, &eventNameStr, 1);
 	jerry_release_value(eventNameStr);
 	queueEvent(ref_global, eventObj);
@@ -193,7 +193,7 @@ void queueEventName(const char *eventName) {
 }
 
 void onSleep() {
-	jerry_value_t eventArgs[2] = {createString("sleep"), jerry_create_object()};
+	jerry_value_t eventArgs[2] = {String("sleep"), jerry_create_object()};
 	setProperty(eventArgs[1], "cancelable", JS_TRUE);
 	jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
 	bool canceled = dispatchEvent(ref_global, eventObj, false);
@@ -203,7 +203,7 @@ void onSleep() {
 	if (!canceled) systemSleep();
 }
 void onWake() {
-	jerry_value_t eventArgs[2] = {createString("wake"), jerry_create_object()};
+	jerry_value_t eventArgs[2] = {String("wake"), jerry_create_object()};
 	jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
 	dispatchEvent(ref_global, eventObj, false);
 	jerry_release_value(eventObj);

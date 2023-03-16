@@ -46,19 +46,19 @@ const char ONE_ARG[] = "1 argument required.";
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
 #define FUNCTION(name) static jerry_value_t name(CALL_INFO)
 #define LAMBDA(returnVal) [](CALL_INFO) -> jerry_value_t { return returnVal; }
-#define REQUIRE_FIRST() if (argCount == 0) return throwTypeError(ONE_ARG)
-#define REQUIRE(n) if (argCount < n) return throwTypeError(#n " arguments required.")
-#define EXPECT(test, type) if (!(test)) return throwTypeError("Expected type '" #type "'.")
-#define CONSTRUCTOR(name) if (isNewTargetUndefined()) return throwTypeError("Constructor '" #name "' cannot be invoked without 'new'.")
+#define REQUIRE_FIRST() if (argCount == 0) return TypeError(ONE_ARG)
+#define REQUIRE(n) if (argCount < n) return TypeError(#n " arguments required.")
+#define EXPECT(test, type) if (!(test)) return TypeError("Expected type '" #type "'.")
+#define CONSTRUCTOR(name) if (isNewTargetUndefined()) return TypeError("Constructor '" #name "' cannot be invoked without 'new'.")
 
 FUNCTION(IllegalConstructor) {
-	return throwTypeError("Illegal constructor");
+	return TypeError("Illegal constructor");
 }
 
 FUNCTION(closeJSDS) {
 	abortFlag = true;
 	userClosed = true;
-	return jerry_create_abort_from_value(createString("close() was called."), true);
+	return jerry_create_abort_from_value(String("close() was called."), true);
 }
 
 FUNCTION(alert) {
@@ -104,7 +104,7 @@ FUNCTION(prompt) {
 		u32 responseSize;
 		keyboardComposeAccept(&response, &responseSize);
 		printf(response); putchar('\n');
-		jerry_value_t responseStr = jerry_create_string_sz_from_utf8((jerry_char_t *) response, (jerry_size_t) responseSize);
+		jerry_value_t responseStr = StringSized(response, responseSize);
 		free(response);
 		keyboardUpdate();
 		pauseKeyEvents = false;
@@ -258,7 +258,7 @@ FUNCTION(console_count) {
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		labelStr = jerry_value_to_string(args[0]);
 	}
-	else labelStr = createString("default");
+	else labelStr = String("default");
 	
 	jerry_value_t countNum = jerry_get_property(ref_consoleCounters, labelStr);
 	u32 count;
@@ -283,7 +283,7 @@ FUNCTION(console_countReset) {
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		labelStr = jerry_value_to_string(args[0]);
 	}
-	else labelStr = createString("default");
+	else labelStr = String("default");
 
 	jerry_value_t hasLabelBool = jerry_has_own_property(ref_consoleCounters, labelStr);
 	if (jerry_get_boolean_value(hasLabelBool)) {
@@ -308,7 +308,7 @@ FUNCTION(console_time) {
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		labelStr = jerry_value_to_string(args[0]);
 	}
-	else labelStr = createString("default");
+	else labelStr = String("default");
 
 	jerry_value_t hasLabelBool = jerry_has_own_property(ref_consoleTimers, labelStr);
 	if (jerry_get_boolean_value(hasLabelBool)) {
@@ -333,7 +333,7 @@ FUNCTION(console_timeLog) {
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		labelStr = jerry_value_to_string(args[0]);
 	}
-	else labelStr = createString("default");
+	else labelStr = String("default");
 
 	logIndent();
 	jerry_value_t counterIdNum = jerry_get_property(ref_consoleTimers, labelStr);
@@ -362,7 +362,7 @@ FUNCTION(console_timeEnd) {
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
 		labelStr = jerry_value_to_string(args[0]);
 	}
-	else labelStr = createString("default");
+	else labelStr = String("default");
 
 	logIndent();
 	jerry_value_t counterIdNum = jerry_get_property(ref_consoleTimers, labelStr);
@@ -401,7 +401,7 @@ FUNCTION(Text_encode) {
 		jerry_release_value(arrayBuffer);
 		if (textSize > bufLen) {
 			jerry_release_value(textStr);
-			return throwTypeError("Text size is too big to encode into the given array.");
+			return TypeError("Text size is too big to encode into the given array.");
 		}
 		jerry_string_to_utf8_char_buffer(textStr, data, textSize);
 		jerry_release_value(textStr);
@@ -424,8 +424,8 @@ FUNCTION(Text_decode) {
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 	jerry_release_value(arrayBuffer);
-	if (!jerry_is_valid_utf8_string(data, dataLen)) return throwTypeError("Invalid UTF-8");
-	return jerry_create_string_sz_from_utf8(data, dataLen);
+	if (!jerry_is_valid_utf8_string(data, dataLen)) return TypeError("Invalid UTF-8");
+	return StringSized(data, dataLen);
 }
 
 FUNCTION(Text_encodeUTF16) {
@@ -464,7 +464,7 @@ FUNCTION(Text_encodeUTF16) {
 		u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 		jerry_release_value(arrayBuffer);
 		if (utf16Size > bufSize) {
-			return throwTypeError("Text size is too big to encode into the given array.");
+			return TypeError("Text size is too big to encode into the given array.");
 		}
 		tonccpy(data, utf16, utf16Size);
 		return jerry_acquire_value(args[1]);
@@ -517,7 +517,7 @@ FUNCTION(Base64_encode) {
 		*(out++) = '=';
 	}
 
-	return jerry_create_string_sz_from_utf8((jerry_char_t *) ascii, asciiSize);
+	return StringSized(ascii, asciiSize);
 }
 
 static inline u8 b64CharValue(char ch, bool *bad) {
@@ -540,7 +540,7 @@ FUNCTION(Base64_decode) {
 
 	if (asciiSize % 4 == 1) {
 		free(ascii);
-		return throwTypeError(errorMsg);
+		return TypeError(errorMsg);
 	}
 	jerry_length_t dataLen = asciiSize / 4 * 3;
 	if (ascii[asciiSize - 1] == '=') dataLen--;
@@ -574,7 +574,7 @@ FUNCTION(Base64_decode) {
 	}
 
 	free(ascii);
-	if (badEncoding) return throwTypeError(errorMsg);
+	if (badEncoding) return TypeError(errorMsg);
 
 	jerry_value_t u8Array;
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) u8Array = jerry_acquire_value(args[1]);
@@ -584,7 +584,7 @@ FUNCTION(Base64_decode) {
 	if (arraySize < dataLen) {
 		jerry_release_value(arrayBuffer);
 		jerry_release_value(u8Array);
-		return throwTypeError("Data size is too big to decode into the given array.");
+		return TypeError("Data size is too big to decode into the given array.");
 	}
 	jerry_arraybuffer_write(arrayBuffer, byteOffset, data, dataLen);
 	jerry_release_value(arrayBuffer);
@@ -599,7 +599,7 @@ FUNCTION(File_read) {
 	if (mode[0] != 'r' && mode[1] != '+') {
 		free(mode);
 		jerry_release_value(modeStr);
-		return throwError("Unable to read in current file mode.");
+		return Error("Unable to read in current file mode.");
 	}
 	free(mode);
 	jerry_release_value(modeStr);
@@ -612,7 +612,7 @@ FUNCTION(File_read) {
 	u32 bytesRead = fread(buf, 1, bytesToRead, file);
 	if (ferror(file)) {
 		jerry_release_value(arrayBuffer);
-		return throwError("File read failed.");
+		return Error("File read failed.");
 	}
 	else if (feof(file) && bytesRead == 0) {
 		jerry_release_value(arrayBuffer);
@@ -634,7 +634,7 @@ FUNCTION(File_write) {
 	if (mode[0] != 'w' && mode[0] != 'a' && mode[1] != '+') {
 		free(mode);
 		jerry_release_value(modeStr);
-		return throwError("Unable to write in current file mode.");
+		return Error("Unable to write in current file mode.");
 	}
 	free(mode);
 	jerry_release_value(modeStr);
@@ -648,7 +648,7 @@ FUNCTION(File_write) {
 
 	u32 bytesWritten = fwrite(buf, 1, bufSize, file);
 	if (ferror(file)) {
-		return throwError("File write failed.");
+		return Error("File write failed.");
 	}
 	else return jerry_create_number(bytesWritten);
 }
@@ -665,19 +665,19 @@ FUNCTION(File_seek) {
 		else mode = 10;
 		free(seekMode);
 	}
-	if (mode == 10) return throwTypeError("Invalid seek mode");
+	if (mode == 10) return TypeError("Invalid seek mode");
 
 	FILE *file;
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
 	int success = fseek(file, jerry_value_as_int32(args[0]), mode);
-	if (success != 0) return throwError("File seek failed.");
+	if (success != 0) return Error("File seek failed.");
 	return JS_UNDEFINED;
 }
 
 FUNCTION(File_close) {
 	FILE *file;
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
-	if (fclose(file) != 0) return throwError("File close failed.");
+	if (fclose(file) != 0) return Error("File close failed.");
 	return JS_UNDEFINED;
 }
 
@@ -694,7 +694,7 @@ FUNCTION(FileStatic_open) {
 		) {
 			free(mode);
 			free(path);
-			return throwTypeError("Invalid file mode");
+			return TypeError("Invalid file mode");
 		}
 	}
 
@@ -702,10 +702,10 @@ FUNCTION(FileStatic_open) {
 	if (file == NULL) {
 		if (mode != defaultMode) free(mode);
 		free(path);
-		return throwError("Unable to open file.");
+		return Error("Unable to open file.");
 	}
 	else {
-		jerry_value_t modeStr = createString(mode);
+		jerry_value_t modeStr = String(mode);
 		jerry_value_t fileObj = newFile(file, modeStr);
 		jerry_release_value(modeStr);
 		if (mode != defaultMode) free(mode);
@@ -719,7 +719,7 @@ FUNCTION(FileStatic_copy) {
 	char *sourcePath = getAsString(args[0]);
 	FILE *source = fopen(sourcePath, "r");
 	free(sourcePath);
-	if (source == NULL) return throwError("Unable to open source file during copy.");
+	if (source == NULL) return Error("Unable to open source file during copy.");
 	
 	fseek(source, 0, SEEK_END);
 	u32 sourceSize = ftell(source);
@@ -729,7 +729,7 @@ FUNCTION(FileStatic_copy) {
 	if (ferror(source)) {
 		free(data);
 		fclose(source);
-		return throwError("Failed to read source file during copy.");
+		return Error("Failed to read source file during copy.");
 	}
 	fclose(source);
 
@@ -738,14 +738,14 @@ FUNCTION(FileStatic_copy) {
 	free(destPath);
 	if (dest == NULL) {
 		free(data);
-		return throwError("Unable to open destination file during copy.");
+		return Error("Unable to open destination file during copy.");
 	}
 
 	fwrite(data, 1, bytesRead, dest);
 	free(data);
 	if (ferror(dest)) {
 		fclose(dest);
-		return throwError("Failed to write destination file during copy.");
+		return Error("Failed to write destination file during copy.");
 	}
 	fclose(dest);
 	return JS_UNDEFINED;
@@ -758,14 +758,14 @@ FUNCTION(FileStatic_rename) {
 	int status = rename(sourcePath, destPath);
 	free(sourcePath);
 	free(destPath);
-	if (status != 0) return throwError("Failed to rename file.");
+	if (status != 0) return Error("Failed to rename file.");
 	return JS_UNDEFINED;
 }
 
 FUNCTION(FileStatic_remove) {
 	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
-	if (remove(path) != 0) return throwError("Failed to delete file.");
+	if (remove(path) != 0) return Error("Failed to delete file.");
 	return JS_UNDEFINED;
 }
 
@@ -774,7 +774,7 @@ FUNCTION(FileStatic_read) {
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "r");
 	free(path);
-	if (file == NULL) return throwError("Unable to open file.");
+	if (file == NULL) return Error("Unable to open file.");
 
 	fseek(file, 0, SEEK_END);
 	u32 fileSize = ftell(file);
@@ -786,7 +786,7 @@ FUNCTION(FileStatic_read) {
 	if (ferror(file)) {
 		jerry_release_value(arrayBuffer);
 		fclose(file);
-		return throwError("File read failed.");
+		return Error("File read failed.");
 	}
 	fclose(file);
 	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, bytesRead);
@@ -799,7 +799,7 @@ FUNCTION(FileStatic_readText) {
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "r");
 	free(path);
-	if (file == NULL) return throwError("Unable to open file.");
+	if (file == NULL) return Error("Unable to open file.");
 
 	fseek(file, 0, SEEK_END);
 	u32 fileSize = ftell(file);
@@ -810,10 +810,10 @@ FUNCTION(FileStatic_readText) {
 	if (ferror(file)) {
 		free(buf);
 		fclose(file);
-		return throwError("File read failed.");
+		return Error("File read failed.");
 	}
 	fclose(file);
-	jerry_value_t str = jerry_create_string_sz_from_utf8((jerry_char_t *) buf, bytesRead);
+	jerry_value_t str = StringSized(buf, bytesRead);
 	free(buf);
 	return str;
 }
@@ -824,7 +824,7 @@ FUNCTION(FileStatic_write) {
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "w");
 	free(path);
-	if (file == NULL) return throwError("Unable to open file.");
+	if (file == NULL) return Error("Unable to open file.");
 	
 	jerry_length_t offset, bufSize;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &offset, &bufSize);
@@ -834,7 +834,7 @@ FUNCTION(FileStatic_write) {
 	u32 bytesWritten = fwrite(buf, 1, bufSize, file);
 	if (ferror(file)) {
 		fclose(file);
-		return throwError("File write failed.");
+		return Error("File write failed.");
 	}
 	fclose(file);
 	return jerry_create_number(bytesWritten);
@@ -845,7 +845,7 @@ FUNCTION(FileStatic_writeText) {
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "w");
 	free(path);
-	if (file == NULL) return throwError("Unable to open file.");
+	if (file == NULL) return Error("Unable to open file.");
 	
 	jerry_size_t textSize;
 	char *text = getAsString(args[1], &textSize);
@@ -853,7 +853,7 @@ FUNCTION(FileStatic_writeText) {
 	if (ferror(file)) {
 		fclose(file);
 		free(text);
-		return throwError("File write failed.");
+		return Error("File write failed.");
 	}
 	fclose(file);
 	free(text);
@@ -877,7 +877,7 @@ FUNCTION(FileStatic_makeDir) {
 	}
 	else status = mkdir(path, 0777);
 	free(path);
-	if (status != 0) return throwError("Failed to make directory.");
+	if (status != 0) return Error("Failed to make directory.");
 	return JS_UNDEFINED;
 }
 
@@ -886,7 +886,7 @@ FUNCTION(FileStatic_readDir) {
 	char *path = getAsString(args[0]);
 	DIR *dir = opendir(path);
 	free(path);
-	if (dir == NULL) return throwError("Unable to open directory.");
+	if (dir == NULL) return Error("Unable to open directory.");
 
 	jerry_value_t dirArr = jerry_create_array(0);
 	jerry_value_t pushFunc = getProperty(dirArr, "push");
@@ -895,7 +895,7 @@ FUNCTION(FileStatic_readDir) {
 		jerry_value_t entryObj = jerry_create_object();
 		setProperty(entryObj, "isDirectory", jerry_create_boolean(entry->d_type == DT_DIR));
 		setProperty(entryObj, "isFile", jerry_create_boolean(entry->d_type == DT_REG));
-		jerry_value_t nameStr = createString(entry->d_name);
+		jerry_value_t nameStr = String(entry->d_name);
 		setProperty(entryObj, "name", nameStr);
 		jerry_release_value(nameStr);
 		jerry_call_function(pushFunc, dirArr, &entryObj, 1);
@@ -914,9 +914,9 @@ FUNCTION(FileStatic_browse) {
 	char *message = messageDefault;
 	std::vector<char *> extensions;
 	if (argCount > 0 && jerry_value_is_object(args[0])) {
-		jerry_value_t pathProp = createString("path");
-		jerry_value_t extensionsProp = createString("extensions");
-		jerry_value_t messageProp = createString("message");
+		jerry_value_t pathProp = String("path");
+		jerry_value_t extensionsProp = String("extensions");
+		jerry_value_t messageProp = String("message");
 		if (jerry_has_property(args[0], pathProp)) {
 			jerry_value_t pathVal = jerry_get_property(args[0], pathProp);
 			if (pathVal != JS_UNDEFINED) browsePath = getAsString(pathVal);
@@ -944,7 +944,7 @@ FUNCTION(FileStatic_browse) {
 		jerry_release_value(pathProp);
 	}
 	char *result = fileBrowse(message, browsePath, extensions);
-	jerry_value_t resultVal = result == NULL ? JS_NULL : createString(result);
+	jerry_value_t resultVal = result == NULL ? JS_NULL : String(result);
 	free(result);
 	for (u32 i = 0; i < extensions.size(); i++) free(extensions[i]);
 	if (message != messageDefault) free(message);
@@ -1072,8 +1072,8 @@ FUNCTION(EventTarget_addEventListener) {
 	if (jerry_value_is_null(args[1])) return JS_UNDEFINED;
 	jerry_value_t targetObj = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 	
-	jerry_value_t callbackProp = createString("callback");
-	jerry_value_t onceProp = createString("once");
+	jerry_value_t callbackProp = String("callback");
+	jerry_value_t onceProp = String("once");
 
 	jerry_value_t typeStr = jerry_value_to_string(args[0]);
 	jerry_value_t callbackVal = args[1];
@@ -1141,7 +1141,7 @@ FUNCTION(EventTarget_addEventListener) {
 FUNCTION(EventTarget_removeEventListener) {
 	REQUIRE(2);
 	jerry_value_t targetObj = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
-	jerry_value_t callbackProp = createString("callback");
+	jerry_value_t callbackProp = String("callback");
 	jerry_value_t typeStr = jerry_value_to_string(args[0]);
 	jerry_value_t callbackVal = args[1];
 
@@ -1202,7 +1202,7 @@ FUNCTION(EventTarget_dispatchEvent) {
 
 FUNCTION(DS_getBatteryLevel) {
 	u32 level = getBatteryLevel();
-	if (level & BIT(7)) return createString("charging");
+	if (level & BIT(7)) return String("charging");
 	level = level & 0xF;
 	if (level == 0x1) return jerry_create_number(0);
 	else if (level == 0x3) return jerry_create_number(1);
@@ -1227,11 +1227,11 @@ FUNCTION(DS_setMainScreen) {
 		free(screen);
 		if (set) return JS_UNDEFINED;
 	}
-	return throwTypeError("Invalid screen value");
+	return TypeError("Invalid screen value");
 }
 
 FUNCTION(DS_sleep) {
-	jerry_value_t eventArgs[2] = {createString("sleep"), jerry_create_object()};
+	jerry_value_t eventArgs[2] = {String("sleep"), jerry_create_object()};
 	setProperty(eventArgs[1], "cancelable", JS_TRUE);
 	jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
 	bool canceled = dispatchEvent(ref_global, eventObj, true);
@@ -1242,7 +1242,7 @@ FUNCTION(DS_sleep) {
 		systemSleep();
 		swiWaitForVBlank();
 		swiWaitForVBlank(); // I know this is jank but it's the easiest solution to stop 'wake' from dispatching before the system sleeps
-		eventArgs[0] = createString("wake");
+		eventArgs[0] = String("wake");
 		eventArgs[1] = jerry_create_object();
 		eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
 		dispatchEvent(ref_global, eventObj, true);
@@ -1322,10 +1322,10 @@ void exposeBetaAPI() {
 
 void exposeAPI() {
 	// hold some internal references
-	ref_str_name = createString("name");
-	ref_str_constructor = createString("constructor");
-	ref_str_prototype = createString("prototype");
-	ref_str_backtrace = createString("backtrace");
+	ref_str_name = String("name");
+	ref_str_constructor = String("constructor");
+	ref_str_prototype = String("prototype");
+	ref_str_backtrace = String("backtrace");
 	ref_sym_toStringTag = jerry_get_well_known_symbol(JERRY_SYMBOL_TO_STRING_TAG);
 	ref_consoleCounters = jerry_create_object();
 	ref_consoleTimers = jerry_create_object();
@@ -1441,7 +1441,7 @@ void exposeAPI() {
 	jerry_value_t DS = createObject(ref_global, "DS");
 
 	setMethod(DS, "getBatteryLevel", DS_getBatteryLevel);
-	setMethod(DS, "getMainScreen", LAMBDA(createString(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom")));
+	setMethod(DS, "getMainScreen", LAMBDA(String(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom")));
 	setReadonly(DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
 	setMethod(DS, "setMainScreen", DS_setMainScreen);
 	setMethod(DS, "shutdown", LAMBDA((systemShutDown(), JS_UNDEFINED)));

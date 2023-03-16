@@ -19,7 +19,7 @@
 void handleError(jerry_value_t error, bool sync) {
 	bool errorHandled = false;
 
-	jerry_value_t errorProp = createString("error");
+	jerry_value_t errorProp = String("error");
 	jerry_value_t eventListenersObj = getInternalProperty(ref_global, "eventListeners");
 	jerry_value_t errorEventListenersArr = jerry_get_property(eventListenersObj, errorProp);
 	jerry_release_value(eventListenersObj);
@@ -32,7 +32,7 @@ void handleError(jerry_value_t error, bool sync) {
 		jerry_release_value(jerry_set_property(errorEventInitObj, errorProp, thrownVal));
 		if (errorCode == JERRY_ERROR_NONE) {
 			jerry_value_t thrownStr = jerry_value_to_string(thrownVal);
-			jerry_value_t uncaughtStr = createString("Uncaught ");
+			jerry_value_t uncaughtStr = String("Uncaught ");
 			jerry_value_t concatenatedStr = jerry_binary_operation(JERRY_BIN_OP_ADD, uncaughtStr, thrownStr);
 			setProperty(errorEventInitObj, "message", concatenatedStr);
 			jerry_release_value(concatenatedStr);
@@ -51,7 +51,7 @@ void handleError(jerry_value_t error, bool sync) {
 			jerry_release_value(backtraceArr);
 
 			char *colon = strchr(resource, ':');
-			jerry_value_t filenameStr = jerry_create_string_sz((jerry_char_t *) resource, colon - resource);
+			jerry_value_t filenameStr = StringSized(resource, colon - resource);
 			setProperty(errorEventInitObj, "filename", filenameStr);
 			jerry_release_value(filenameStr);
 
@@ -84,7 +84,7 @@ void handleRejection(jerry_value_t promise) {
 	bool rejectionHandled = false;
 	
 	jerry_value_t eventListenersObj = getInternalProperty(ref_global, "eventListeners");
-	jerry_value_t unhandledrejectionProp = createString("unhandledrejection");
+	jerry_value_t unhandledrejectionProp = String("unhandledrejection");
 	jerry_value_t rejectionEventListenersArr = jerry_get_property(eventListenersObj, unhandledrejectionProp);
 	if (jerry_value_is_array(rejectionEventListenersArr) && jerry_get_array_length(rejectionEventListenersArr) > 0) {
 		jerry_value_t rejectionEventInitObj = jerry_create_object();

@@ -197,8 +197,8 @@ void storageLoad(const char *resourceName) {
 					bytesRead += itemsRead;
 					value[valueSize] = '\0';
 
-					jerry_value_t keyStr = createString(key);
-					jerry_value_t valueStr = createString(value);
+					jerry_value_t keyStr = String(key);
+					jerry_value_t valueStr = String(value);
 					jerry_set_property(ref_storage, keyStr, valueStr);
 					jerry_release_value(valueStr);
 					jerry_release_value(keyStr);

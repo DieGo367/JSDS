@@ -6,16 +6,6 @@
 
 
 
-jerry_value_t throwError(const char *message) {
-	return jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) message);
-}
-jerry_value_t throwTypeError(const char *message) {
-	return jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) message);
-}
-
-jerry_value_t createString(const char *str) {
-	return jerry_create_string((const jerry_char_t *) str);
-}
 jerry_value_t createStringUTF16(const char16_t* codepoints, jerry_size_t length) {
 	u8 utf8[length * 3]; // each codepoint can produce up to 3 bytes (surrogate pairs end up as 4 bytes, but that's still 2 bytes each)
 	u8 *out = utf8;
@@ -42,8 +32,8 @@ jerry_value_t createStringUTF16(const char16_t* codepoints, jerry_size_t length)
 			out += 3;
 		}
 	}
-	if (!jerry_is_valid_utf8_string(utf8, out - utf8)) return throwTypeError("Invalid UTF-16");
-	return jerry_create_string_sz_from_utf8(utf8, out - utf8);
+	if (!jerry_is_valid_utf8_string(utf8, out - utf8)) return TypeError("Invalid UTF-16");
+	return StringSized(utf8, out - utf8);
 }
 
 char *getString(const jerry_value_t stringValue, jerry_size_t *stringSize) {
@@ -210,7 +200,7 @@ void setReadonlyNumber(jerry_value_t object, const char *property, double value)
 	jerry_release_value(n);
 }
 void setReadonlyString(jerry_value_t object, const char *property, const char *value) {
-	jerry_value_t string = createString(value);
+	jerry_value_t string = String(value);
 	setReadonly(object, property, string);
 	jerry_release_value(string);
 }
@@ -233,7 +223,7 @@ static jerry_value_t eventAttributeSetter(const jerry_value_t function, const je
 	char *attrName = (char *) malloc(attrNameSize + 1);
 	jerry_string_to_utf8_char_buffer(attrNameStr, (jerry_char_t *) attrName, attrNameSize);
 	attrName[attrNameSize] = '\0';
-	jerry_value_t eventTypeStr = jerry_create_string_sz((jerry_char_t *) (attrName + 2), attrNameSize - 2); // skip "on" prefix
+	jerry_value_t eventTypeStr = StringSized(attrName + 2, attrNameSize - 2); // skip "on" prefix
 	free(attrName);
 
 	jerry_value_t storedCallbackVal = jerry_get_internal_property(thisValue, attrNameStr);

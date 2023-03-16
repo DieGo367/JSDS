@@ -19,12 +19,14 @@ enum JSConstants {
 };
 
 // Creates a jerry common error.
-jerry_value_t throwError(const char *message);
+#define Error(message) jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) (message))
 // Creates a jerry type error.
-jerry_value_t throwTypeError(const char *message);
+#define TypeError(message) jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) (message))
 
 // Creates a js string out of a c string. Return value must be released!
-jerry_value_t createString(const char *str);
+#define String(str) jerry_create_string_from_utf8((const jerry_char_t *) (str))
+// Creates a js string out of a c string and size. Return value must be released!
+#define StringSized(str, size) jerry_create_string_sz_from_utf8((const jerry_char_t *) (str), (size))
 // Creates a js string out of a list of UTF-16 string. Return value must be released! Throws a TypeError when invalid.
 jerry_value_t createStringUTF16(const char16_t* codepoints, jerry_size_t length);
 

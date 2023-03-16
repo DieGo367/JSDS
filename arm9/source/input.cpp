@@ -31,15 +31,15 @@ void buttonEvents(bool down) {
 	canceledButtons = 0;
 	u32 set = down ? keysDown() : keysUp();
 	if (set) {
-		jerry_value_t buttonProp = createString("button");
-		jerry_value_t eventArgs[2] = {createString(down ? "buttondown" : "buttonup"), jerry_create_object()};
+		jerry_value_t buttonProp = String("button");
+		jerry_value_t eventArgs[2] = {String(down ? "buttondown" : "buttonup"), jerry_create_object()};
 		jerry_release_value(jerry_set_property(eventArgs[1], buttonProp, JS_NULL));
 		if (down) setProperty(eventArgs[1], "cancelable", JS_TRUE);
 		jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
 		bool valueWritten = true;
 		if (false);
 		#define TEST_VALUE(buttonName, keyCode) else if (set & keyCode) {\
-			jerry_value_t value = createString(buttonName); \
+			jerry_value_t value = String(buttonName); \
 			jerry_set_internal_property(eventObj, buttonProp, value); \
 			jerry_release_value(value); \
 		}
@@ -63,7 +63,7 @@ u32 getCanceledButtons() { return canceledButtons; }
 
 u16 prevX = 0, prevY = 0;
 void queueTouchEvent(const char *name, int curX, int curY, bool usePrev) {
-	jerry_value_t eventArgs[2] = {createString(name), jerry_create_object()};
+	jerry_value_t eventArgs[2] = {String(name), jerry_create_object()};
 	jerry_value_t xNum = jerry_create_number(curX);
 	jerry_value_t yNum = jerry_create_number(curY);
 	jerry_value_t dxNum = usePrev ? jerry_create_number(curX - (int) prevX) : jerry_create_number_nan();
@@ -96,23 +96,23 @@ void touchEvents() {
 }
 
 bool dispatchKeyboardEvent(bool down, const char16_t codepoint, const char *name, u8 location, bool shift, int layout, bool repeat) {
-	jerry_value_t eventArgs[2] = {createString(down ? "keydown" : "keyup"), jerry_create_object()};
+	jerry_value_t eventArgs[2] = {String(down ? "keydown" : "keyup"), jerry_create_object()};
 	setProperty(eventArgs[1], "cancelable", JS_TRUE);
 
 	jerry_value_t keyStr;
-	if (codepoint == 2) keyStr = createString("Shift"); // hardcoded override to remove Left/Right variants of Shift
-	else if (codepoint < ' ') keyStr = createString(name);
-	else if (codepoint < 0x80) keyStr = createString((char *) &codepoint);
+	if (codepoint == 2) keyStr = String("Shift"); // hardcoded override to remove Left/Right variants of Shift
+	else if (codepoint < ' ') keyStr = String(name);
+	else if (codepoint < 0x80) keyStr = String((char *) &codepoint);
 	else if (codepoint < 0x800) {
 		char converted[3] = {(char) (0xC0 | codepoint >> 6), (char) (BIT(7) | (codepoint & 0x3F)), 0};
-		keyStr = createString(converted);
+		keyStr = String(converted);
 	}
 	else {
 		char converted[4] = {(char) (0xE0 | codepoint >> 12), (char) (BIT(7) | (codepoint >> 6 & 0x3F)), (char) (BIT(7) | (codepoint & 0x3F)), 0};
-		keyStr = createString(converted);
+		keyStr = String(converted);
 	}
-	jerry_value_t codeStr = createString(name);
-	jerry_value_t layoutStr = createString(
+	jerry_value_t codeStr = String(name);
+	jerry_value_t layoutStr = String(
 		layout == 0 ? "AlphaNumeric" : 
 		layout == 1 ? "LatinAccented" :
 		layout == 2 ? "Kana" :
