@@ -169,41 +169,41 @@ void storageLoad(const char *resourceName) {
 					if (itemsRead != 1 || bytesRead + keySize > (u32) filesize) break;
 
 					// read key string
-					char *keyStr = (char *) malloc(keySize + 1);
-					itemsRead = fread(keyStr, 1, keySize, file);
+					char *key = (char *) malloc(keySize + 1);
+					itemsRead = fread(key, 1, keySize, file);
 					if (itemsRead != keySize) {
-						free(keyStr);
+						free(key);
 						break;
 					}
 					bytesRead += itemsRead;
-					keyStr[keySize] = '\0';
+					key[keySize] = '\0';
 
 					// read value size
 					itemsRead = fread(&valueSize, sizeof(u32), 1, file);
 					bytesRead += itemsRead * sizeof(u32);
 					if (itemsRead != 1 || bytesRead + valueSize > (u32) filesize) {
-						free(keyStr);
+						free(key);
 						break;
 					}
 
 					// read value string
-					char *valueStr = (char *) malloc(valueSize + 1);
-					itemsRead = fread(valueStr, 1, valueSize, file);
+					char *value = (char *) malloc(valueSize + 1);
+					itemsRead = fread(value, 1, valueSize, file);
 					if (itemsRead != valueSize) {
-						free(keyStr);
-						free(valueStr);
+						free(key);
+						free(value);
 						break;
 					}
 					bytesRead += itemsRead;
-					valueStr[valueSize] = '\0';
+					value[valueSize] = '\0';
 
-					jerry_value_t key = createString(keyStr);
-					jerry_value_t value = createString(valueStr);
-					jerry_set_property(ref_storage, key, value);
-					jerry_release_value(value);
-					jerry_release_value(key);
-					free(keyStr);
-					free(valueStr);
+					jerry_value_t keyStr = createString(key);
+					jerry_value_t valueStr = createString(value);
+					jerry_set_property(ref_storage, keyStr, valueStr);
+					jerry_release_value(valueStr);
+					jerry_release_value(keyStr);
+					free(key);
+					free(value);
 				}
 			}
 			fclose(file);
@@ -215,8 +215,8 @@ bool storageSave() {
 	bool success = false;
 	mkdir("/_nds", 0777);
 	mkdir("/_nds/JSDS", 0777);
-	jerry_value_t keys = jerry_get_object_keys(ref_storage);
-	u32 length = jerry_get_array_length(keys);
+	jerry_value_t keysArr = jerry_get_object_keys(ref_storage);
+	u32 length = jerry_get_array_length(keysArr);
 	if (length == 0) {
 		if (access(storagePath, F_OK) == 0)	success = remove(storagePath) == 0;
 		else success = true;
@@ -226,23 +226,23 @@ bool storageSave() {
 		if (file) {
 			u32 size;
 			for (u32 i = 0; i < length; i++) {
-				jerry_value_t key = jerry_get_property_by_index(keys, i);
-				jerry_value_t value = jerry_get_property(ref_storage, key);
-				char *keyStr = getString(key, &size);
+				jerry_value_t keyStr = jerry_get_property_by_index(keysArr, i);
+				jerry_value_t valueStr = jerry_get_property(ref_storage, keyStr);
+				char *key = getString(keyStr, &size);
 				fwrite(&size, sizeof(u32), 1, file);
-				fwrite(keyStr, 1, size, file);
-				free(keyStr);
-				char *valueStr = getString(value, &size);
+				fwrite(key, 1, size, file);
+				free(key);
+				char *value = getString(valueStr, &size);
 				fwrite(&size, sizeof(u32), 1, file);
-				fwrite(valueStr, 1, size, file);
-				free(valueStr);
-				jerry_release_value(value);
-				jerry_release_value(key);
+				fwrite(value, 1, size, file);
+				free(value);
+				jerry_release_value(valueStr);
+				jerry_release_value(keyStr);
 			}
 			fclose(file);
 			success = true;
 		}
 	}
-	jerry_release_value(keys);
+	jerry_release_value(keysArr);
 	return success;
 }

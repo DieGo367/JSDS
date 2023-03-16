@@ -59,12 +59,9 @@ void timingDone() {
 	}
 }
 
-jerry_value_t addTimeout(jerry_value_t handler, jerry_value_t timeoutVal, jerry_value_t *args, u32 argCount, bool repeat, bool isInternal) {
+jerry_value_t addTimeout(jerry_value_t handler, const jerry_value_t *args, u32 argCount, int ticks, bool repeat, bool isInternal) {
 	Timeout t;
 	t.id = isInternal ? --internalIds : ++ids;
-	jerry_value_t timeoutNumVal = jerry_value_to_number(timeoutVal);
-	int ticks = jerry_value_as_int32(timeoutNumVal);
-	jerry_release_value(timeoutNumVal);
 	if (ticks < 0) ticks = 0;
 	if (nestLevel > 5 && ticks < 4) ticks = 4;
 	t.timeout = ticks;
@@ -88,9 +85,9 @@ jerry_value_t addTimeout(jerry_value_t handler, jerry_value_t timeoutVal, jerry_
 }
 
 void clearTimeout(jerry_value_t idVal) {
-	jerry_value_t idNumVal = jerry_value_to_number(idVal);
-	int id = jerry_value_as_int32(idNumVal);
-	jerry_release_value(idNumVal);
+	jerry_value_t idNum = jerry_value_to_number(idVal);
+	int id = jerry_value_as_int32(idNum);
+	jerry_release_value(idNum);
 	if (timeouts.count(id) != 0) {
 		Timeout t = timeouts[id];
 		timeouts.erase(id);
@@ -107,21 +104,21 @@ void runTimeoutTask(const jerry_value_t args[], u32 argCount) {
 	int prevNestLevel = nestLevel;
 
 	// execute handler
-	jerry_value_t result;
+	jerry_value_t resultVal;
 	if (jerry_value_is_function(t.handler)) {
-		result = jerry_call_function(t.handler, ref_global, t.args, t.argCount);
+		resultVal = jerry_call_function(t.handler, ref_global, t.args, t.argCount);
 	}
 	else {
 		jerry_length_t handlerSize;
-		char *handlerStr = getAsString(t.handler, &handlerSize);
-		result = jerry_eval((jerry_char_t *) handlerStr, handlerSize, JERRY_PARSE_NO_OPTS);
-		free(handlerStr);
+		char *handler = getAsString(t.handler, &handlerSize);
+		resultVal = jerry_eval((jerry_char_t *) handler, handlerSize, JERRY_PARSE_NO_OPTS);
+		free(handler);
 	}
 	if (!abortFlag) {
 		runMicrotasks();
-		if (jerry_value_is_error(result)) handleError(result, false);
+		if (jerry_value_is_error(resultVal)) handleError(resultVal, false);
 	}
-	jerry_release_value(result);
+	jerry_release_value(resultVal);
 
 	nestLevel = prevNestLevel;
 	if (timeouts.count(t.id) > 0) {
@@ -148,9 +145,9 @@ void timeoutUpdate() {
 		}
 		if (minAmount < 1) for (const auto &[id, timeout] : timeouts) {
 			if (!timeout.queued && timeout.remaining == minAmount) {
-				jerry_value_t idVal = jerry_create_number(id);
-				queueTask(runTimeoutTask, &idVal, 1);
-				jerry_release_value(idVal);
+				jerry_value_t idNum = jerry_create_number(id);
+				queueTask(runTimeoutTask, &idNum, 1);
+				jerry_release_value(idNum);
 				timeouts[id].queued = true;
 			}
 		}

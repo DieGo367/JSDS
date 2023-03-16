@@ -18,7 +18,7 @@ void keyboardSetReleaseHandler(bool (*handler) (const char16_t codepoint, const 
 
 void keyboardCompose(bool allowCancel);
 ComposeStatus keyboardComposeStatus();
-void keyboardComposeAccept(char **strPtr, int *strSize);
+void keyboardComposeAccept(char **strPtr, u32 *strSize);
 void keyboardComposeCancel();
 
 #endif /* JSDS_KEYBOARD_HPP */

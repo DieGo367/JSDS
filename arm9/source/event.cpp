@@ -58,37 +58,37 @@ void clearTasks() {
 }
 
 void runMicrotasks() {
-	jerry_value_t microtaskResult;
+	jerry_value_t microtaskResultVal;
 	while (true) {
-		microtaskResult = jerry_run_all_enqueued_jobs();
-		if (jerry_value_is_error(microtaskResult)) {
-			handleError(microtaskResult, false);
-			jerry_release_value(microtaskResult);
+		microtaskResultVal = jerry_run_all_enqueued_jobs();
+		if (jerry_value_is_error(microtaskResultVal)) {
+			handleError(microtaskResultVal, false);
+			jerry_release_value(microtaskResultVal);
 		}
 		else break;
 	}
-	jerry_release_value(microtaskResult);
+	jerry_release_value(microtaskResultVal);
 	handleRejectedPromises();
 }
 
 // Task which runs some previously parsed code.
 void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
-	jerry_value_t result;
-	if (jerry_value_is_error(args[0])) result = jerry_acquire_value(args[0]);
-	else result = jerry_run(args[0]);
+	jerry_value_t resultVal;
+	if (jerry_value_is_error(args[0])) resultVal = jerry_acquire_value(args[0]);
+	else resultVal = jerry_run(args[0]);
 	if (!abortFlag) {
 		runMicrotasks();
 		if (inREPL) {
-			logLiteral(result);
+			logLiteral(resultVal);
 			putchar('\n');
 		}
-		else if (jerry_value_is_error(result)) {
-			logLiteral(result);
+		else if (jerry_value_is_error(resultVal)) {
+			logLiteral(resultVal);
 			putchar('\n');
 			abortFlag = true;
 		}
 	}
-	jerry_release_value(result);
+	jerry_release_value(resultVal);
 }
 
 /* Dispatches event onto target.
@@ -96,79 +96,79 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
  * Returns true if the event was canceled, false otherwise.
  */
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
-	jerry_value_t targetStr = createString("target");
-	jerry_set_internal_property(event, targetStr, target);
+	jerry_value_t targetProp = createString("target");
+	jerry_set_internal_property(event, targetProp, target);
 
-	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
-	jerry_value_t eventType = getInternalProperty(event, "type");
-	jerry_value_t listenersOfType = jerry_get_property(eventListeners, eventType);
-	if (jerry_value_is_array(listenersOfType)) {
-		jerry_value_t sliceFunc = getProperty(listenersOfType, "slice");
-		jerry_value_t listenersCopy = jerry_call_function(sliceFunc, listenersOfType, NULL, 0);
+	jerry_value_t eventListenersObj = getInternalProperty(target, "eventListeners");
+	jerry_value_t typeStr = getInternalProperty(event, "type");
+	jerry_value_t listenersArr = jerry_get_property(eventListenersObj, typeStr); // listeners of given type
+	if (jerry_value_is_array(listenersArr)) {
+		jerry_value_t sliceFunc = getProperty(listenersArr, "slice");
+		jerry_value_t listenersCopyArr = jerry_call_function(sliceFunc, listenersArr, NULL, 0);
 		jerry_release_value(sliceFunc);
 
-		u32 length = jerry_get_array_length(listenersCopy);
-		jerry_value_t removedStr = createString("removed");
-		jerry_value_t onceStr = createString("once");
-		jerry_value_t callbackStr = createString("callback");
-		jerry_value_t spliceFunc = getProperty(listenersOfType, "splice");
-		jerry_value_t stopImmediatePropagationStr = createString("stopImmediatePropagation");
+		u32 length = jerry_get_array_length(listenersCopyArr);
+		jerry_value_t removedProp = createString("removed");
+		jerry_value_t onceProp = createString("once");
+		jerry_value_t callbackProp = createString("callback");
+		jerry_value_t spliceFunc = getProperty(listenersArr, "splice");
+		jerry_value_t stopImmediatePropagationProp = createString("stopImmediatePropagation");
 
 		for (u32 i = 0; i < length && !abortFlag; i++) {
-			jerry_value_t stopImmediate = jerry_get_internal_property(event, stopImmediatePropagationStr);
-			bool stop = jerry_get_boolean_value(stopImmediate);
-			jerry_release_value(stopImmediate);
+			jerry_value_t stopImmediateBool = jerry_get_internal_property(event, stopImmediatePropagationProp);
+			bool stop = jerry_get_boolean_value(stopImmediateBool);
+			jerry_release_value(stopImmediateBool);
 			if (stop) break;
 
-			jerry_value_t listener = jerry_get_property_by_index(listenersCopy, i);
-			jerry_value_t removedVal = jerry_get_property(listener, removedStr);
-			bool removed = jerry_get_boolean_value(removedVal);
-			jerry_release_value(removedVal);
+			jerry_value_t listenerObj = jerry_get_property_by_index(listenersCopyArr, i);
+			jerry_value_t removedBool = jerry_get_property(listenerObj, removedProp);
+			bool removed = jerry_get_boolean_value(removedBool);
+			jerry_release_value(removedBool);
 			if (!removed) {
-				jerry_value_t onceVal = jerry_get_property(listener, onceStr);
-				bool once = jerry_get_boolean_value(onceVal);
-				jerry_release_value(onceVal);
+				jerry_value_t onceBool = jerry_get_property(listenerObj, onceProp);
+				bool once = jerry_get_boolean_value(onceBool);
+				jerry_release_value(onceBool);
 				if (once) {
 					jerry_value_t spliceArgs[2] = {jerry_create_number(i), jerry_create_number(1)};
-					jerry_release_value(jerry_call_function(spliceFunc, listenersOfType, spliceArgs, 2));
+					jerry_release_value(jerry_call_function(spliceFunc, listenersArr, spliceArgs, 2));
 					jerry_release_value(spliceArgs[1]);
 					jerry_release_value(spliceArgs[0]);
-					jerry_release_value(jerry_set_property(listener, removedStr, JS_TRUE));
+					jerry_release_value(jerry_set_property(listenerObj, removedProp, JS_TRUE));
 				}
 				
-				jerry_value_t callbackVal = jerry_get_property(listener, callbackStr);
-				jerry_value_t result;
+				jerry_value_t callbackVal = jerry_get_property(listenerObj, callbackProp);
+				jerry_value_t resultVal;
 				if (jerry_value_is_function(callbackVal)) {
-					result = jerry_call_function(callbackVal, target, &event, 1);
+					resultVal = jerry_call_function(callbackVal, target, &event, 1);
 					if (!abortFlag) {
 						if (!sync) runMicrotasks();
-						if (jerry_value_is_error(result)) handleError(result, sync);
+						if (jerry_value_is_error(resultVal)) handleError(resultVal, sync);
 					}
-					jerry_release_value(result);
+					jerry_release_value(resultVal);
 				}
 				jerry_release_value(callbackVal);
 			}
-			jerry_release_value(listener);
+			jerry_release_value(listenerObj);
 		}
 
-		jerry_release_value(stopImmediatePropagationStr);
+		jerry_release_value(stopImmediatePropagationProp);
 		jerry_release_value(spliceFunc);
-		jerry_release_value(callbackStr);
-		jerry_release_value(onceStr);
-		jerry_release_value(removedStr);
-		jerry_release_value(listenersCopy);
+		jerry_release_value(callbackProp);
+		jerry_release_value(onceProp);
+		jerry_release_value(removedProp);
+		jerry_release_value(listenersCopyArr);
 	}
-	jerry_release_value(listenersOfType);
-	jerry_release_value(eventType);
-	jerry_release_value(eventListeners);
+	jerry_release_value(listenersArr);
+	jerry_release_value(typeStr);
+	jerry_release_value(eventListenersObj);
 
-	jerry_set_internal_property(event, targetStr, JS_NULL);
+	jerry_set_internal_property(event, targetProp, JS_NULL);
 	setInternalProperty(event, "stopImmediatePropagation", JS_FALSE);
-	jerry_release_value(targetStr);
+	jerry_release_value(targetProp);
 	
-	jerry_value_t canceledVal = getInternalProperty(event, "defaultPrevented");
-	bool canceled = jerry_get_boolean_value(canceledVal);
-	jerry_release_value(canceledVal);
+	jerry_value_t canceledBool = getInternalProperty(event, "defaultPrevented");
+	bool canceled = jerry_get_boolean_value(canceledBool);
+	jerry_release_value(canceledBool);
 	return canceled;
 }
 
@@ -179,36 +179,36 @@ void dispatchEventTask(const jerry_value_t *args, u32 argCount) {
 
 // Queues a task to dispatch event onto target.
 void queueEvent(jerry_value_t target, jerry_value_t event) {
-	jerry_value_t args[2] = {target, event};
-	queueTask(dispatchEventTask, args, 2);
+	jerry_value_t eventArgs[2] = {target, event};
+	queueTask(dispatchEventTask, eventArgs, 2);
 }
 
 // Queues a task that fires a simple, uncancelable event on the global context.
 void queueEventName(const char *eventName) {
-	jerry_value_t eventNameVal = createString(eventName);
-	jerry_value_t event = jerry_construct_object(ref_Event, &eventNameVal, 1);
-	jerry_release_value(eventNameVal);
-	queueEvent(ref_global, event);
-	jerry_release_value(event);
+	jerry_value_t eventNameStr = createString(eventName);
+	jerry_value_t eventObj = jerry_construct_object(ref_Event, &eventNameStr, 1);
+	jerry_release_value(eventNameStr);
+	queueEvent(ref_global, eventObj);
+	jerry_release_value(eventObj);
 }
 
 void onSleep() {
-	jerry_value_t args[2] = {createString("sleep"), jerry_create_object()};
-	setProperty(args[1], "cancelable", JS_TRUE);
-	jerry_value_t event = jerry_construct_object(ref_Event, args, 2);
-	bool canceled = dispatchEvent(ref_global, event, false);
-	jerry_release_value(event);
-	jerry_release_value(args[0]);
-	jerry_release_value(args[1]);
+	jerry_value_t eventArgs[2] = {createString("sleep"), jerry_create_object()};
+	setProperty(eventArgs[1], "cancelable", JS_TRUE);
+	jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+	bool canceled = dispatchEvent(ref_global, eventObj, false);
+	jerry_release_value(eventObj);
+	jerry_release_value(eventArgs[0]);
+	jerry_release_value(eventArgs[1]);
 	if (!canceled) systemSleep();
 }
 void onWake() {
-	jerry_value_t args[2] = {createString("wake"), jerry_create_object()};
-	jerry_value_t event = jerry_construct_object(ref_Event, args, 2);
-	dispatchEvent(ref_global, event, false);
-	jerry_release_value(event);
-	jerry_release_value(args[0]);
-	jerry_release_value(args[1]);
+	jerry_value_t eventArgs[2] = {createString("wake"), jerry_create_object()};
+	jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+	dispatchEvent(ref_global, eventObj, false);
+	jerry_release_value(eventObj);
+	jerry_release_value(eventArgs[0]);
+	jerry_release_value(eventArgs[1]);
 }
 
 
@@ -235,17 +235,17 @@ void eventLoop() {
 				keyboardCompose(false);
 			}
 			else if (keyboardComposeStatus() == KEYBOARD_FINISHED) {
-				char *inputStr;
-				int inputSize;
-				keyboardComposeAccept(&inputStr, &inputSize);
-				printf(inputStr);
+				char *response;
+				u32 responseSize;
+				keyboardComposeAccept(&response, &responseSize);
+				printf(response);
 				putchar('\n');
 				jerry_value_t parsedCode = jerry_parse(
 					(const jerry_char_t *) "REPL", 4,
-					(const jerry_char_t *) inputStr, inputSize,
+					(const jerry_char_t *) response, responseSize,
 					JERRY_PARSE_STRICT_MODE
 				);
-				free(inputStr);
+				free(response);
 				queueTask(runParsedCodeTask, &parsedCode, 1);
 				jerry_release_value(parsedCode);
 			}

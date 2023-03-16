@@ -17,18 +17,18 @@ void logIndentAdd() { indent++; }
 void logIndentRemove() { indent = indent > 0 ? indent - 1 : 0; }
 void logIndent() { for (int i = 0; i < indent; i++) putchar('\t'); }
 
-u16 valueToColor(const char *str, u16 noneColor) {
+u16 valueToColor(const char *colorDesc, u16 noneColor) {
 	char *endptr = NULL;
-	if (str[0] == '#') {
-		u32 len = strlen(str);
+	if (colorDesc[0] == '#') {
+		u32 len = strlen(colorDesc);
 		if (len == 5) { // BGR15 hex code
-			u16 color = strtoul(str + 1, &endptr, 16);
-			if (endptr == str + 1) return noneColor;
+			u16 color = strtoul(colorDesc + 1, &endptr, 16);
+			if (endptr == colorDesc + 1) return noneColor;
 			else return color;
 		}
 		else if (len == 7) { // RGB hex code
-			u32 colorCode = strtoul(str + 1, &endptr, 16);
-			if (endptr == str + 1) return noneColor;
+			u32 colorCode = strtoul(colorDesc + 1, &endptr, 16);
+			if (endptr == colorDesc + 1) return noneColor;
 			else {
 				u8 red = (colorCode >> 16 & 0xFF) * 31 / 255;
 				u8 green = (colorCode >> 8 & 0xFF) * 31 / 255;
@@ -38,28 +38,28 @@ u16 valueToColor(const char *str, u16 noneColor) {
 		}
 	}
 	// raw number input (i.e. from DS.profile.color)
-	u16 color = strtoul(str, &endptr, 0);
-	if (endptr != str) return color;
+	u16 color = strtoul(colorDesc, &endptr, 0);
+	if (endptr != colorDesc) return color;
 	// list of CSS Level 2 colors + none and transparent
-	else if (strcmp(str, "none") == 0) return noneColor;
-	else if (strcmp(str, "transparent") == 0) return 0x0000;
-	else if (strcmp(str, "black") == 0) return 0x8000;
-	else if (strcmp(str, "silver") == 0) return 0xDEF7;
-	else if (strcmp(str, "gray") == 0 || strcmp(str, "grey") == 0) return 0xC210;
-	else if (strcmp(str, "white") == 0) return 0xFFFF;
-	else if (strcmp(str, "maroon") == 0) return 0x8010;
-	else if (strcmp(str, "red") == 0) return 0x801F;
-	else if (strcmp(str, "purple") == 0) return 0xC010;
-	else if (strcmp(str, "fuchsia") == 0 || strcmp(str, "magenta") == 0) return 0xFC1F;
-	else if (strcmp(str, "green") == 0) return 0x8200;
-	else if (strcmp(str, "lime") == 0) return 0x83E0;
-	else if (strcmp(str, "olive") == 0) return 0x8210;
-	else if (strcmp(str, "yellow") == 0) return 0x83FF;
-	else if (strcmp(str, "navy") == 0) return 0xC000;
-	else if (strcmp(str, "blue") == 0) return 0xFC00;
-	else if (strcmp(str, "teal") == 0) return 0xC200;
-	else if (strcmp(str, "aqua") == 0 || strcmp(str, "cyan") == 0) return 0xFFE0;
-	else if (strcmp(str, "orange") == 0) return 0x829F;
+	else if (strcmp(colorDesc, "none") == 0) return noneColor;
+	else if (strcmp(colorDesc, "transparent") == 0) return 0x0000;
+	else if (strcmp(colorDesc, "black") == 0) return 0x8000;
+	else if (strcmp(colorDesc, "silver") == 0) return 0xDEF7;
+	else if (strcmp(colorDesc, "gray") == 0 || strcmp(colorDesc, "grey") == 0) return 0xC210;
+	else if (strcmp(colorDesc, "white") == 0) return 0xFFFF;
+	else if (strcmp(colorDesc, "maroon") == 0) return 0x8010;
+	else if (strcmp(colorDesc, "red") == 0) return 0x801F;
+	else if (strcmp(colorDesc, "purple") == 0) return 0xC010;
+	else if (strcmp(colorDesc, "fuchsia") == 0 || strcmp(colorDesc, "magenta") == 0) return 0xFC1F;
+	else if (strcmp(colorDesc, "green") == 0) return 0x8200;
+	else if (strcmp(colorDesc, "lime") == 0) return 0x83E0;
+	else if (strcmp(colorDesc, "olive") == 0) return 0x8210;
+	else if (strcmp(colorDesc, "yellow") == 0) return 0x83FF;
+	else if (strcmp(colorDesc, "navy") == 0) return 0xC000;
+	else if (strcmp(colorDesc, "blue") == 0) return 0xFC00;
+	else if (strcmp(colorDesc, "teal") == 0) return 0xC200;
+	else if (strcmp(colorDesc, "aqua") == 0 || strcmp(colorDesc, "cyan") == 0) return 0xFFE0;
+	else if (strcmp(colorDesc, "orange") == 0) return 0x829F;
 	else return noneColor;
 }
 
@@ -73,14 +73,14 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 		char *msg = getString(args[0]);
 		char *pos = msg;
 		if (pos) while (i < argCount) {
-			char *find = strchr(pos, '%');
-			if (find == NULL) break;
-			*find = '\0';
+			char *escapedPos = strchr(pos, '%');
+			if (escapedPos == NULL) break;
+			*escapedPos = '\0';
 			printf(pos);
-			char specifier = *(find + 1);
+			char specifier = *(escapedPos + 1);
 			if (specifier == 's') { // output next param as string
 				printValue(args[i]);
-				pos = find + 2;
+				pos = escapedPos + 2;
 				i++;
 			}
 			else if (specifier == 'd' || specifier == 'i') { // output next param as integer (parseInt)
@@ -88,12 +88,12 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 				else {
 					char *string = getAsString(args[i]);
 					char *endptr = NULL;
-					int64_t integer = strtoll(string, &endptr, 10);
+					s64 integer = strtoll(string, &endptr, 10);
 					if (endptr == string) printf("NaN");
 					else printf("%lli", integer);
 					free(string);
 				}
-				pos = find + 2;
+				pos = escapedPos + 2;
 				i++;
 			}
 			else if (specifier == 'f') { // output next param as float (parseFloat)
@@ -106,48 +106,48 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 					else printf("%lg", floatVal);
 					free(string);
 				}
-				pos = find + 2;
+				pos = escapedPos + 2;
 				i++;
 			}
 			else if (specifier == 'o') { // output next param with "optimally useful formatting"
 				logLiteral(args[i]);
-				pos = find + 2;
+				pos = escapedPos + 2;
 				i++;
 			}
 			else if (specifier == 'O') { // output next param as object
 				if (jerry_value_is_object(args[i])) logObject(args[i]);
 				else logLiteral(args[i]);
-				pos = find + 2;
+				pos = escapedPos + 2;
 				i++;
 			}
 			else if (specifier == 'c') { // use next param as CSS rule
-				char *cssString = getAsString(args[i]);
-				char *semi = strchr(cssString, ';');
-				char *str = cssString;
+				char *cssRule = getAsString(args[i]);
+				char *semicolon = strchr(cssRule, ';');
+				char *cssPos = cssRule;
 				char attribute[31] = {0};
 				char value[31] = {0};
-				int numSet = sscanf(str, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9#] ", attribute, value);
-				while (numSet == 2) { // found an attribute
+				int scanOutputCount = sscanf(cssPos, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9#] ", attribute, value);
+				while (scanOutputCount == 2) { // found an attribute
 					if (strcmp(attribute, "color") == 0) {
 						consoleSetColor(valueToColor(value, prevColor));
 					}
 					else if (strcmp(attribute, "background") == 0) {
 						consoleSetBackground(valueToColor(value, prevBackground));
 					}
-					if (semi != NULL) {
-						str = semi + 1;
-						semi = strchr(str, ';');
-						numSet = sscanf(str, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9#] ", attribute, value);
+					if (semicolon != NULL) {
+						cssPos = semicolon + 1;
+						semicolon = strchr(cssPos, ';');
+						scanOutputCount = sscanf(cssPos, " %30[a-zA-Z0-9] : %30[a-zA-Z0-9#] ", attribute, value);
 					}
-					else numSet = 0;
+					else scanOutputCount = 0;
 				}
-				free(cssString);
-				pos = find + 2;
+				free(cssRule);
+				pos = escapedPos + 2;
 				i++;
 			}
 			else {
 				putchar('%');
-				pos = find + 1;
+				pos = escapedPos + 1;
 			}
 		}
 		printf(pos);
@@ -193,11 +193,11 @@ void logLiteral(jerry_value_t value, u8 level) {
 			else {
 				putchar('"');
 				char *pos = string;
-				for (char* ch = string; (ch = strchr(ch, '"')); ch++) {
-					*ch = '\0';
+				for (char* quote = string; (quote = strchr(quote, '"')); quote++) {
+					*quote = '\0';
 					printf("%s\\\"", pos);
-					*ch = '"';
-					pos = ch + 1;
+					*quote = '"';
+					pos = quote + 1;
 				}
 				printf(pos);
 				putchar('"');
@@ -206,9 +206,9 @@ void logLiteral(jerry_value_t value, u8 level) {
 		} break;
 		case JERRY_TYPE_SYMBOL: {
 			consoleSetColor(LOGCOLOR_STRING);
-			jerry_value_t description = jerry_get_symbol_descriptive_string(value);
-			printString(description);
-			jerry_release_value(description);
+			jerry_value_t descriptionStr = jerry_get_symbol_descriptive_string(value);
+			printString(descriptionStr);
+			jerry_release_value(descriptionStr);
 		} break;
 		case JERRY_TYPE_FUNCTION: {
 			consoleSetColor(LOGCOLOR_FUNCTION);
@@ -221,32 +221,32 @@ void logLiteral(jerry_value_t value, u8 level) {
 			free(name);
 		} break;
 		case JERRY_TYPE_ERROR: {
-			jerry_value_t errorThrown = jerry_get_value_from_error(value, false);
-			jerry_value_t isErrorVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, errorThrown, ref_Error);
-			if (jerry_get_boolean_value(isErrorVal)) {
-				char *message = getStringProperty(errorThrown, "message");
-				char *name = getStringProperty(errorThrown, "name");
+			jerry_value_t thrownVal = jerry_get_value_from_error(value, false);
+			jerry_value_t isErrorBool = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, thrownVal, ref_Error);
+			if (jerry_get_boolean_value(isErrorBool)) {
+				char *message = getStringProperty(thrownVal, "message");
+				char *name = getStringProperty(thrownVal, "name");
 				printf("Uncaught %s: %s", name, message);
 				free(message);
 				free(name);
-				jerry_value_t backtrace = jerry_get_internal_property(errorThrown, ref_str_backtrace);
-				u32 length = jerry_get_array_length(backtrace);
+				jerry_value_t backtraceArr = jerry_get_internal_property(thrownVal, ref_str_backtrace);
+				u32 length = jerry_get_array_length(backtraceArr);
 				for (u32 i = 0; i < length; i++) {
-					jerry_value_t traceLine = jerry_get_property_by_index(backtrace, i);
-					char *step = getString(traceLine);
+					jerry_value_t traceLineStr = jerry_get_property_by_index(backtraceArr, i);
+					char *traceLine = getString(traceLineStr);
 					for (int j = 0; j < level; j++) putchar(' ');
-					printf("\n @ %s", step);
-					free(step);
-					jerry_release_value(traceLine);
+					printf("\n @ %s", traceLine);
+					free(traceLine);
+					jerry_release_value(traceLineStr);
 				}
-				jerry_release_value(backtrace);
+				jerry_release_value(backtraceArr);
 			}
 			else {
 				printf("Uncaught ");
-				logLiteral(errorThrown);
+				logLiteral(thrownVal);
 			}
-			jerry_release_value(isErrorVal);
-			jerry_release_value(errorThrown);
+			jerry_release_value(isErrorBool);
+			jerry_release_value(thrownVal);
 		} break;
 		case JERRY_TYPE_OBJECT:
 			if (jerry_value_is_typedarray(value)) {
@@ -270,7 +270,7 @@ void logLiteral(jerry_value_t value, u8 level) {
 				if (length == 0) printf("[]");
 				else {
 					printf("[ ");
-					for (u32 i = 0; i < length; i++) {
+					for (jerry_length_t i = 0; i < length; i++) {
 						jerry_value_t item = jerry_get_property_by_index(value, i);
 						logLiteral(item);
 						jerry_release_value(item);
@@ -286,16 +286,16 @@ void logLiteral(jerry_value_t value, u8 level) {
 				else {
 					printf("[ ");
 					for (u32 i = 0; i < length; i++) {
-						jerry_value_t item = jerry_get_property_by_index(value, i);
-						logLiteral(item, level + 1);
-						jerry_release_value(item);
+						jerry_value_t subVal = jerry_get_property_by_index(value, i);
+						logLiteral(subVal, level + 1);
+						jerry_release_value(subVal);
 						if (i < length - 1) printf(", ");
 					}
 					printf(" ]");
 				}
 			}
 			else if (jerry_value_is_promise(value)) {
-				jerry_value_t promiseResult = jerry_get_promise_result(value);
+				jerry_value_t promiseResultVal = jerry_get_promise_result(value);
 				printf("Promise {");
 				switch (jerry_get_promise_state(value)) {
 					case JERRY_PROMISE_STATE_PENDING:
@@ -309,12 +309,12 @@ void logLiteral(jerry_value_t value, u8 level) {
 						consoleSetColor(prev);
 						// intentional fall-through
 					case JERRY_PROMISE_STATE_FULFILLED:
-						logLiteral(promiseResult);
+						logLiteral(promiseResultVal);
 						break;
 					default: break;
 				}
 				printf("}");
-				jerry_release_value(promiseResult);
+				jerry_release_value(promiseResultVal);
 			}
 			else logObject(value, level);
 			break;
@@ -325,60 +325,60 @@ void logLiteral(jerry_value_t value, u8 level) {
 }
 
 void logObject(jerry_value_t obj, u8 level) {
-	jerry_value_t keysArray = jerry_get_object_keys(obj);
-	u32 length = jerry_get_array_length(keysArray);
+	jerry_value_t keysArr = jerry_get_object_keys(obj);
+	u32 length = jerry_get_array_length(keysArr);
 	if (length == 0) printf("{}");
 	else if (level > MAX_PRINT_RECURSION) printf("{...}");
 	else {
 		printf("{ ");
 		for (u32 i = 0; i < length; i++) {
-			jerry_value_t key = jerry_get_property_by_index(keysArray, i);
-			jerry_length_t keySize;
-			char* keyStr = getString(key, &keySize);
-			jerry_release_value(key);
+			jerry_value_t keyStr = jerry_get_property_by_index(keysArr, i);
+			jerry_size_t keySize;
+			char* key = getString(keyStr, &keySize);
+			jerry_release_value(keyStr);
 			char capture[keySize + 1];
-			if (sscanf(keyStr, "%[A-Za-z0-9]", capture) > 0 && strcmp(keyStr, capture) == 0) {
-				printf(keyStr);
+			if (sscanf(key, "%[A-Za-z0-9]", capture) > 0 && strcmp(key, capture) == 0) {
+				printf(key);
 			}
 			else {
-				u16 prev = consoleSetColor(LOGCOLOR_STRING);
-				if (strchr(keyStr, '"') == NULL) printf("\"%s\"", keyStr);
-				else if (strchr(keyStr, '\'') == NULL) printf("'%s'", keyStr);
+				u16 previousColor = consoleSetColor(LOGCOLOR_STRING);
+				if (strchr(key, '"') == NULL) printf("\"%s\"", key);
+				else if (strchr(key, '\'') == NULL) printf("'%s'", key);
 				else {
 					putchar('"');
-					char *pos = keyStr;
-					for (char* ch = keyStr; (ch = strchr(ch, '"')); ch++) {
-						*ch = '\0';
+					char *pos = key;
+					for (char* quote = key; (quote = strchr(quote, '"')); quote++) {
+						*quote = '\0';
 						printf("%s\\\"", pos);
-						*ch = '"';
-						pos = ch + 1;
+						*quote = '"';
+						pos = quote + 1;
 					}
 					printf(pos);
 					putchar('"');
 				}
-				consoleSetColor(prev);
+				consoleSetColor(previousColor);
 			}
 			printf(": ");
-			jerry_value_t item = getProperty(obj, keyStr);
-			free(keyStr);
-			logLiteral(item, level + 1);
-			jerry_release_value(item);
+			jerry_value_t value = getProperty(obj, key);
+			free(key);
+			logLiteral(value, level + 1);
+			jerry_release_value(value);
 			if (i < length - 1) printf(", ");
 		}
 		printf(" }");
 	}
-	jerry_release_value(keysArray);
+	jerry_release_value(keysArr);
 }
 
-static u8 tableValueWidth(jerry_value_t value) {
+static jerry_length_t tableValueWidth(jerry_value_t value) {
 	jerry_type_t type = jerry_value_get_type(value);
 	switch (type) {
 		case JERRY_TYPE_STRING: return jerry_get_string_length(value);
 		case JERRY_TYPE_NUMBER:
 		case JERRY_TYPE_BIGINT: {
-			jerry_value_t asString = jerry_value_to_string(value);
-			u32 numLen = jerry_get_string_length(asString);
-			jerry_release_value(asString);
+			jerry_value_t valueStr = jerry_value_to_string(value);
+			jerry_length_t numLen = jerry_get_string_length(valueStr);
+			jerry_release_value(valueStr);
 			if (type == JERRY_TYPE_BIGINT) numLen++;
 			return numLen;
 		}
@@ -393,21 +393,21 @@ static u8 tableValueWidth(jerry_value_t value) {
 }
 
 static void tableValuePrint(jerry_value_t value, u8 width) {
-	u16 prev = consoleGetColor();
+	u16 previousColor = consoleGetColor();
 	jerry_type_t type = jerry_value_get_type(value);
 	switch (type) {
 		case JERRY_TYPE_STRING: {
-			char* str = getString(value);
-			printf("%-*s", width, str);
-			free(str);
+			char* string = getString(value);
+			printf("%-*s", width, string);
+			free(string);
 		} break;
 		case JERRY_TYPE_NUMBER:
 		case JERRY_TYPE_BIGINT: {
 			consoleSetColor(LOGCOLOR_VALUE);
-			jerry_value_t asString = jerry_value_to_string(value);
-			u32 numLen = jerry_get_string_length(asString);
-			printString(asString);
-			jerry_release_value(asString);
+			jerry_value_t valueStr = jerry_value_to_string(value);
+			u32 numLen = jerry_get_string_length(valueStr);
+			printString(valueStr);
+			jerry_release_value(valueStr);
 			if (type == JERRY_TYPE_BIGINT) {
 				numLen++;
 				putchar('n');
@@ -436,7 +436,7 @@ static void tableValuePrint(jerry_value_t value, u8 width) {
 			break;
 		default: printf("%-*s", width, "");; // undefined and anything else
 	}
-	consoleSetColor(prev);
+	consoleSetColor(previousColor);
 }
 
 void logTable(const jerry_value_t args[], jerry_value_t argCount) {
@@ -448,114 +448,114 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 		consoleResume();
 		return;
 	}
-	u8 idxColWidth = 1;
-	u8 valueColWidth = 1;
-	bool allObjs = true;
-	jerry_value_t sharedKeys = jerry_create_array(0);
+	u16 idxColWidth = 1;
+	u16 valueColWidth = 1;
+	bool allAreObjects = true;
+	jerry_value_t sharedKeysArr = jerry_create_array(0);
 	u32 sharedKeyCount = 0;
 	bool skipSharing = false;
-	jerry_value_t pushFunc = getProperty(sharedKeys, "push");
-	jerry_value_t spliceFunc = getProperty(sharedKeys, "splice");
+	jerry_value_t pushFunc = getProperty(sharedKeysArr, "push");
+	jerry_value_t spliceFunc = getProperty(sharedKeysArr, "splice");
 	jerry_value_t spliceArgs[2];
 	spliceArgs[1] = jerry_create_number(1);
 
 	if (argCount >= 2 && jerry_value_is_array(args[1])) {
 		u32 columnsLength = jerry_get_array_length(args[1]);
-		bool allStrs = true;
-		for (u32 i = 0; allStrs && i < columnsLength; i++) {
+		bool allAreStrings = true;
+		for (u32 i = 0; allAreStrings && i < columnsLength; i++) {
 			jerry_value_t value = jerry_get_property_by_index(args[1], i);
 			if (jerry_value_is_string(value)) {
-				jerry_release_value(jerry_call_function(pushFunc, sharedKeys, &value, 1));
+				jerry_release_value(jerry_call_function(pushFunc, sharedKeysArr, &value, 1));
 				sharedKeyCount++;
 			}
-			else allStrs = false;
+			else allAreStrings = false;
 			jerry_release_value(value);
 		}
-		if (allStrs) skipSharing = true;
+		if (allAreStrings) skipSharing = true;
 		else {
-			jerry_release_value(sharedKeys);
-			sharedKeys = jerry_create_array(0);
+			jerry_release_value(sharedKeysArr);
+			sharedKeysArr = jerry_create_array(0);
 			sharedKeyCount = 0;
 		}
 	}
 
 	// analysis loop
-	jerry_value_t keys = jerry_get_object_keys(args[0]);
-	u32 keyCount = jerry_get_array_length(keys);
+	jerry_value_t keysArr = jerry_get_object_keys(args[0]);
+	u32 keyCount = jerry_get_array_length(keysArr);
 	for (u32 i = 0; i < keyCount; i++) {
-		jerry_value_t key = jerry_get_property_by_index(keys, i);
-		u8 keyWidth = jerry_get_string_length(key);
+		jerry_value_t key = jerry_get_property_by_index(keysArr, i);
+		jerry_length_t keyWidth = jerry_get_string_length(key);
 		if (keyWidth > idxColWidth) idxColWidth = keyWidth;
 
 		jerry_value_t value = jerry_get_property(args[0], key);
-		u8 valueWidth = tableValueWidth(value);
+		jerry_length_t valueWidth = tableValueWidth(value);
 		if (valueWidth > valueColWidth) valueColWidth = valueWidth;
 
-		if (allObjs && jerry_value_is_object(value)) {
+		if (allAreObjects && jerry_value_is_object(value)) {
 			if (!skipSharing) {
-				jerry_value_t subKeys = jerry_get_object_keys(value);
-				u32 subKeyCount = jerry_get_array_length(subKeys);
+				jerry_value_t subKeysArr = jerry_get_object_keys(value);
+				u32 subKeyCount = jerry_get_array_length(subKeysArr);
 				if (i == 0) for (u32 subIdx = 0; subIdx < subKeyCount; subIdx++) {
-					jerry_value_t subKey = jerry_get_property_by_index(subKeys, subIdx);
-					jerry_release_value(jerry_call_function(pushFunc, sharedKeys, &subKey, 1));
-					jerry_release_value(subKey);
+					jerry_value_t subKeyStr = jerry_get_property_by_index(subKeysArr, subIdx);
+					jerry_release_value(jerry_call_function(pushFunc, sharedKeysArr, &subKeyStr, 1));
+					jerry_release_value(subKeyStr);
 					sharedKeyCount++;
 				}
 				else for (u32 sharedKeyIdx = 0; sharedKeyIdx < sharedKeyCount; sharedKeyIdx++) {
-					jerry_value_t sharedKey = jerry_get_property_by_index(sharedKeys, sharedKeyIdx);
+					jerry_value_t sharedKeyStr = jerry_get_property_by_index(sharedKeysArr, sharedKeyIdx);
 					bool found = false;
 					for (u32 subIdx = 0; !found && subIdx < subKeyCount; subIdx++) {
-						jerry_value_t subKey = jerry_get_property_by_index(subKeys, subIdx);
-						jerry_value_t equal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, subKey, sharedKey);
-						if (jerry_get_boolean_value(equal)) found = true; 
-						jerry_release_value(equal);
-						jerry_release_value(subKey);
+						jerry_value_t subKeyStr = jerry_get_property_by_index(subKeysArr, subIdx);
+						jerry_value_t equalBool = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, subKeyStr, sharedKeyStr);
+						if (jerry_get_boolean_value(equalBool)) found = true; 
+						jerry_release_value(equalBool);
+						jerry_release_value(subKeyStr);
 					}
 					if (!found) {
 						spliceArgs[0] = jerry_create_number(sharedKeyIdx);
-						jerry_release_value(jerry_call_function(spliceFunc, sharedKeys, spliceArgs, 2));
+						jerry_release_value(jerry_call_function(spliceFunc, sharedKeysArr, spliceArgs, 2));
 						jerry_release_value(spliceArgs[0]);
 						sharedKeyIdx--;
 						sharedKeyCount--;
 					}
-					jerry_release_value(sharedKey);
+					jerry_release_value(sharedKeyStr);
 				}
-				jerry_release_value(subKeys);
+				jerry_release_value(subKeysArr);
 			}
 		}
-		else allObjs = false;
+		else allAreObjects = false;
 		jerry_release_value(value);
 		jerry_release_value(key);
 	}
 
 	// print a 2d table
-	if (allObjs) {
+	if (allAreObjects) {
 		// calculate column widths (only up to the minimum length will be used)
-		u8 colWidths[sharedKeyCount];
+		u16 colWidths[sharedKeyCount];
 		for (u32 colIdx = 0; colIdx < sharedKeyCount; colIdx++) {
-			jerry_value_t colKey = jerry_get_property_by_index(sharedKeys, colIdx);
-			colWidths[colIdx] = jerry_get_string_length(colKey);
+			jerry_value_t colKeyStr = jerry_get_property_by_index(sharedKeysArr, colIdx);
+			colWidths[colIdx] = jerry_get_string_length(colKeyStr);
 			for (u32 rowIdx = 0; rowIdx < keyCount; rowIdx++) {
-				jerry_value_t rowKey = jerry_get_property_by_index(keys, rowIdx);
-				jerry_value_t obj = jerry_get_property(args[0], rowKey);
-				jerry_value_t value = jerry_get_property(obj, colKey);
-				u8 width = tableValueWidth(value);
+				jerry_value_t rowKeyStr = jerry_get_property_by_index(keysArr, rowIdx);
+				jerry_value_t rowObject = jerry_get_property(args[0], rowKeyStr);
+				jerry_value_t value = jerry_get_property(rowObject, colKeyStr);
+				jerry_length_t width = tableValueWidth(value);
 				if (width > colWidths[colIdx]) colWidths[colIdx] = width;
 				jerry_release_value(value);
-				jerry_release_value(obj);
-				jerry_release_value(rowKey);
+				jerry_release_value(rowObject);
+				jerry_release_value(rowKeyStr);
 			}
-			jerry_release_value(colKey);
+			jerry_release_value(colKeyStr);
 		}
 		// print top row: "i" and keys
 		logIndent();
 		printf("%-*s", idxColWidth, "i");
 		for (u32 colIdx = 0; colIdx < sharedKeyCount; colIdx++) {
-			jerry_value_t key = jerry_get_property_by_index(sharedKeys, colIdx);
-			char *keyStr = getString(key);
-			printf("|%-*s", colWidths[colIdx], keyStr);
-			free(keyStr);
-			jerry_release_value(key);
+			jerry_value_t sharedKeyStr = jerry_get_property_by_index(sharedKeysArr, colIdx);
+			char *sharedKey = getString(sharedKeyStr);
+			printf("|%-*s", colWidths[colIdx], sharedKey);
+			free(sharedKey);
+			jerry_release_value(sharedKeyStr);
 		}
 		putchar('\n');
 		// print separator line
@@ -568,14 +568,14 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 		putchar('\n');
 		// print for each row in the object
 		for (u32 rowIdx = 0; rowIdx < keyCount; rowIdx++) {
-			jerry_value_t rowKey = jerry_get_property_by_index(keys, rowIdx);
-			char *keyStr = getString(rowKey);
+			jerry_value_t rowKeyStr = jerry_get_property_by_index(keysArr, rowIdx);
+			char *row = getString(rowKeyStr);
 			logIndent();
-			printf("%-*s", idxColWidth, keyStr);
-			free(keyStr);
-			jerry_value_t obj = jerry_get_property(args[0], rowKey);
+			printf("%-*s", idxColWidth, row);
+			free(row);
+			jerry_value_t obj = jerry_get_property(args[0], rowKeyStr);
 			for (u32 colIdx = 0; colIdx < sharedKeyCount; colIdx++) {
-				jerry_value_t colKey = jerry_get_property_by_index(sharedKeys, colIdx);
+				jerry_value_t colKey = jerry_get_property_by_index(sharedKeysArr, colIdx);
 				jerry_value_t value = jerry_get_property(obj, colKey);
 				putchar('|');
 				tableValuePrint(value, colWidths[colIdx]);
@@ -583,7 +583,7 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 				jerry_release_value(colKey);
 			}
 			jerry_release_value(obj);
-			jerry_release_value(rowKey);
+			jerry_release_value(rowKeyStr);
 			putchar('\n');
 		}
 	}
@@ -601,23 +601,23 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 		// print for each value in the object
 		for (u32 i = 0; i < keyCount; i++) {
 			// print key
-			jerry_value_t key = jerry_get_property_by_index(keys, i);
-			char *keyStr = getString(key);
+			jerry_value_t keyStr = jerry_get_property_by_index(keysArr, i);
+			char *key = getString(keyStr);
 			logIndent();
-			printf("%-*s|", idxColWidth, keyStr);
-			free(keyStr);
+			printf("%-*s|", idxColWidth, key);
+			free(key);
 			// print value
-			jerry_value_t value = jerry_get_property(args[0], key);
+			jerry_value_t value = jerry_get_property(args[0], keyStr);
 			tableValuePrint(value, valueColWidth);
 			jerry_release_value(value);
-			jerry_release_value(key);
+			jerry_release_value(keyStr);
 			putchar('\n');
 		}
 	}
-	jerry_release_value(keys);
+	jerry_release_value(keysArr);
 	jerry_release_value(spliceArgs[1]);
 	jerry_release_value(spliceFunc);
 	jerry_release_value(pushFunc);
-	jerry_release_value(sharedKeys);
+	jerry_release_value(sharedKeysArr);
 	consoleResume();
 }

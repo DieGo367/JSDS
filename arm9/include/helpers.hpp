@@ -26,18 +26,18 @@ jerry_value_t throwTypeError(const char *message);
 // Creates a js string out of a c string. Return value must be released!
 jerry_value_t createString(const char *str);
 // Creates a js string out of a list of UTF-16 string. Return value must be released! Throws a TypeError when invalid.
-jerry_value_t createStringUTF16(const char16_t* codepoints, u32 length);
+jerry_value_t createStringUTF16(const char16_t* codepoints, jerry_size_t length);
 
 /*
  * Copy a string value into a new c string. Return value must be freed!
  * If stringSize is not NULL, the value it points to will be set to the size as reported by JerryScript (which doesn't count the terminator).
  */
-char *getString(const jerry_value_t stringValue, jerry_length_t *stringSize = NULL);
+char *getString(const jerry_value_t stringValue, jerry_size_t *stringSize = NULL);
 /*
  * Convert any value into a new c string. Return value must be freed!
  * If stringSize is not NULL, the value it points to will be set to the size as reported by JerryScript (which doesn't count the terminator).
  */
-char *getAsString(const jerry_value_t value, jerry_length_t *stringSize = NULL);
+char *getAsString(const jerry_value_t value, jerry_size_t *stringSize = NULL);
 
 // Print a string value.
 void printString(jerry_value_t stringValue);
@@ -58,7 +58,7 @@ void setPropertyNonEnumerable(jerry_value_t object, const char *property, jerry_
 void setMethod(jerry_value_t object, const char *method, jerry_external_handler_t function);
 // Sets and returns function. Return value must be released!
 jerry_value_t createMethod(jerry_value_t object, const char *method, jerry_external_handler_t function);
-// Creates an empty object and sets it on object. Return value must be released!
+// Creates a named object and sets it on object. Return value must be released!
 jerry_value_t createObject(jerry_value_t object, const char *name);
 
 struct JS_class {
@@ -95,7 +95,7 @@ void setReadonlyNumber(jerry_value_t object, const char *property, double value)
 // Sets a getter to a string on object via c strings.
 void setReadonlyString(jerry_value_t object, const char *property, const char *value);
 // Sets a getter to a string on object via c string and UTF-16 string.
-void setReadonlyStringUTF16(jerry_value_t object, const char *property, const char16_t *codepoints, u32 length);
+void setReadonlyStringUTF16(jerry_value_t object, const char *property, const char16_t *codepoints, jerry_size_t length);
 
 // Returns whether new.target is undefined.
 bool isNewTargetUndefined();

@@ -16,10 +16,10 @@ jerry_value_t throwTypeError(const char *message) {
 jerry_value_t createString(const char *str) {
 	return jerry_create_string((const jerry_char_t *) str);
 }
-jerry_value_t createStringUTF16(const char16_t* codepoints, u32 length) {
+jerry_value_t createStringUTF16(const char16_t* codepoints, jerry_size_t length) {
 	u8 utf8[length * 3]; // each codepoint can produce up to 3 bytes (surrogate pairs end up as 4 bytes, but that's still 2 bytes each)
 	u8 *out = utf8;
-	for (u32 i = 0; i < length; i++) {
+	for (jerry_size_t i = 0; i < length; i++) {
 		char16_t codepoint = codepoints[i];
 		if (codepoint < 0x80) *(out++) = codepoint;
 		else if (codepoint < 0x800) {
@@ -46,15 +46,15 @@ jerry_value_t createStringUTF16(const char16_t* codepoints, u32 length) {
 	return jerry_create_string_sz_from_utf8(utf8, out - utf8);
 }
 
-char *getString(const jerry_value_t stringValue, jerry_length_t *stringSize) {
-	jerry_length_t size = jerry_get_utf8_string_size(stringValue);
+char *getString(const jerry_value_t stringValue, jerry_size_t *stringSize) {
+	jerry_size_t size = jerry_get_utf8_string_size(stringValue);
 	if (stringSize != NULL) *stringSize = size;
 	char *buffer = (char *) malloc(size + 1);
 	jerry_string_to_utf8_char_buffer(stringValue, (jerry_char_t *) buffer, size);
 	buffer[size] = '\0';
 	return buffer;
 }
-char *getAsString(const jerry_value_t value, jerry_length_t *stringSize) {
+char *getAsString(const jerry_value_t value, jerry_size_t *stringSize) {
 	jerry_value_t stringVal = jerry_value_to_string(value);
 	char *string = getString(stringVal, stringSize);
 	jerry_release_value(stringVal);
@@ -73,9 +73,9 @@ void printValue(const jerry_value_t value) {
 }
 
 jerry_value_t getProperty(jerry_value_t object, const char *property) {
-	jerry_value_t propString = jerry_create_string((const jerry_char_t *) property);
-	jerry_value_t value = jerry_get_property(object, propString);
-	jerry_release_value(propString);
+	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
+	jerry_value_t value = jerry_get_property(object, propertyStr);
+	jerry_release_value(propertyStr);
 	return value;
 }
 char *getStringProperty(jerry_value_t object, const char *property, jerry_length_t *stringSize) {
@@ -85,9 +85,9 @@ char *getStringProperty(jerry_value_t object, const char *property, jerry_length
 	return string;
 }
 void setProperty(jerry_value_t object, const char *property, jerry_value_t value) {
-	jerry_value_t propString = jerry_create_string((const jerry_char_t *) property);
-	jerry_release_value(jerry_set_property(object, propString, value));
-	jerry_release_value(propString);
+	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
+	jerry_release_value(jerry_set_property(object, propertyStr, value));
+	jerry_release_value(propertyStr);
 }
 
 jerry_property_descriptor_t nonEnumerableDesc = {
@@ -100,10 +100,10 @@ jerry_property_descriptor_t nonEnumerableDesc = {
 	.is_configurable = true
 };
 void setPropertyNonEnumerable(jerry_value_t object, const char *property, jerry_value_t value) {
-	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
+	jerry_value_t propertyStr = jerry_create_string((jerry_char_t *) property);
 	nonEnumerableDesc.value = value;
-	jerry_define_own_property(object, propString, &nonEnumerableDesc);
-	jerry_release_value(propString);
+	jerry_define_own_property(object, propertyStr, &nonEnumerableDesc);
+	jerry_release_value(propertyStr);
 }
 
 jerry_property_descriptor_t nameDesc = {
@@ -129,12 +129,12 @@ jerry_value_t createMethod(jerry_value_t object, const char *method, jerry_exter
 	return func;
 }
 jerry_value_t createObject(jerry_value_t object, const char *name) {
-	jerry_value_t ns = jerry_create_object();
+	jerry_value_t createdObj = jerry_create_object();
 	jerry_value_t nameStr = jerry_create_string((jerry_char_t *) name);
-	jerry_release_value(jerry_set_property(object, nameStr, ns));
-	jerry_release_value(jerry_set_property(ns, ref_sym_toStringTag, nameStr));
+	jerry_release_value(jerry_set_property(object, nameStr, createdObj));
+	jerry_release_value(jerry_set_property(createdObj, ref_sym_toStringTag, nameStr));
 	jerry_release_value(nameStr);
-	return ns;
+	return createdObj;
 }
 
 JS_class createClass(jerry_value_t object, const char *name, jerry_external_handler_t constructor) {
@@ -142,13 +142,13 @@ JS_class createClass(jerry_value_t object, const char *name, jerry_external_hand
 	nameDesc.value = jerry_create_string((jerry_char_t *) name);
 	jerry_release_value(jerry_define_own_property(classFunc, ref_str_name, &nameDesc));
 	jerry_release_value(jerry_set_property(object, nameDesc.value, classFunc));
-	jerry_value_t proto = jerry_create_object();
-	jerry_release_value(jerry_set_property(classFunc, ref_str_prototype, proto));
+	jerry_value_t protoObj = jerry_create_object();
+	jerry_release_value(jerry_set_property(classFunc, ref_str_prototype, protoObj));
 	nonEnumerableDesc.value = classFunc;
-	jerry_release_value(jerry_define_own_property(proto, ref_str_constructor, &nonEnumerableDesc));
-	jerry_release_value(jerry_set_property(proto, ref_sym_toStringTag, nameDesc.value));
+	jerry_release_value(jerry_define_own_property(protoObj, ref_str_constructor, &nonEnumerableDesc));
+	jerry_release_value(jerry_set_property(protoObj, ref_sym_toStringTag, nameDesc.value));
 	jerry_release_value(nameDesc.value);
-	return {.constructor = classFunc, .prototype = proto};
+	return {.constructor = classFunc, .prototype = protoObj};
 }
 JS_class extendClass(jerry_value_t object, const char *name, jerry_external_handler_t constructor, jerry_value_t parentPrototype) {
 	JS_class result = createClass(object, name, constructor);
@@ -167,29 +167,29 @@ jerry_property_descriptor_t getterDesc = {
 };
 void defGetter(jerry_value_t object, const char *property, jerry_external_handler_t getter) {
 	getterDesc.getter = jerry_create_external_function(getter);
-	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
-	jerry_release_value(jerry_define_own_property(object, propString, &getterDesc));
-	jerry_release_value(propString);
+	jerry_value_t propertyStr = jerry_create_string((jerry_char_t *) property);
+	jerry_release_value(jerry_define_own_property(object, propertyStr, &getterDesc));
+	jerry_release_value(propertyStr);
 	jerry_release_value(getterDesc.getter);
 }
 
 jerry_value_t getInternalProperty(jerry_value_t object, const char *property) {
-	jerry_value_t propString = jerry_create_string((const jerry_char_t *) property);
-	jerry_value_t value = jerry_get_internal_property(object, propString);
-	jerry_release_value(propString);
+	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
+	jerry_value_t value = jerry_get_internal_property(object, propertyStr);
+	jerry_release_value(propertyStr);
 	return value;
 }
 void setInternalProperty(jerry_value_t object, const char *property, jerry_value_t value) {
-	jerry_value_t propString = jerry_create_string((const jerry_char_t *) property);
-	jerry_set_internal_property(object, propString, value);
-	jerry_release_value(propString);
+	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
+	jerry_set_internal_property(object, propertyStr, value);
+	jerry_release_value(propertyStr);
 }
 
 static jerry_value_t readonlyGetter(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
-	jerry_value_t propertyValue = getProperty(function, "name");
-	jerry_value_t got = jerry_get_internal_property(thisValue, propertyValue);
-	jerry_release_value(propertyValue);
-	return got;
+	jerry_value_t internalKey = getProperty(function, "name");
+	jerry_value_t value = jerry_get_internal_property(thisValue, internalKey);
+	jerry_release_value(internalKey);
+	return value;
 }
 void JS_setReadonly(jerry_value_t object, jerry_value_t property, jerry_value_t value) {
 	jerry_set_internal_property(object, property, value);
@@ -200,9 +200,9 @@ void JS_setReadonly(jerry_value_t object, jerry_value_t property, jerry_value_t 
 	jerry_release_value(getterDesc.getter);
 }
 void setReadonly(jerry_value_t object, const char *property, jerry_value_t value) {
-	jerry_value_t propString = jerry_create_string((jerry_char_t *) property);
-	JS_setReadonly(object, propString, value);
-	jerry_release_value(propString);
+	jerry_value_t propertyStr = jerry_create_string((jerry_char_t *) property);
+	JS_setReadonly(object, propertyStr, value);
+	jerry_release_value(propertyStr);
 }
 void setReadonlyNumber(jerry_value_t object, const char *property, double value) {
 	jerry_value_t n = jerry_create_number(value);
@@ -214,7 +214,7 @@ void setReadonlyString(jerry_value_t object, const char *property, const char *v
 	setReadonly(object, property, string);
 	jerry_release_value(string);
 }
-void setReadonlyStringUTF16(jerry_value_t object, const char *property, const char16_t *codepoints, u32 length) {
+void setReadonlyStringUTF16(jerry_value_t object, const char *property, const char16_t *codepoints, jerry_size_t length) {
 	jerry_value_t string = createStringUTF16(codepoints, length);
 	setReadonly(object, property, string);
 	jerry_release_value(string);
@@ -228,34 +228,34 @@ bool isNewTargetUndefined() {
 }
 
 static jerry_value_t eventAttributeSetter(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
-	jerry_value_t attrNameVal = getProperty(function, "name");
-	jerry_length_t size = jerry_get_string_size(attrNameVal);
-	char *attrName = (char *) malloc(size + 1);
-	jerry_string_to_utf8_char_buffer(attrNameVal, (jerry_char_t *) attrName, size);
-	attrName[size] = '\0';
-	jerry_value_t eventType = jerry_create_string_sz((jerry_char_t *) (attrName + 2), size - 2); // skip "on" prefix
+	jerry_value_t attrNameStr = getProperty(function, "name");
+	jerry_size_t attrNameSize = jerry_get_string_size(attrNameStr);
+	char *attrName = (char *) malloc(attrNameSize + 1);
+	jerry_string_to_utf8_char_buffer(attrNameStr, (jerry_char_t *) attrName, attrNameSize);
+	attrName[attrNameSize] = '\0';
+	jerry_value_t eventTypeStr = jerry_create_string_sz((jerry_char_t *) (attrName + 2), attrNameSize - 2); // skip "on" prefix
 	free(attrName);
 
-	jerry_value_t storedCallback = jerry_get_internal_property(thisValue, attrNameVal);
-	if (jerry_value_is_null(storedCallback) == false) {
-		jerry_value_t remove = getProperty(thisValue, "removeEventListener");
-		jerry_value_t removeArgs[2] = {eventType, storedCallback};
-		jerry_release_value(jerry_call_function(remove, thisValue, removeArgs, 2));
-		jerry_release_value(remove);
+	jerry_value_t storedCallbackVal = jerry_get_internal_property(thisValue, attrNameStr);
+	if (jerry_value_is_null(storedCallbackVal) == false) {
+		jerry_value_t removeFunc = getProperty(thisValue, "removeEventListener");
+		jerry_value_t removeArgs[2] = {eventTypeStr, storedCallbackVal};
+		jerry_release_value(jerry_call_function(removeFunc, thisValue, removeArgs, 2));
+		jerry_release_value(removeFunc);
 	}
-	jerry_release_value(storedCallback);
+	jerry_release_value(storedCallbackVal);
 
 	if (jerry_value_is_function(args[0])) {
-		jerry_set_internal_property(thisValue, attrNameVal, args[0]);
-		jerry_value_t add = getProperty(thisValue, "addEventListener");
-		jerry_value_t addArgs[2] = {eventType, args[0]};
-		jerry_release_value(jerry_call_function(add, thisValue, addArgs, 2));
-		jerry_release_value(add);
+		jerry_set_internal_property(thisValue, attrNameStr, args[0]);
+		jerry_value_t addFunc = getProperty(thisValue, "addEventListener");
+		jerry_value_t addArgs[2] = {eventTypeStr, args[0]};
+		jerry_release_value(jerry_call_function(addFunc, thisValue, addArgs, 2));
+		jerry_release_value(addFunc);
 	}
-	else jerry_set_internal_property(thisValue, attrNameVal, JS_NULL);
+	else jerry_set_internal_property(thisValue, attrNameStr, JS_NULL);
 
-	jerry_release_value(eventType);
-	jerry_release_value(attrNameVal);
+	jerry_release_value(eventTypeStr);
+	jerry_release_value(attrNameStr);
 	return JS_UNDEFINED;
 }
 

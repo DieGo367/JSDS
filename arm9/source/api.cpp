@@ -100,15 +100,15 @@ FUNCTION(prompt) {
 		status = keyboardComposeStatus();
 	}
 	if (status == KEYBOARD_FINISHED) {
-		char *str;
-		int strSize;
-		keyboardComposeAccept(&str, &strSize);
-		printf(str); putchar('\n');
-		jerry_value_t strVal = jerry_create_string_sz_from_utf8((jerry_char_t *) str, (jerry_size_t) strSize);
-		free(str);
+		char *response;
+		u32 responseSize;
+		keyboardComposeAccept(&response, &responseSize);
+		printf(response); putchar('\n');
+		jerry_value_t responseStr = jerry_create_string_sz_from_utf8((jerry_char_t *) response, (jerry_size_t) responseSize);
+		free(response);
 		keyboardUpdate();
 		pauseKeyEvents = false;
-		return strVal;
+		return responseStr;
 	}
 	else {
 		putchar('\n');
@@ -120,23 +120,23 @@ FUNCTION(prompt) {
 }
 
 FUNCTION(setTimeout) {
-	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, false);
-	else {
-		jerry_value_t zero = jerry_create_number(0);
-		jerry_value_t result = addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, zero, NULL, 0, false);
-		jerry_release_value(zero);
-		return result;
+	if (argCount >= 2) {
+		jerry_value_t ticksNum = jerry_value_to_number(args[1]);
+		int ticks = jerry_value_as_int32(ticksNum);
+		jerry_release_value(ticksNum);
+		return addTimeout(args[0], args + 2, argCount - 2, ticks, false);
 	}
+	else return addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, NULL, 0, 0, false);
 }
 
 FUNCTION(setInterval) {
-	if (argCount >= 2) return addTimeout(args[0], args[1], (jerry_value_t *)(args) + 2, argCount - 2, true);
-	else {
-		jerry_value_t zero = jerry_create_number(0);
-		jerry_value_t result = addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, zero, NULL, 0, true);
-		jerry_release_value(zero);
-		return result;
+	if (argCount >= 2) {
+		jerry_value_t ticksNum = jerry_value_to_number(args[1]);
+		int ticks = jerry_value_as_int32(ticksNum);
+		jerry_release_value(ticksNum);
+		return addTimeout(args[0], args + 2, argCount - 2, ticks, true);
 	}
+	else return addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, NULL, 0, 0, true);
 }
 
 FUNCTION(clearInterval) {
@@ -155,51 +155,51 @@ FUNCTION(console_log) {
 
 FUNCTION(console_info) {
 	if (argCount > 0) {
-		u16 prev = consoleSetColor(LOGCOLOR_INFO);
+		u16 previousColor = consoleSetColor(LOGCOLOR_INFO);
 		logIndent();
 		log(args, argCount);
-		consoleSetColor(prev);
+		consoleSetColor(previousColor);
 	}
 	return JS_UNDEFINED;
 }
 
 FUNCTION(console_warn) {
 	if (argCount > 0) {
-		u16 prev = consoleSetColor(LOGCOLOR_WARN);
+		u16 previousColor = consoleSetColor(LOGCOLOR_WARN);
 		logIndent();
 		log(args, argCount);
-		consoleSetColor(prev);
+		consoleSetColor(previousColor);
 	}
 	return JS_UNDEFINED;
 }
 
 FUNCTION(console_error) {
 	if (argCount > 0) {
-		u16 prev = consoleSetColor(LOGCOLOR_ERROR);
+		u16 previousColor = consoleSetColor(LOGCOLOR_ERROR);
 		logIndent();
 		log(args, argCount);
-		consoleSetColor(prev);
+		consoleSetColor(previousColor);
 	}
 	return JS_UNDEFINED;
 }
 
 FUNCTION(console_assert) {
 	if (argCount == 0 || !jerry_value_to_boolean(args[0])) {
-		u16 prev = consoleSetColor(LOGCOLOR_ERROR);
+		u16 previousColor = consoleSetColor(LOGCOLOR_ERROR);
 		logIndent();
 		printf("Assertion failed: ");
 		log(args + 1, argCount - 1);
-		consoleSetColor(prev);
+		consoleSetColor(previousColor);
 	}
 	return JS_UNDEFINED;
 }
 
 FUNCTION(console_debug) {
 	if (argCount > 0) {
-		u16 prev = consoleSetColor(LOGCOLOR_DEBUG);
+		u16 previousColor = consoleSetColor(LOGCOLOR_DEBUG);
 		logIndent();
 		log(args, argCount);
-		consoleSetColor(prev);
+		consoleSetColor(previousColor);
 	}
 	return JS_UNDEFINED;
 }
@@ -208,17 +208,17 @@ FUNCTION(console_trace) {
 	logIndent();
 	if (argCount == 0) printf("Trace\n");
 	else log(args, argCount);
-	jerry_value_t backtrace = jerry_get_backtrace(10);
-	u32 length = jerry_get_array_length(backtrace);
+	jerry_value_t backtraceArr = jerry_get_backtrace(10);
+	u32 length = jerry_get_array_length(backtraceArr);
 	for (u32 i = 0; i < length; i++) {
-		jerry_value_t traceLine = jerry_get_property_by_index(backtrace, i);
-		char *step = getString(traceLine);
+		jerry_value_t lineStr = jerry_get_property_by_index(backtraceArr, i);
+		char *line = getString(lineStr);
 		logIndent();
-		printf(" @ %s\n", step);
-		free(step);
-		jerry_release_value(traceLine);
+		printf(" @ %s\n", line);
+		free(line);
+		jerry_release_value(lineStr);
 	}
-	jerry_release_value(backtrace);
+	jerry_release_value(backtraceArr);
 	return JS_UNDEFINED;
 }
 
@@ -254,133 +254,133 @@ FUNCTION(console_groupEnd) {
 }
 
 FUNCTION(console_count) {
-	jerry_value_t label;
+	jerry_value_t labelStr;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		label = jerry_value_to_string(args[0]);
+		labelStr = jerry_value_to_string(args[0]);
 	}
-	else label = createString("default");
+	else labelStr = createString("default");
 	
-	jerry_value_t countVal = jerry_get_property(ref_consoleCounters, label);
+	jerry_value_t countNum = jerry_get_property(ref_consoleCounters, labelStr);
 	u32 count;
-	if (jerry_value_is_undefined(label)) count = 1;
-	else count = jerry_value_as_uint32(countVal) + 1;
-	jerry_release_value(countVal);
+	if (jerry_value_is_undefined(labelStr)) count = 1;
+	else count = jerry_value_as_uint32(countNum) + 1;
+	jerry_release_value(countNum);
 
 	logIndent();
-	printString(label);
+	printString(labelStr);
 	printf(": %lu\n", count);
 	
-	countVal = jerry_create_number(count);
-	jerry_release_value(jerry_set_property(ref_consoleCounters, label, countVal));
-	jerry_release_value(countVal);
+	countNum = jerry_create_number(count);
+	jerry_release_value(jerry_set_property(ref_consoleCounters, labelStr, countNum));
+	jerry_release_value(countNum);
 
-	jerry_release_value(label);
+	jerry_release_value(labelStr);
 	return JS_UNDEFINED;
 }
 
 FUNCTION(console_countReset) {
-	jerry_value_t label;
+	jerry_value_t labelStr;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		label = jerry_value_to_string(args[0]);
+		labelStr = jerry_value_to_string(args[0]);
 	}
-	else label = createString("default");
+	else labelStr = createString("default");
 
-	jerry_value_t hasLabel = jerry_has_own_property(ref_consoleCounters, label);
-	if (jerry_get_boolean_value(hasLabel)) {
-		jerry_value_t zero = jerry_create_number(0);
-		jerry_set_property(ref_consoleCounters, label, zero);
-		jerry_release_value(zero);
+	jerry_value_t hasLabelBool = jerry_has_own_property(ref_consoleCounters, labelStr);
+	if (jerry_get_boolean_value(hasLabelBool)) {
+		jerry_value_t zeroNum = jerry_create_number(0);
+		jerry_set_property(ref_consoleCounters, labelStr, zeroNum);
+		jerry_release_value(zeroNum);
 	}
 	else {
 		logIndent();
 		printf("Count for '");
-		printString(label);
+		printString(labelStr);
 		printf("' does not exist\n");
 	}
-	jerry_release_value(hasLabel);
+	jerry_release_value(hasLabelBool);
 
-	jerry_release_value(label);
+	jerry_release_value(labelStr);
 	return JS_UNDEFINED;
 }
 
 FUNCTION(console_time) {
-	jerry_value_t label;
+	jerry_value_t labelStr;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		label = jerry_value_to_string(args[0]);
+		labelStr = jerry_value_to_string(args[0]);
 	}
-	else label = createString("default");
+	else labelStr = createString("default");
 
-	jerry_value_t hasLabel = jerry_has_own_property(ref_consoleTimers, label);
-	if (jerry_get_boolean_value(hasLabel)) {
+	jerry_value_t hasLabelBool = jerry_has_own_property(ref_consoleTimers, labelStr);
+	if (jerry_get_boolean_value(hasLabelBool)) {
 		logIndent();
 		printf("Timer '");
-		printString(label);
+		printString(labelStr);
 		printf("' already exists\n");
 	}
 	else {
-		jerry_value_t counterId = jerry_create_number(counterAdd());
-		jerry_release_value(jerry_set_property(ref_consoleTimers, label, counterId));
-		jerry_release_value(counterId);
+		jerry_value_t counterIdNum = jerry_create_number(counterAdd());
+		jerry_release_value(jerry_set_property(ref_consoleTimers, labelStr, counterIdNum));
+		jerry_release_value(counterIdNum);
 	}
-	jerry_release_value(hasLabel);
+	jerry_release_value(hasLabelBool);
 	
-	jerry_release_value(label);
+	jerry_release_value(labelStr);
 	return JS_UNDEFINED;
 }
 
 FUNCTION(console_timeLog) {
-	jerry_value_t label;
+	jerry_value_t labelStr;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		label = jerry_value_to_string(args[0]);
+		labelStr = jerry_value_to_string(args[0]);
 	}
-	else label = createString("default");
+	else labelStr = createString("default");
 
 	logIndent();
-	jerry_value_t counterVal = jerry_get_property(ref_consoleTimers, label);
-	if (jerry_value_is_undefined(counterVal)) {
+	jerry_value_t counterIdNum = jerry_get_property(ref_consoleTimers, labelStr);
+	if (jerry_value_is_undefined(counterIdNum)) {
 		printf("Timer '");
-		printString(label);
+		printString(labelStr);
 		printf("' does not exist\n");
 	}
 	else {
-		int counterId = jerry_value_as_int32(counterVal);
-		printString(label);
+		int counterId = jerry_value_as_int32(counterIdNum);
+		printString(labelStr);
 		printf(": %i ms", counterGet(counterId));
 		if (argCount > 1) {
 			putchar(' ');
 			log(args + 1, argCount - 1);
 		}
 	}
-	jerry_release_value(counterVal);
+	jerry_release_value(counterIdNum);
 
-	jerry_release_value(label);
+	jerry_release_value(labelStr);
 	return JS_UNDEFINED;
 }
 
 FUNCTION(console_timeEnd) {
-	jerry_value_t label;
+	jerry_value_t labelStr;
 	if (argCount > 0 && !jerry_value_is_undefined(args[0])) {
-		label = jerry_value_to_string(args[0]);
+		labelStr = jerry_value_to_string(args[0]);
 	}
-	else label = createString("default");
+	else labelStr = createString("default");
 
 	logIndent();
-	jerry_value_t counterVal = jerry_get_property(ref_consoleTimers, label);
-	if (jerry_value_is_undefined(counterVal)) {
+	jerry_value_t counterIdNum = jerry_get_property(ref_consoleTimers, labelStr);
+	if (jerry_value_is_undefined(counterIdNum)) {
 		printf("Timer '");
-		printString(label);
+		printString(labelStr);
 		printf("' does not exist\n");
 	}
 	else {
-		int counterId = jerry_value_as_int32(counterVal);
-		printString(label);
+		int counterId = jerry_value_as_int32(counterIdNum);
+		printString(labelStr);
 		printf(": %i ms\n", counterGet(counterId));
 		counterRemove(counterId);
-		jerry_delete_property(ref_consoleTimers, label);
+		jerry_delete_property(ref_consoleTimers, labelStr);
 	}
-	jerry_release_value(counterVal);
+	jerry_release_value(counterIdNum);
 
-	jerry_release_value(label);
+	jerry_release_value(labelStr);
 	return JS_UNDEFINED;
 }
 
@@ -393,34 +393,34 @@ FUNCTION(Text_encode) {
 	REQUIRE_FIRST();
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
 		EXPECT(jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
-		jerry_value_t text = jerry_value_to_string(args[0]);
-		jerry_length_t size = jerry_get_utf8_string_size(text);
-		jerry_length_t byteOffset, bufSize;
-		jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &byteOffset, &bufSize);
+		jerry_value_t textStr = jerry_value_to_string(args[0]);
+		jerry_size_t textSize = jerry_get_utf8_string_size(textStr);
+		jerry_length_t byteOffset, bufLen;
+		jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &byteOffset, &bufLen);
 		u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 		jerry_release_value(arrayBuffer);
-		if (size > bufSize) {
-			jerry_release_value(text);
+		if (textSize > bufLen) {
+			jerry_release_value(textStr);
 			return throwTypeError("Text size is too big to encode into the given array.");
 		}
-		jerry_string_to_utf8_char_buffer(text, data, size);
-		jerry_release_value(text);
+		jerry_string_to_utf8_char_buffer(textStr, data, textSize);
+		jerry_release_value(textStr);
 		return jerry_acquire_value(args[1]);
 	}
-	jerry_value_t text = jerry_value_to_string(args[0]);
-	jerry_length_t size = jerry_get_utf8_string_size(text);
-	jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
+	jerry_value_t textStr = jerry_value_to_string(args[0]);
+	jerry_size_t textSize = jerry_get_utf8_string_size(textStr);
+	jerry_value_t arrayBuffer = jerry_create_arraybuffer(textSize);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer);
-	jerry_string_to_utf8_char_buffer(text, data, size);
+	jerry_string_to_utf8_char_buffer(textStr, data, textSize);
 	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer(JERRY_TYPEDARRAY_UINT8, arrayBuffer);
-	jerry_release_value(text);
+	jerry_release_value(textStr);
 	jerry_release_value(arrayBuffer);
 	return u8Array;
 }
 
 FUNCTION(Text_decode) {
 	REQUIRE_FIRST(); EXPECT(jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
-	u32 byteOffset = 0, dataLen = 0;
+	jerry_length_t byteOffset = 0, dataLen = 0;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 	jerry_release_value(arrayBuffer);
@@ -433,11 +433,11 @@ FUNCTION(Text_encodeUTF16) {
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
 		EXPECT(jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	}
-	jerry_length_t utf8Size;
+	jerry_size_t utf8Size;
 	char *utf8 = getAsString(args[0], &utf8Size);
 	u8 utf16[utf8Size * 2];
 	char16_t *out = (char16_t *) utf16;
-	for (u32 i = 0; i < utf8Size; i++) {
+	for (jerry_size_t i = 0; i < utf8Size; i++) {
 		u8 byte = utf8[i];
 		if (byte < 0x80) *(out++) = byte;
 		else if (byte < 0xE0) {
@@ -457,7 +457,7 @@ FUNCTION(Text_encodeUTF16) {
 		}
 	}
 	free(utf8);
-	jerry_length_t utf16Size = ((u8 *) out) - utf16;
+	jerry_size_t utf16Size = ((u8 *) out) - utf16;
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
 		jerry_length_t byteOffset, bufSize;
 		jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &byteOffset, &bufSize);
@@ -479,7 +479,7 @@ FUNCTION(Text_encodeUTF16) {
 
 FUNCTION(Text_decodeUTF16) {
 	REQUIRE_FIRST(); EXPECT(jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
-	u32 byteOffset = 0, dataLen = 0;
+	jerry_length_t byteOffset = 0, dataLen = 0;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 	jerry_release_value(arrayBuffer);
@@ -494,10 +494,10 @@ FUNCTION(Base64_encode) {
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 	jerry_release_value(arrayBuffer);
 
-	const u32 asciiSize = (dataSize + 2) / 3 * 4;
+	const jerry_size_t asciiSize = (dataSize + 2) / 3 * 4;
 	char ascii[asciiSize]; // base64 needs 4 chars to encode 3 bytes
 	char *out = ascii;
-	u32 i = 2;
+	jerry_size_t i = 2;
 	for (; i < dataSize; i += 3) {
 		*(out++) = b64Map[data[i - 2] >> 2];
 		*(out++) = b64Map[(data[i - 2] & 0b11) << 4 | data[i - 1] >> 4];
@@ -534,7 +534,7 @@ FUNCTION(Base64_decode) {
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
 		EXPECT(jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	}
-	jerry_length_t asciiSize;
+	jerry_size_t asciiSize;
 	char *ascii = getString(args[0], &asciiSize);
 	const char errorMsg[] = "Unable to decode Base64.";
 
@@ -542,13 +542,13 @@ FUNCTION(Base64_decode) {
 		free(ascii);
 		return throwTypeError(errorMsg);
 	}
-	u32 dataLen = asciiSize / 4 * 3;
+	jerry_length_t dataLen = asciiSize / 4 * 3;
 	if (ascii[asciiSize - 1] == '=') dataLen--;
 	if (ascii[asciiSize - 2] == '=') dataLen--;
 
 	u8 data[dataLen];
 	u8 *out = data;
-	u32 asciiIdx = 0, dataIdx = 2;
+	jerry_length_t asciiIdx = 0, dataIdx = 2;
 	bool badEncoding = false;
 	for (; dataIdx < dataLen; dataIdx += 3) {
 		u8 first = b64CharValue(ascii[asciiIdx++], &badEncoding);
@@ -604,12 +604,12 @@ FUNCTION(File_read) {
 	free(mode);
 	jerry_release_value(modeStr);
 	
-	u32 size = jerry_value_as_uint32(args[0]);
-	jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
+	jerry_length_t bytesToRead = jerry_value_as_uint32(args[0]);
+	jerry_value_t arrayBuffer = jerry_create_arraybuffer(bytesToRead);
 	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer);
 	FILE *file;
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
-	u32 bytesRead = fread(buf, 1, size, file);
+	u32 bytesRead = fread(buf, 1, bytesToRead, file);
 	if (ferror(file)) {
 		jerry_release_value(arrayBuffer);
 		return throwError("File read failed.");
@@ -639,14 +639,14 @@ FUNCTION(File_write) {
 	free(mode);
 	jerry_release_value(modeStr);
 	
-	u32 offset, size;
-	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &offset, &size);
+	jerry_length_t offset, bufSize;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &offset, &bufSize);
 	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
 	jerry_release_value(arrayBuffer);
 	FILE *file;
 	jerry_get_object_native_pointer(thisValue, (void**) &file, &fileNativeInfo);
 
-	u32 bytesWritten = fwrite(buf, 1, size, file);
+	u32 bytesWritten = fwrite(buf, 1, bufSize, file);
 	if (ferror(file)) {
 		return throwError("File write failed.");
 	}
@@ -656,15 +656,15 @@ FUNCTION(File_write) {
 FUNCTION(File_seek) {
 	REQUIRE_FIRST();
 
-	int mode = 10;
+	int mode = SEEK_SET;
 	if (argCount > 1) {
 		char *seekMode = getAsString(args[1]);
 		if (strcmp(seekMode, "start") == 0) mode = SEEK_SET;
 		else if (strcmp(seekMode, "current") == 0) mode = SEEK_CUR;
 		else if (strcmp(seekMode, "end") == 0) mode = SEEK_END;
+		else mode = 10;
 		free(seekMode);
 	}
-	else mode = SEEK_SET;
 	if (mode == 10) return throwTypeError("Invalid seek mode");
 
 	FILE *file;
@@ -684,7 +684,7 @@ FUNCTION(File_close) {
 FUNCTION(FileStatic_open) {
 	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
-	char defaultMode[2] = "r";
+	char defaultMode[] = "r";
 	char *mode = defaultMode;
 	if (argCount > 1) {
 		mode = getAsString(args[1]);
@@ -722,10 +722,10 @@ FUNCTION(FileStatic_copy) {
 	if (source == NULL) return throwError("Unable to open source file during copy.");
 	
 	fseek(source, 0, SEEK_END);
-	u32 size = ftell(source);
+	u32 sourceSize = ftell(source);
 	rewind(source);
-	u8 *data = (u8 *) malloc(size);
-	u32 bytesRead = fread(data, 1, size, source);
+	u8 *data = (u8 *) malloc(sourceSize);
+	u32 bytesRead = fread(data, 1, sourceSize, source);
 	if (ferror(source)) {
 		free(data);
 		fclose(source);
@@ -777,19 +777,19 @@ FUNCTION(FileStatic_read) {
 	if (file == NULL) return throwError("Unable to open file.");
 
 	fseek(file, 0, SEEK_END);
-	u32 size = ftell(file);
+	u32 fileSize = ftell(file);
 	rewind(file);
 
-	jerry_value_t arrayBuffer = jerry_create_arraybuffer(size);
+	jerry_value_t arrayBuffer = jerry_create_arraybuffer(fileSize);
 	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer);
-	fread(buf, 1, size, file);
+	u32 bytesRead = fread(buf, 1, fileSize, file);
 	if (ferror(file)) {
 		jerry_release_value(arrayBuffer);
 		fclose(file);
 		return throwError("File read failed.");
 	}
 	fclose(file);
-	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, size);
+	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT8, arrayBuffer, 0, bytesRead);
 	jerry_release_value(arrayBuffer);
 	return u8Array;
 }
@@ -802,18 +802,18 @@ FUNCTION(FileStatic_readText) {
 	if (file == NULL) return throwError("Unable to open file.");
 
 	fseek(file, 0, SEEK_END);
-	u32 size = ftell(file);
+	u32 fileSize = ftell(file);
 	rewind(file);
 
-	char *buf = (char *) malloc(size);
-	fread(buf, 1, size, file);
+	char *buf = (char *) malloc(fileSize);
+	u32 bytesRead = fread(buf, 1, fileSize, file);
 	if (ferror(file)) {
 		free(buf);
 		fclose(file);
 		return throwError("File read failed.");
 	}
 	fclose(file);
-	jerry_value_t str = jerry_create_string_sz_from_utf8((jerry_char_t *) buf, size);
+	jerry_value_t str = jerry_create_string_sz_from_utf8((jerry_char_t *) buf, bytesRead);
 	free(buf);
 	return str;
 }
@@ -826,12 +826,12 @@ FUNCTION(FileStatic_write) {
 	free(path);
 	if (file == NULL) return throwError("Unable to open file.");
 	
-	u32 offset, size;
-	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &offset, &size);
+	jerry_length_t offset, bufSize;
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &offset, &bufSize);
 	u8 *buf = jerry_get_arraybuffer_pointer(arrayBuffer) + offset;
 	jerry_release_value(arrayBuffer);
 
-	u32 bytesWritten = fwrite(buf, 1, size, file);
+	u32 bytesWritten = fwrite(buf, 1, bufSize, file);
 	if (ferror(file)) {
 		fclose(file);
 		return throwError("File write failed.");
@@ -847,9 +847,9 @@ FUNCTION(FileStatic_writeText) {
 	free(path);
 	if (file == NULL) return throwError("Unable to open file.");
 	
-	u32 size;
-	char *text = getAsString(args[1], &size);
-	u32 bytesWritten = fwrite(text, 1, size, file);
+	jerry_size_t textSize;
+	char *text = getAsString(args[1], &textSize);
+	u32 bytesWritten = fwrite(text, 1, textSize, file);
 	if (ferror(file)) {
 		fclose(file);
 		free(text);
@@ -862,10 +862,9 @@ FUNCTION(FileStatic_writeText) {
 
 FUNCTION(FileStatic_makeDir) {
 	REQUIRE_FIRST();
-	bool recursive = argCount > 1 ? jerry_value_to_boolean(args[1]) : false;
 	char *path = getAsString(args[0]);
 	int status = -1;
-	if (recursive) {
+	if (argCount > 1 && jerry_value_to_boolean(args[1])) {
 		char *slash = strchr(path, '/');
 		if (strchr(path, ':') != NULL || path == slash) slash = strchr(slash + 1, '/');
 		while (slash != NULL) {
@@ -889,23 +888,23 @@ FUNCTION(FileStatic_readDir) {
 	free(path);
 	if (dir == NULL) return throwError("Unable to open directory.");
 
-	jerry_value_t arr = jerry_create_array(0);
-	jerry_value_t push = getProperty(arr, "push");
+	jerry_value_t dirArr = jerry_create_array(0);
+	jerry_value_t pushFunc = getProperty(dirArr, "push");
 	dirent *entry = readdir(dir);
 	while (entry != NULL) {
-		jerry_value_t dirEnt = jerry_create_object();
-		setProperty(dirEnt, "isDirectory", jerry_create_boolean(entry->d_type == DT_DIR));
-		setProperty(dirEnt, "isFile", jerry_create_boolean(entry->d_type == DT_REG));
-		jerry_value_t name = createString(entry->d_name);
-		setProperty(dirEnt, "name", name);
-		jerry_release_value(name);
-		jerry_call_function(push, arr, &dirEnt, 1);
-		jerry_release_value(dirEnt);
+		jerry_value_t entryObj = jerry_create_object();
+		setProperty(entryObj, "isDirectory", jerry_create_boolean(entry->d_type == DT_DIR));
+		setProperty(entryObj, "isFile", jerry_create_boolean(entry->d_type == DT_REG));
+		jerry_value_t nameStr = createString(entry->d_name);
+		setProperty(entryObj, "name", nameStr);
+		jerry_release_value(nameStr);
+		jerry_call_function(pushFunc, dirArr, &entryObj, 1);
+		jerry_release_value(entryObj);
 		entry = readdir(dir);
 	}
 	closedir(dir);
-	jerry_release_value(push);
-	return arr;
+	jerry_release_value(pushFunc);
+	return dirArr;
 }
 
 FUNCTION(FileStatic_browse) {
@@ -924,15 +923,16 @@ FUNCTION(FileStatic_browse) {
 			jerry_release_value(pathVal);
 		}
 		if (jerry_has_property(args[0], extensionsProp)) {
-			jerry_value_t extensionsVal = jerry_get_property(args[0], extensionsProp);
-			if (jerry_value_is_array(extensionsVal)) {
-				u32 length = jerry_get_array_length(extensionsVal);
+			jerry_value_t extensionsArr = jerry_get_property(args[0], extensionsProp);
+			if (jerry_value_is_array(extensionsArr)) {
+				u32 length = jerry_get_array_length(extensionsArr);
 				for (u32 i = 0; i < length; i++) {
-					jerry_value_t extVal = jerry_get_property_by_index(extensionsVal, i);
+					jerry_value_t extVal = jerry_get_property_by_index(extensionsArr, i);
 					extensions.emplace_back(getAsString(extVal));
 					jerry_release_value(extVal);
 				}
 			}
+			jerry_release_value(extensionsArr);
 		}
 		if (jerry_has_property(args[0], messageProp)) {
 			jerry_value_t messageVal = jerry_get_property(args[0], messageProp);
@@ -953,56 +953,53 @@ FUNCTION(FileStatic_browse) {
 }
 
 FUNCTION(storage_length) {
-	jerry_value_t propNames = jerry_get_object_keys(ref_storage);
-	u32 length = jerry_get_array_length(propNames);
-	jerry_release_value(propNames);
+	jerry_value_t keysArr = jerry_get_object_keys(ref_storage);
+	u32 length = jerry_get_array_length(keysArr);
+	jerry_release_value(keysArr);
 	return jerry_create_number(length);
 }
 
 FUNCTION(storage_key) {
 	REQUIRE_FIRST();
-	jerry_value_t key = JS_NULL;
-	jerry_value_t propNames = jerry_get_object_keys(ref_storage);
-	jerry_value_t nVal = jerry_value_to_number(args[0]);
-	u32 n = jerry_value_as_uint32(nVal);
-	if (n < jerry_get_array_length(propNames)) {
-		jerry_value_t prop = jerry_get_property_by_index(propNames, n);
-		if (!jerry_value_is_undefined(prop)) key = prop;
-		else jerry_release_value(prop);
+	jerry_value_t keyVal = JS_NULL;
+	jerry_value_t keysArr = jerry_get_object_keys(ref_storage);
+	jerry_value_t nNum = jerry_value_to_number(args[0]);
+	u32 n = jerry_value_as_uint32(nNum);
+	if (n < jerry_get_array_length(keysArr)) {
+		keyVal = jerry_get_property_by_index(keysArr, n);
 	}
-	jerry_release_value(nVal);
-	jerry_release_value(propNames);
-	return key;
+	jerry_release_value(nNum);
+	jerry_release_value(keysArr);
+	return keyVal;
 }
 
 FUNCTION(storage_getItem) {
 	REQUIRE_FIRST();
-	jerry_value_t hasOwnVal = jerry_has_own_property(ref_storage, args[0]);
-	bool hasOwn = jerry_get_boolean_value(hasOwnVal);
-	jerry_release_value(hasOwnVal);
-	if (hasOwn) return jerry_get_property(ref_storage, args[0]);
-	else return JS_NULL;
+	jerry_value_t key = jerry_value_to_string(args[0]);
+	jerry_value_t value = jerry_get_property(ref_storage, args[0]);
+	jerry_release_value(key);
+	return jerry_value_is_undefined(value) ? JS_NULL : value;
 }
 
 FUNCTION(storage_setItem) {
 	REQUIRE(2);
-	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
-	jerry_value_t valAsString = jerry_value_to_string(args[1]);
-	jerry_set_property(ref_storage, propertyAsString, valAsString);
-	jerry_release_value(valAsString);
-	jerry_release_value(propertyAsString);
+	jerry_value_t key = jerry_value_to_string(args[0]);
+	jerry_value_t value = jerry_value_to_string(args[1]);
+	jerry_set_property(ref_storage, key, value);
+	jerry_release_value(value);
+	jerry_release_value(key);
 	return JS_UNDEFINED;
 }
 
 FUNCTION(storage_removeItem) {
 	REQUIRE_FIRST();
-	jerry_value_t propertyAsString = jerry_value_to_string(args[0]);
-	jerry_value_t hasOwn = jerry_has_own_property(ref_storage, propertyAsString);
-	if (jerry_get_boolean_value(hasOwn)) {
-		jerry_delete_property(ref_storage, propertyAsString);
+	jerry_value_t key = jerry_value_to_string(args[0]);
+	jerry_value_t hasOwnBool = jerry_has_own_property(ref_storage, key);
+	if (jerry_get_boolean_value(hasOwnBool)) {
+		jerry_delete_property(ref_storage, key);
 	}
-	jerry_release_value(hasOwn);
-	jerry_release_value(propertyAsString);
+	jerry_release_value(hasOwnBool);
+	jerry_release_value(key);
 	return JS_UNDEFINED;
 }
 
@@ -1023,25 +1020,24 @@ FUNCTION(EventConstructor) {
 	setReadonly(thisValue, "target", JS_NULL);
 	setReadonly(thisValue, "cancelable", JS_FALSE);
 	setReadonly(thisValue, "defaultPrevented", JS_FALSE);                 // canceled flag
-	jerry_value_t currentTime = jerry_create_number(time(NULL));
-	setReadonly(thisValue, "timeStamp", currentTime);
-	jerry_release_value(currentTime);
-
-	jerry_value_t typeAsString = jerry_value_to_string(args[0]);	
-	setReadonly(thisValue, "type", typeAsString);
-	jerry_release_value(typeAsString);
+	jerry_value_t currentTimeNum = jerry_create_number(time(NULL));
+	setReadonly(thisValue, "timeStamp", currentTimeNum);
+	jerry_release_value(currentTimeNum);
+	jerry_value_t typeStr = jerry_value_to_string(args[0]);	
+	setReadonly(thisValue, "type", typeStr);
+	jerry_release_value(typeStr);
 
 	if (argCount > 1 && jerry_value_is_object(args[1])) {
-		jerry_value_t keys = jerry_get_object_keys(args[1]);
-		jerry_length_t length = jerry_get_array_length(keys);
+		jerry_value_t keysArr = jerry_get_object_keys(args[1]);
+		u32 length = jerry_get_array_length(keysArr);
 		for (u32 i = 0; i < length; i++) {
-			jerry_value_t key = jerry_get_property_by_index(keys, i);
+			jerry_value_t key = jerry_get_property_by_index(keysArr, i);
 			jerry_value_t value = jerry_get_property(args[1], key);
 			JS_setReadonly(thisValue, key, value);
 			jerry_release_value(value);
 			jerry_release_value(key);
 		}
-		jerry_release_value(keys);
+		jerry_release_value(keysArr);
 	}
 
 	return JS_UNDEFINED;
@@ -1053,20 +1049,20 @@ FUNCTION(Event_stopImmediatePropagation) {
 }
 
 FUNCTION(Event_preventDefault) {
-	jerry_value_t cancelable = getInternalProperty(thisValue, "cancelable");
-	if (jerry_value_to_boolean(cancelable)) {
+	jerry_value_t cancelableBool = getInternalProperty(thisValue, "cancelable");
+	if (jerry_value_to_boolean(cancelableBool)) {
 		setInternalProperty(thisValue, "defaultPrevented", JS_TRUE);
 	}
-	jerry_release_value(cancelable);
+	jerry_release_value(cancelableBool);
 	return JS_UNDEFINED;
 }
 
 FUNCTION(EventTargetConstructor) {
 	if (thisValue != ref_global) CONSTRUCTOR(EventTarget);
 
-	jerry_value_t eventListenerList = jerry_create_object();
-	setInternalProperty(thisValue, "eventListeners", eventListenerList);
-	jerry_release_value(eventListenerList);
+	jerry_value_t eventListenersObj = jerry_create_object();
+	setInternalProperty(thisValue, "eventListeners", eventListenersObj);
+	jerry_release_value(eventListenersObj);
 
 	return JS_UNDEFINED;
 }
@@ -1074,57 +1070,54 @@ FUNCTION(EventTargetConstructor) {
 FUNCTION(EventTarget_addEventListener) {
 	REQUIRE(2);
 	if (jerry_value_is_null(args[1])) return JS_UNDEFINED;
-	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
+	jerry_value_t targetObj = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
 	
-	jerry_value_t typeStr = createString("type");
-	jerry_value_t callbackStr = createString("callback");
-	jerry_value_t onceStr = createString("once");
+	jerry_value_t callbackProp = createString("callback");
+	jerry_value_t onceProp = createString("once");
 
-	jerry_value_t typeVal = jerry_value_to_string(args[0]);
+	jerry_value_t typeStr = jerry_value_to_string(args[0]);
 	jerry_value_t callbackVal = args[1];
 	bool once = false;
 	if (argCount > 2 && jerry_value_is_object(args[2])) {
-		jerry_value_t onceVal = jerry_get_property(args[2], onceStr);
+		jerry_value_t onceVal = jerry_get_property(args[2], onceProp);
 		once = jerry_value_to_boolean(onceVal);
 		jerry_release_value(onceVal);
 	}
 
-	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
-	jerry_value_t listenersOfType = jerry_get_property(eventListeners, typeVal);
-	if (jerry_value_is_undefined(listenersOfType)) {
-		jerry_release_value(listenersOfType);
-		listenersOfType = jerry_create_array(0);
-		jerry_release_value(jerry_set_property(eventListeners, typeVal, listenersOfType));
+	jerry_value_t eventListenersObj = getInternalProperty(targetObj, "eventListeners");
+	jerry_value_t listenersArr = jerry_get_property(eventListenersObj, typeStr); // listeners of the given type
+	if (jerry_value_is_undefined(listenersArr)) {
+		listenersArr = jerry_create_array(0);
+		jerry_release_value(jerry_set_property(eventListenersObj, typeStr, listenersArr));
 	}
-	u32 length = jerry_get_array_length(listenersOfType);
+	jerry_release_value(eventListenersObj);
+
+	u32 length = jerry_get_array_length(listenersArr);
 	bool shouldAppend = true;
 	for (u32 i = 0; shouldAppend && i < length; i++) {
-		jerry_value_t storedListener = jerry_get_property_by_index(listenersOfType, i);
-		jerry_value_t storedCallback = jerry_get_property(storedListener, callbackStr);
-		jerry_value_t callbackEquality = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallback);
-		if (jerry_get_boolean_value(callbackEquality)) shouldAppend = false;
-		jerry_release_value(callbackEquality);
-		jerry_release_value(storedCallback);
+		jerry_value_t storedListener = jerry_get_property_by_index(listenersArr, i);
+		jerry_value_t storedCallbackVal = jerry_get_property(storedListener, callbackProp);
+		jerry_value_t callbackEqualityBool = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallbackVal);
+		if (jerry_get_boolean_value(callbackEqualityBool)) shouldAppend = false;
+		jerry_release_value(callbackEqualityBool);
+		jerry_release_value(storedCallbackVal);
 		jerry_release_value(storedListener);
 	}
 
 	if (shouldAppend) {
-		jerry_value_t listener = jerry_create_object();
+		jerry_value_t listenerObj = jerry_create_object();
 
-		jerry_release_value(jerry_set_property(listener, typeStr, typeVal));
-		jerry_release_value(jerry_set_property(listener, callbackStr, callbackVal));
-		jerry_value_t onceVal = jerry_create_boolean(once);
-		jerry_release_value(jerry_set_property(listener, onceStr, onceVal));
-		jerry_release_value(onceVal);
-		setProperty(listener, "removed", JS_FALSE);
+		jerry_release_value(jerry_set_property(listenerObj, callbackProp, callbackVal));
+		jerry_release_value(jerry_set_property(listenerObj, onceProp, jerry_create_boolean(once)));
+		setProperty(listenerObj, "removed", JS_FALSE);
 
-		jerry_value_t pushFunc = getProperty(listenersOfType, "push");
-		jerry_release_value(jerry_call_function(pushFunc, listenersOfType, &listener, 1));
+		jerry_value_t pushFunc = getProperty(listenersArr, "push");
+		jerry_release_value(jerry_call_function(pushFunc, listenersArr, &listenerObj, 1));
 		jerry_release_value(pushFunc);
+		jerry_release_value(listenerObj);
 
-		jerry_value_t isGlobal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, target, ref_global);
-		if (jerry_get_boolean_value(isGlobal)) {
-			char *type = getString(typeVal);
+		if (targetObj == ref_global) {
+			char *type = getString(typeStr);
 			if (strcmp(type, "vblank") == 0) dependentEvents |= vblank;
 			else if (strcmp(type, "buttondown") == 0) dependentEvents |= buttondown;
 			else if (strcmp(type, "buttonup") == 0) dependentEvents |= buttonup;
@@ -1135,88 +1128,75 @@ FUNCTION(EventTarget_addEventListener) {
 			else if (strcmp(type, "keyup") == 0) dependentEvents |= keyup;
 			free(type);
 		}
-		jerry_release_value(isGlobal);
-
-		jerry_release_value(listener);
 	}
 
-	jerry_release_value(listenersOfType);
-	jerry_release_value(eventListeners);
-	jerry_release_value(typeVal);
-	jerry_release_value(onceStr);
-	jerry_release_value(callbackStr);
+	jerry_release_value(listenersArr);
 	jerry_release_value(typeStr);
+	jerry_release_value(onceProp);
+	jerry_release_value(callbackProp);
 
 	return JS_UNDEFINED;
 }
 
 FUNCTION(EventTarget_removeEventListener) {
 	REQUIRE(2);
-	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
-	
-	jerry_value_t typeStr = createString("type");
-	jerry_value_t callbackStr = createString("callback");
-
-	jerry_value_t typeVal = jerry_value_to_string(args[0]);
+	jerry_value_t targetObj = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
+	jerry_value_t callbackProp = createString("callback");
+	jerry_value_t typeStr = jerry_value_to_string(args[0]);
 	jerry_value_t callbackVal = args[1];
 
-	jerry_value_t eventListeners = getInternalProperty(target, "eventListeners");
-	jerry_value_t listenersOfType = jerry_get_property(eventListeners, typeVal);
-	if (jerry_value_is_array(listenersOfType)) {
-		u32 length = jerry_get_array_length(listenersOfType);
+	jerry_value_t eventListenersObj = getInternalProperty(targetObj, "eventListeners");
+	jerry_value_t listenersArr = jerry_get_property(eventListenersObj, typeStr); // listeners of the given type
+	jerry_release_value(eventListenersObj);
+	if (jerry_value_is_array(listenersArr)) {
+		u32 length = jerry_get_array_length(listenersArr);
 		bool removed = false;
 		for (u32 i = 0; !removed && i < length; i++) {
-			jerry_value_t storedListener = jerry_get_property_by_index(listenersOfType, i);
-			jerry_value_t storedCallback = jerry_get_property(storedListener, callbackStr);
-			jerry_value_t callbackEquality = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallback);
-			if (jerry_get_boolean_value(callbackEquality)) {
-				jerry_value_t spliceFunc = getProperty(listenersOfType, "splice");
+			jerry_value_t storedListenerObj = jerry_get_property_by_index(listenersArr, i);
+			jerry_value_t storedCallbackVal = jerry_get_property(storedListenerObj, callbackProp);
+			jerry_value_t callbackEqualityBool = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, callbackVal, storedCallbackVal);
+			if (jerry_get_boolean_value(callbackEqualityBool)) {
+				jerry_value_t spliceFunc = getProperty(listenersArr, "splice");
 				jerry_value_t spliceArgs[2] = {jerry_create_number(i), jerry_create_number(1)};
-				jerry_release_value(jerry_call_function(spliceFunc, listenersOfType, spliceArgs, 2));
+				jerry_release_value(jerry_call_function(spliceFunc, listenersArr, spliceArgs, 2));
 				jerry_release_value(spliceArgs[1]);
 				jerry_release_value(spliceArgs[0]);
 				jerry_release_value(spliceFunc);
-				setProperty(storedListener, "removed", JS_TRUE);
+				setProperty(storedListenerObj, "removed", JS_TRUE);
 				removed = true;
-				if (jerry_get_array_length(listenersOfType) == 0) {
-					jerry_value_t isGlobal = jerry_binary_operation(JERRY_BIN_OP_STRICT_EQUAL, target, ref_global);
-					if (jerry_get_boolean_value(isGlobal)) {
-						char *type = getString(typeVal);
-						if (strcmp(type, "vblank") == 0) dependentEvents &= ~(vblank);
-						else if (strcmp(type, "buttondown") == 0) dependentEvents &= ~(buttondown);
-						else if (strcmp(type, "buttonup") == 0) dependentEvents &= ~(buttonup);
-						else if (strcmp(type, "touchstart") == 0) dependentEvents &= ~(touchstart);
-						else if (strcmp(type, "touchmove") == 0) dependentEvents &= ~(touchmove);
-						else if (strcmp(type, "touchend") == 0) dependentEvents &= ~(touchend);
-						else if (strcmp(type, "keydown") == 0) dependentEvents &= ~(keydown);
-						else if (strcmp(type, "keyup") == 0) dependentEvents &= ~(keyup);
-						free(type);
-					}
-					jerry_release_value(isGlobal);
+				if (targetObj == ref_global && jerry_get_array_length(listenersArr) == 0) {
+					char *type = getString(typeStr);
+					if (strcmp(type, "vblank") == 0) dependentEvents &= ~(vblank);
+					else if (strcmp(type, "buttondown") == 0) dependentEvents &= ~(buttondown);
+					else if (strcmp(type, "buttonup") == 0) dependentEvents &= ~(buttonup);
+					else if (strcmp(type, "touchstart") == 0) dependentEvents &= ~(touchstart);
+					else if (strcmp(type, "touchmove") == 0) dependentEvents &= ~(touchmove);
+					else if (strcmp(type, "touchend") == 0) dependentEvents &= ~(touchend);
+					else if (strcmp(type, "keydown") == 0) dependentEvents &= ~(keydown);
+					else if (strcmp(type, "keyup") == 0) dependentEvents &= ~(keyup);
+					free(type);
 				}
 			}
-			jerry_release_value(callbackEquality);
-			jerry_release_value(storedCallback);
-			jerry_release_value(storedListener);
+			jerry_release_value(callbackEqualityBool);
+			jerry_release_value(storedCallbackVal);
+			jerry_release_value(storedListenerObj);
 		}
 	}
-	jerry_release_value(listenersOfType);
-	jerry_release_value(eventListeners);
-	jerry_release_value(typeVal);
-	jerry_release_value(callbackStr);
+	jerry_release_value(listenersArr);
 	jerry_release_value(typeStr);
+	jerry_release_value(callbackProp);
 
 	return JS_UNDEFINED;
 }
 
 FUNCTION(EventTarget_dispatchEvent) {
 	REQUIRE_FIRST();
-	jerry_value_t isInstanceVal = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, args[0], ref_Event);
-	bool isInstance = jerry_get_boolean_value(isInstanceVal);
-	jerry_release_value(isInstanceVal);
+	jerry_value_t isInstanceBool = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, args[0], ref_Event);
+	bool isInstance = jerry_get_boolean_value(isInstanceBool);
+	jerry_release_value(isInstanceBool);
 	EXPECT(isInstance, Event);
-	jerry_value_t target = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
-	bool canceled = dispatchEvent(target, args[0], true);
+	jerry_value_t targetObj = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
+	bool canceled = dispatchEvent(targetObj, args[0], true);
 	return jerry_create_boolean(!canceled);
 }
 
@@ -1235,16 +1215,16 @@ FUNCTION(DS_getBatteryLevel) {
 FUNCTION(DS_setMainScreen) {
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
 		bool set = false;
-		char *str = getString(args[0]);
-		if (strcmp(str, "top") == 0) {
+		char *screen = getString(args[0]);
+		if (strcmp(screen, "top") == 0) {
 			lcdMainOnTop();
 			set = true;
 		}
-		else if (strcmp(str, "bottom") == 0) {
+		else if (strcmp(screen, "bottom") == 0) {
 			lcdMainOnBottom();
 			set = true;
 		}
-		free(str);
+		free(screen);
 		if (set) return JS_UNDEFINED;
 	}
 	return throwTypeError("Invalid screen value");
@@ -1253,9 +1233,9 @@ FUNCTION(DS_setMainScreen) {
 FUNCTION(DS_sleep) {
 	jerry_value_t eventArgs[2] = {createString("sleep"), jerry_create_object()};
 	setProperty(eventArgs[1], "cancelable", JS_TRUE);
-	jerry_value_t event = jerry_construct_object(ref_Event, eventArgs, 2);
-	bool canceled = dispatchEvent(ref_global, event, true);
-	jerry_release_value(event);
+	jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+	bool canceled = dispatchEvent(ref_global, eventObj, true);
+	jerry_release_value(eventObj);
 	jerry_release_value(eventArgs[0]);
 	jerry_release_value(eventArgs[1]);
 	if (!canceled) {
@@ -1264,9 +1244,9 @@ FUNCTION(DS_sleep) {
 		swiWaitForVBlank(); // I know this is jank but it's the easiest solution to stop 'wake' from dispatching before the system sleeps
 		eventArgs[0] = createString("wake");
 		eventArgs[1] = jerry_create_object();
-		event = jerry_construct_object(ref_Event, eventArgs, 2);
-		dispatchEvent(ref_global, event, true);
-		jerry_release_value(event);
+		eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+		dispatchEvent(ref_global, eventObj, true);
+		jerry_release_value(eventObj);
 		jerry_release_value(eventArgs[0]);
 		jerry_release_value(eventArgs[1]);
 	}
@@ -1275,22 +1255,22 @@ FUNCTION(DS_sleep) {
 
 FUNCTION(DS_touchGetPosition) {
 	if ((keysHeld() & KEY_TOUCH) == 0) {
-		jerry_value_t position = jerry_create_object();
+		jerry_value_t positionObj = jerry_create_object();
 		jerry_value_t NaN = jerry_create_number_nan();
-		setProperty(position, "x", NaN);
-		setProperty(position, "y", NaN);
+		setProperty(positionObj, "x", NaN);
+		setProperty(positionObj, "y", NaN);
 		jerry_release_value(NaN);
-		return position;
+		return positionObj;
 	}
 	touchPosition pos; touchRead(&pos);
-	jerry_value_t position = jerry_create_object();
-	jerry_value_t x = jerry_create_number(pos.px);
-	jerry_value_t y = jerry_create_number(pos.py);
-	setProperty(position, "x", x);
-	setProperty(position, "y", y);
-	jerry_release_value(x);
-	jerry_release_value(y);
-	return position;
+	jerry_value_t positionObj = jerry_create_object();
+	jerry_value_t xNum = jerry_create_number(pos.px);
+	jerry_value_t yNum = jerry_create_number(pos.py);
+	setProperty(positionObj, "x", xNum);
+	setProperty(positionObj, "y", yNum);
+	jerry_release_value(xNum);
+	jerry_release_value(yNum);
+	return positionObj;
 }
 
 FUNCTION(BETA_gfxInit) {

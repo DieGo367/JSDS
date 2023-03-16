@@ -814,10 +814,10 @@ void keyboardCompose(bool allowCancel) {
 ComposeStatus keyboardComposeStatus() {
 	return composing;
 }
-void keyboardComposeAccept(char **strPtr, int *strSize) {
+void keyboardComposeAccept(char **strPtr, u32 *strSize) {
 	char *str = (char *) malloc((compCursor - compositionBuffer) * 3 + 1);
 	*strPtr = str;
-	int size = 0;
+	u32 size = 0;
 	for (char16_t *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
 		char16_t codepoint = *codePtr;
 		if (codepoint < 0x80) {
