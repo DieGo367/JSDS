@@ -8,10 +8,11 @@
 enum ComposeStatus { KEYBOARD_INACTIVE, KEYBOARD_COMPOSING, KEYBOARD_FINISHED };
 
 void keyboardInit();
-void keyboardUpdate(u32 blockedButtons = 0);
+void keyboardUpdate();
 
 bool keyboardShow();
 bool keyboardHide(); 
+bool keyboardButtonControls(bool enable);
 
 void keyboardSetPressHandler(bool (*handler) (const char16_t codepoint, const char *name, bool shift, int layout, bool repeat));
 void keyboardSetReleaseHandler(bool (*handler) (const char16_t codepoint, const char *name, bool shift, int layout));

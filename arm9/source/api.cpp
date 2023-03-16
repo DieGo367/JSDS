@@ -92,6 +92,7 @@ FUNCTION(prompt) {
 	else printf("Prompt");
 	putchar(' ');
 	pauseKeyEvents = true;
+	bool hadButtonControls = keyboardButtonControls(true);
 	keyboardCompose(true);
 	ComposeStatus status = keyboardComposeStatus();
 	while (status == KEYBOARD_COMPOSING) {
@@ -109,12 +110,14 @@ FUNCTION(prompt) {
 		free(response);
 		keyboardUpdate();
 		pauseKeyEvents = false;
+		keyboardButtonControls(hadButtonControls);
 		return responseStr;
 	}
 	else {
 		putchar('\n');
 		keyboardUpdate();
 		pauseKeyEvents = false;
+		keyboardButtonControls(hadButtonControls);
 		if (argCount > 1) return jerry_value_to_string(args[1]);
 		else return JS_NULL;
 	}
@@ -1354,6 +1357,8 @@ void exposeAPI() {
 	jerry_value_t keyboard = createObject(ref_global, "keyboard");
 	setMethod(keyboard, "hide", LAMBDA((keyboardHide(), JS_UNDEFINED)));
 	setMethod(keyboard, "show", LAMBDA((keyboardShow(), JS_UNDEFINED)));
+	setMethod(keyboard, "watchButtons", LAMBDA((keyboardButtonControls(true), JS_UNDEFINED)));
+	setMethod(keyboard, "ignoreButtons", LAMBDA((keyboardButtonControls(false), JS_UNDEFINED)));
 	jerry_release_value(keyboard);
 
 	jerry_value_t Text = createObject(ref_global, "Text");

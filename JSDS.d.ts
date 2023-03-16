@@ -39,6 +39,10 @@ interface Keyboard {
 	hide(): void;
 	/** Opens the on-screen keyboard. */
 	show(): void;
+	/** Allow buttons to control the keyboard. This is the case by default. */
+	watchButtons(): void;
+	/** Prevent buttons from controlling the keyboard. (Does not affect the keyboard during prompt()). */
+	ignoreButtons(): void;
 }
 declare var keyboard: Keyboard;
 

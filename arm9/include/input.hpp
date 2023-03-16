@@ -7,8 +7,6 @@
 
 
 void buttonEvents(bool down);
-u32 getCanceledButtons();
-
 void touchEvents();
 
 extern bool pauseKeyEvents;

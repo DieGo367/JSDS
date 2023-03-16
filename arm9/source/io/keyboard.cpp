@@ -402,7 +402,7 @@ NitroFont keyFont = {0};
 
 bool showing = false;
 u8 currentBoard = 0;
-bool cancelEnabled = false;
+bool cancelEnabled = false, buttonControls = true;
 bool shiftToggle = false, capsToggle = false;
 enum HoldMode { NO_HOLD, TOUCHING, A_PRESS, B_PRESS, D_PAD_PRESS};
 HoldMode heldMode = NO_HOLD;
@@ -651,10 +651,10 @@ void keyboardInit() {
 	}
 	keyFont = fontLoad(keyboard_nftr);
 }
-void keyboardUpdate(u32 blockedButtons) {
+void keyboardUpdate() {
 	if (!showing) return;
 	if (heldMode == NO_HOLD) {
-		u32 down = keysDown() ^ blockedButtons;
+		u32 down = keysDown();
 		if (down & KEY_TOUCH) {
 			touchPosition pos;
 			touchRead(&pos);
@@ -676,6 +676,7 @@ void keyboardUpdate(u32 blockedButtons) {
 				}
 			}
 		}
+		else if (!buttonControls) return;
 		else if (down & KEY_B) {
 			for (int i = 0; i < boardSizes[currentBoard]; i++) {
 				KeyDef key = boards[currentBoard][i];
@@ -736,7 +737,7 @@ void keyboardUpdate(u32 blockedButtons) {
 	}
 	else if (heldMode == D_PAD_PRESS) {
 		u32 heldButtons = keysHeld();
-		u32 down = keysDown() ^ blockedButtons;
+		u32 down = keysDown();
 		if (heldButtons & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
 			if (down & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT)) {
 				heldDir = (down & KEY_DOWN) ? KEY_DOWN : ((down & KEY_UP) ? KEY_UP : ((down & KEY_RIGHT) ? KEY_RIGHT : KEY_LEFT));
@@ -791,6 +792,11 @@ bool keyboardHide() {
 	consoleExpand();
 	showing = false;
 	return true;
+}
+bool keyboardButtonControls(bool enabled) {
+	bool wasEnabled = buttonControls;
+	buttonControls = enabled;
+	return wasEnabled;
 }
 
 void keyboardSetPressHandler(bool (*handler) (const char16_t codepoint, const char *name, bool shift, int layout, bool repeat)) {

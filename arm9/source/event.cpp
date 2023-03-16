@@ -220,7 +220,7 @@ void eventLoop() {
 		if (dependentEvents & (touchstart | touchmove | touchend)) touchEvents();
 		timeoutUpdate();
 		runTasks();
-		keyboardUpdate(getCanceledButtons());
+		keyboardUpdate();
 		if (inREPL) {
 			if (keyboardComposeStatus() == KEYBOARD_INACTIVE) {
 				putchar('>'); putchar(' ');

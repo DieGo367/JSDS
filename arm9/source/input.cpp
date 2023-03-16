@@ -8,57 +8,26 @@
 
 
 
-u32 canceledButtons = 0;
-// Args: EventTarget, Event
-void dispatchButtonEventTask(const jerry_value_t *args, u32 argCount) {
-	if (dispatchEvent(args[0], args[1], false)) {
-		char *button = getStringProperty(args[1], "button");
-		if (button[0] == 'A') canceledButtons |= KEY_A;
-		else if (button[0] == 'B') canceledButtons |= KEY_B;
-		else if (button[0] == 'X') canceledButtons |= KEY_X;
-		else if (button[0] == 'Y') canceledButtons |= KEY_Y;
-		else if (button[0] == 'L') canceledButtons |= button[1] == 0 ? KEY_L : KEY_LEFT;
-		else if (button[0] == 'R') canceledButtons |= button[1] == 0 ? KEY_R : KEY_RIGHT;
-		else if (button[0] == 'U') canceledButtons |= KEY_UP;
-		else if (button[0] == 'D') canceledButtons |= KEY_DOWN;
-		else if (button[0] == 'S') canceledButtons |= button[1] == 'T' ? KEY_START : KEY_SELECT;
-		free(button);
-	}
-}
-
 void buttonEvents(bool down) {
-	canceledButtons = 0;
 	u32 set = down ? keysDown() : keysUp();
 	if (set) {
 		jerry_value_t buttonProp = String("button");
 		jerry_value_t eventArgs[2] = {String(down ? "buttondown" : "buttonup"), jerry_create_object()};
 		jerry_release_value(jerry_set_property(eventArgs[1], buttonProp, JS_NULL));
-		if (down) setProperty(eventArgs[1], "cancelable", JS_TRUE);
 		jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
-		bool valueWritten = true;
-		if (false);
-		#define TEST_VALUE(buttonName, keyCode) else if (set & keyCode) {\
-			jerry_value_t value = String(buttonName); \
-			jerry_set_internal_property(eventObj, buttonProp, value); \
-			jerry_release_value(value); \
+		#define TEST_VALUE(button, keyCode) if (set & keyCode) {\
+			jerry_value_t buttonStr = String(button); \
+			jerry_set_internal_property(eventObj, buttonProp, buttonStr); \
+			jerry_release_value(buttonStr); \
+			queueEvent(ref_global, eventObj); \
 		}
 		FOR_BUTTONS(TEST_VALUE)
-		else valueWritten = false;
-		if (valueWritten) {
-			if (down) {
-				jerry_value_t taskArgs[2] = {ref_global, eventObj};
-				queueTask(dispatchButtonEventTask, taskArgs, 2);
-			}
-			else queueEvent(ref_global, eventObj);
-		}
 		jerry_release_value(eventObj);
 		jerry_release_value(eventArgs[0]);
 		jerry_release_value(eventArgs[1]);
 		jerry_release_value(buttonProp);
 	}
 }
-
-u32 getCanceledButtons() { return canceledButtons; }
 
 u16 prevX = 0, prevY = 0;
 void queueTouchEvent(const char *name, int curX, int curY, bool usePrev) {
