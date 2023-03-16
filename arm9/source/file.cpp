@@ -41,7 +41,7 @@ bool sortDirectoriesFirst(dirent left, dirent right) {
 	return left.d_type != right.d_type && left.d_type == DT_DIR;
 }
 
-char *fileBrowse(const char *message, const char *path, std::vector<char *> extensions) {
+char *fileBrowse(const char *message, const char *path, std::vector<char *> extensions, bool replText) {
 	char oldPath[PATH_MAX];
 	getcwd(oldPath, PATH_MAX);
 	if (chdir(path) != 0) return NULL;
@@ -126,7 +126,7 @@ char *fileBrowse(const char *message, const char *path, std::vector<char *> exte
 			fontPrintString(defaultFont, pal, dirContent[scrolled + i].d_name, gfx, SCREEN_WIDTH, 16, (i + 2) * defaultFont.tileHeight, SCREEN_WIDTH - 16);
 		}
 		fontPrintCodePoint(defaultFont, pal, '>', gfx, SCREEN_WIDTH, 4, (selected - scrolled + 2) * defaultFont.tileHeight);
-		fontPrintString(defaultFont, pal, "  Select,  Back,  Cancel", gfx, SCREEN_WIDTH, 0, SCREEN_HEIGHT - defaultFont.tileHeight, SCREEN_WIDTH);
+		fontPrintString(defaultFont, pal, replText ? "  Select,  Back,  Use REPL" : "  Select,  Back,  Cancel", gfx, SCREEN_WIDTH, 0, SCREEN_HEIGHT - defaultFont.tileHeight, SCREEN_WIDTH);
 		dmaCopy(gfx, bgGetGfxPtr(7), SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u16));
 	}
 

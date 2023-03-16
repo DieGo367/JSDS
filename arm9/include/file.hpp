@@ -9,7 +9,7 @@
 
 extern jerry_object_native_info_t fileNativeInfo;
 jerry_value_t newFile(FILE *file, jerry_value_t mode);
-char *fileBrowse(const char *message, const char *path, std::vector<char *> extensions);
+char *fileBrowse(const char *message, const char *path, std::vector<char *> extensions, bool replText = false);
 
 void storageLoad(const char *resourceName);
 bool storageSave();
