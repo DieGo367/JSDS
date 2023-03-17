@@ -6,6 +6,7 @@
 
 #include "event.hpp"
 #include "helpers.hpp"
+#include "io/console.hpp"
 #include "jerry/jerryscript-port-default.h"
 #include "logging.hpp"
 
@@ -73,8 +74,12 @@ void handleError(jerry_value_t error, bool sync) {
 	jerry_release_value(errorProp);
 
 	if (!errorHandled) {
+		u16 previousColor = consoleSetColor(LOGCOLOR_ERROR);
+		u16 previousBG = consoleSetBackground(LOGCOLOR_ERROR_BG);
 		logLiteral(error);
 		putchar('\n');
+		consoleSetColor(previousColor);
+		consoleSetBackground(previousBG);
 		if (!inREPL) abortFlag = true;
 	}
 }
@@ -106,9 +111,13 @@ void handleRejection(jerry_value_t promise) {
 
 	if (!rejectionHandled) {
 		jerry_value_t reasonVal = jerry_get_promise_result(promise);
+		u16 previousColor = consoleSetColor(LOGCOLOR_ERROR);
+		u16 previousBG = consoleSetBackground(LOGCOLOR_ERROR_BG);
 		printf("Uncaught (in promise) ");
 		logLiteral(reasonVal);
 		putchar('\n');
+		consoleSetColor(previousColor);
+		consoleSetBackground(previousBG);
 		jerry_release_value(reasonVal);
 		if (!inREPL) abortFlag = true;
 	}

@@ -256,7 +256,7 @@ void logLiteral(jerry_value_t value, u8 level) {
 						consoleSetColor(prev);
 						break;
 					case JERRY_PROMISE_STATE_REJECTED:
-						consoleSetColor(LOGCOLOR_ERROR);
+						consoleSetColor(LOGCOLOR_REJECTED);
 						printf("<rejected> ");
 						consoleSetColor(prev);
 						// intentional fall-through

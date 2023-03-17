@@ -171,9 +171,11 @@ FUNCTION(console_info) {
 FUNCTION(console_warn) {
 	if (argCount > 0) {
 		u16 previousColor = consoleSetColor(LOGCOLOR_WARN);
+		u16 previousBG = consoleSetBackground(LOGCOLOR_WARN_BG);
 		logIndent();
 		log(args, argCount);
 		consoleSetColor(previousColor);
+		consoleSetBackground(previousBG);
 	}
 	return JS_UNDEFINED;
 }
@@ -181,9 +183,11 @@ FUNCTION(console_warn) {
 FUNCTION(console_error) {
 	if (argCount > 0) {
 		u16 previousColor = consoleSetColor(LOGCOLOR_ERROR);
+		u16 previousBG = consoleSetBackground(LOGCOLOR_ERROR_BG);
 		logIndent();
 		log(args, argCount);
 		consoleSetColor(previousColor);
+		consoleSetBackground(previousBG);
 	}
 	return JS_UNDEFINED;
 }
@@ -191,10 +195,12 @@ FUNCTION(console_error) {
 FUNCTION(console_assert) {
 	if (argCount == 0 || !jerry_value_to_boolean(args[0])) {
 		u16 previousColor = consoleSetColor(LOGCOLOR_ERROR);
+		u16 previousBG = consoleSetBackground(LOGCOLOR_ERROR_BG);
 		logIndent();
 		printf("Assertion failed: ");
 		log(args + 1, argCount - 1);
 		consoleSetColor(previousColor);
+		consoleSetBackground(previousBG);
 	}
 	return JS_UNDEFINED;
 }

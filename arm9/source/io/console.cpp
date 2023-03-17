@@ -61,6 +61,9 @@ void consoleDraw() {
 }
 
 void newLine() {
+	if (colors[0]) for (u8 i = 0; i < consoleFont.tileHeight; i++) {
+		toncset16(gfxBuffer + (((linePos + i) % BUFFER_HEIGHT) * SCREEN_WIDTH) + lineWidth, colors[0], SCREEN_WIDTH - lineWidth);
+	}
 	lineWidth = 0;
 	linePos += consoleFont.tileHeight;
 	toncset16(gfxBuffer + ((linePos % BUFFER_HEIGHT) * SCREEN_WIDTH), 0, SCREEN_WIDTH * consoleFont.tileHeight);

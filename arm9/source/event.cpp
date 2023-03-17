@@ -78,14 +78,18 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
 	else resultVal = jerry_run(args[0]);
 	if (!abortFlag) {
 		runMicrotasks();
-		if (inREPL) {
+		if (jerry_value_is_error(resultVal)) {
+			u16 previousColor = consoleSetColor(LOGCOLOR_ERROR);
+			u16 previousBG = consoleSetBackground(LOGCOLOR_ERROR_BG);
 			logLiteral(resultVal);
 			putchar('\n');
+			consoleSetColor(previousColor);
+			consoleSetBackground(previousBG);
+			abortFlag = !inREPL;
 		}
-		else if (jerry_value_is_error(resultVal)) {
+		else if (inREPL) {
 			logLiteral(resultVal);
 			putchar('\n');
-			abortFlag = true;
 		}
 	}
 	if (inREPL) setProperty(ref_global, "_", resultVal);
