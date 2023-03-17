@@ -2,14 +2,11 @@
 
 #include <stdlib.h>
 
-#include "font_nftr.h"
 #include "util/tonccpy.h"
 #include "util/unicode.hpp"
 
 #define getU16(src, offset) *((u16 *) (src + offset))
 #define getU32(src, offset) *((u32 *) (src + offset))
-
-NitroFont defaultFont = {0};
 
 
 
@@ -69,10 +66,6 @@ NitroFont fontLoad(const u8 *data) {
 	font.replace = font.charMap[REPLACEMENT_CHAR] != NO_TILE;
 
 	return font;
-}
-
-void fontLoadDefault() {
-	defaultFont = fontLoad(font_nftr);
 }
 
 u8 fontGetCodePointWidth(NitroFont font, char16_t codepoint) {

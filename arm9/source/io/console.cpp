@@ -23,6 +23,7 @@ u16 lineWidth = 0;
 int linePos = 0;
 bool paused = false;
 
+NitroFont consoleFont = {0};
 u16 colors[4] = {0};
 
 u16 consoleSetColor(u16 color) {
@@ -42,9 +43,10 @@ u16 consoleSetBackground(u16 color) {
 	return prev;
 }
 u16 consoleGetBackground() { return colors[0]; }
+NitroFont consoleGetFont() { return consoleFont; }
 
 void consoleDraw() {
-	int pos = linePos + defaultFont.tileHeight;
+	int pos = linePos + consoleFont.tileHeight;
 	if (pos <= consoleHeight) dmaCopyWords(0, gfxBuffer, bgGetGfxPtr(7), pos * SCREEN_WIDTH * sizeof(u16));
 	else if (pos <= BUFFER_HEIGHT) dmaCopyWords(0, gfxBuffer + (pos - consoleHeight) * SCREEN_WIDTH, bgGetGfxPtr(7), consoleHeight * SCREEN_WIDTH * sizeof(u16));
 	else {
@@ -60,8 +62,8 @@ void consoleDraw() {
 
 void newLine() {
 	lineWidth = 0;
-	linePos += defaultFont.tileHeight;
-	toncset16(gfxBuffer + ((linePos % BUFFER_HEIGHT) * SCREEN_WIDTH), 0, SCREEN_WIDTH * defaultFont.tileHeight);
+	linePos += consoleFont.tileHeight;
+	toncset16(gfxBuffer + ((linePos % BUFFER_HEIGHT) * SCREEN_WIDTH), 0, SCREEN_WIDTH * consoleFont.tileHeight);
 }
 
 bool writeCodepoint(char16_t codepoint) {
@@ -70,7 +72,7 @@ bool writeCodepoint(char16_t codepoint) {
 		return true;
 	}
 	else if (codepoint == '\t') {
-		u8 tabWidth = fontGetCodePointWidth(defaultFont, ' ') * TAB_SIZE;
+		u8 tabWidth = fontGetCodePointWidth(consoleFont, ' ') * TAB_SIZE;
 		lineWidth = (lineWidth / tabWidth + 1) * tabWidth;
 		if (lineWidth > SCREEN_WIDTH) {
 			newLine();
@@ -80,13 +82,13 @@ bool writeCodepoint(char16_t codepoint) {
 	}
 
 	bool newLined = false;
-	u8 width = fontGetCodePointWidth(defaultFont, codepoint);
+	u8 width = fontGetCodePointWidth(consoleFont, codepoint);
 	if (lineWidth + width > SCREEN_WIDTH) {
 		newLine();
 		newLined = true;
 	}
 
-	fontPrintCodePoint(defaultFont, colors, codepoint, gfxBuffer, SCREEN_WIDTH, lineWidth, linePos % BUFFER_HEIGHT);
+	fontPrintCodePoint(consoleFont, colors, codepoint, gfxBuffer, SCREEN_WIDTH, lineWidth, linePos % BUFFER_HEIGHT);
 
 	lineWidth += width;
 	return newLined;
@@ -106,8 +108,8 @@ ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 		if (fullUpdate) consoleDraw();
 		else dmaCopyWords(0,
 			gfxBuffer + (linePos % BUFFER_HEIGHT * SCREEN_WIDTH),
-			bgGetGfxPtr(7) + (linePos + defaultFont.tileHeight <= consoleHeight ? linePos : consoleHeight - defaultFont.tileHeight) * SCREEN_WIDTH,
-			SCREEN_WIDTH * defaultFont.tileHeight * sizeof(u16)
+			bgGetGfxPtr(7) + (linePos + consoleFont.tileHeight <= consoleHeight ? linePos : consoleHeight - consoleFont.tileHeight) * SCREEN_WIDTH,
+			SCREEN_WIDTH * consoleFont.tileHeight * sizeof(u16)
 		);
 	}
 	return len;
@@ -124,17 +126,15 @@ const devoptab_t opTable = {
 	NULL
 };
 
-void consoleInit() {
-	if (defaultFont.tileWidth == 0) {
-		videoSetModeSub(MODE_3_2D);
-		vramSetBankC(VRAM_C_SUB_BG);
-		bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-		fontLoadDefault();
-	}
+void consoleInit(NitroFont font) {
+	videoSetModeSub(MODE_3_2D);
+	vramSetBankC(VRAM_C_SUB_BG);
+	bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
 	devoptab_list[STD_OUT] = &opTable;
 	devoptab_list[STD_ERR] = &opTable;
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
+	consoleFont = font;
 	consoleSetColor(0xFFFF);
 }
 

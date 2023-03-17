@@ -2,12 +2,13 @@
 #define JSDS_KEYBOARD_HPP
 
 #include <nds/ndstypes.h>
+#include "util/font.hpp"
 
 
 
 enum ComposeStatus { KEYBOARD_INACTIVE, KEYBOARD_COMPOSING, KEYBOARD_FINISHED };
 
-void keyboardInit();
+void keyboardInit(NitroFont composeFont);
 void keyboardUpdate();
 
 bool keyboardShow();

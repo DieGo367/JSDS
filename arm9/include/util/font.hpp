@@ -22,10 +22,7 @@ struct NitroFont {
 	u16 *charMap;
 };
 
-extern NitroFont defaultFont;
-
 NitroFont fontLoad(const u8 *data);
-void fontLoadDefault();
 u8 fontGetCodePointWidth(NitroFont font, char16_t codepoint);
 void fontPrintCodePoint(NitroFont font, const u16 *palette, char16_t codepoint, u16 *buffer, u32 bufferWidth, u32 x, u32 y);
 void fontPrintUnicode(NitroFont font, const u16 *palette, const char16_t *codepoints, u16 *buffer, u32 bufferWidth, u32 x, u32 y, u32 maxWidth);

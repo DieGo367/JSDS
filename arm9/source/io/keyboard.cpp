@@ -400,6 +400,7 @@ static u16 gfxKbdBuffer[SCREEN_WIDTH * KEYBOARD_HEIGHT] = {0};
 static u16 gfxCmpBuffer[SCREEN_WIDTH * TEXT_HEIGHT] = {0};
 char16_t compositionBuffer[256] = {0};
 NitroFont keyFont = {0};
+NitroFont compositionFont = {0};
 
 bool showing = false;
 u8 currentBoard = 0;
@@ -482,14 +483,14 @@ void drawComposedText() {
 	int x = 0;
 	for (char16_t *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
 		char16_t codepoint = *codePtr;
-		int width = fontGetCodePointWidth(defaultFont, codepoint);
+		int width = fontGetCodePointWidth(compositionFont, codepoint);
 		if (codepoint == '\t') {
-			width = fontGetCodePointWidth(defaultFont, ' ') * 3;
+			width = fontGetCodePointWidth(compositionFont, ' ') * 3;
 			codepoint = ' ';
 		}
 		int diff = x + width - SCREEN_WIDTH;
 		if (diff <= 0) {
-			fontPrintCodePoint(defaultFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, x, 0);
+			fontPrintCodePoint(compositionFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, x, 0);
 			x += width;
 		}
 		else {
@@ -498,7 +499,7 @@ void drawComposedText() {
 				u16 *row = gfxCmpBuffer + (j + 1) * SCREEN_WIDTH - width;
 				toncset16(row, COLOR_COMPOSING_BACKDROP, width);
 			}
-			fontPrintCodePoint(defaultFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
+			fontPrintCodePoint(compositionFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
 			x = SCREEN_WIDTH;
 		}
 	}
@@ -643,13 +644,8 @@ void moveHighlight() {
 
 
 
-void keyboardInit() {
-	if (defaultFont.tileWidth == 0) {
-		videoSetModeSub(MODE_3_2D);
-		vramSetBankC(VRAM_C_SUB_BG);
-		bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-		fontLoadDefault();
-	}
+void keyboardInit(NitroFont composeFont) {
+	compositionFont = composeFont;
 	keyFont = fontLoad(keyboard_nftr);
 }
 void keyboardUpdate() {

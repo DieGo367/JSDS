@@ -42,7 +42,7 @@ bool sortDirectoriesFirst(dirent left, dirent right) {
 	return left.d_type != right.d_type && left.d_type == DT_DIR;
 }
 
-char *fileBrowse(const char *message, const char *path, std::vector<char *> extensions, bool replText) {
+char *fileBrowse(NitroFont font, const char *message, const char *path, std::vector<char *> extensions, bool replText) {
 	char oldPath[PATH_MAX];
 	getcwd(oldPath, PATH_MAX);
 	if (chdir(path) != 0) return NULL;
@@ -132,16 +132,16 @@ char *fileBrowse(const char *message, const char *path, std::vector<char *> exte
 		}
 
 		toncset16(gfx, pal[0], SCREEN_WIDTH * SCREEN_HEIGHT);
-		fontPrintString(defaultFont, pal, message, gfx, SCREEN_WIDTH, 0, 0, SCREEN_WIDTH - 10);
-		fontPrintString(defaultFont, pal, curPath, gfx, SCREEN_WIDTH, 0, defaultFont.tileHeight, SCREEN_WIDTH - 10);
-		u32 printableLines = (SCREEN_HEIGHT / defaultFont.tileHeight) - 3;
+		fontPrintString(font, pal, message, gfx, SCREEN_WIDTH, 0, 0, SCREEN_WIDTH - 10);
+		fontPrintString(font, pal, curPath, gfx, SCREEN_WIDTH, 0, font.tileHeight, SCREEN_WIDTH - 10);
+		u32 printableLines = (SCREEN_HEIGHT / font.tileHeight) - 3;
 		if (selected < scrolled) scrolled--;
 		if (selected - scrolled >= printableLines) scrolled++;
 		for (u32 i = 0; i < printableLines && scrolled + i < dirContent.size(); i++) {
-			fontPrintString(defaultFont, pal, dirContent[scrolled + i].d_name, gfx, SCREEN_WIDTH, 16, (i + 2) * defaultFont.tileHeight, SCREEN_WIDTH - 16);
+			fontPrintString(font, pal, dirContent[scrolled + i].d_name, gfx, SCREEN_WIDTH, 16, (i + 2) * font.tileHeight, SCREEN_WIDTH - 16);
 		}
-		fontPrintCodePoint(defaultFont, pal, '>', gfx, SCREEN_WIDTH, 4, (selected - scrolled + 2) * defaultFont.tileHeight);
-		fontPrintString(defaultFont, pal, replText ? "  Select,  Back,  Use REPL" : "  Select,  Back,  Cancel", gfx, SCREEN_WIDTH, 0, SCREEN_HEIGHT - defaultFont.tileHeight, SCREEN_WIDTH);
+		fontPrintCodePoint(font, pal, '>', gfx, SCREEN_WIDTH, 4, (selected - scrolled + 2) * font.tileHeight);
+		fontPrintString(font, pal, replText ? "  Select,  Back,  Use REPL" : "  Select,  Back,  Cancel", gfx, SCREEN_WIDTH, 0, SCREEN_HEIGHT - font.tileHeight, SCREEN_WIDTH);
 		dmaCopy(gfx, bgGetGfxPtr(7), SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u16));
 	}
 

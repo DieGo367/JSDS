@@ -926,7 +926,7 @@ FUNCTION(FileStatic_browse) {
 		jerry_release_value(extensionsProp);
 		jerry_release_value(pathProp);
 	}
-	char *result = fileBrowse(message, browsePath, extensions);
+	char *result = fileBrowse(consoleGetFont(), message, browsePath, extensions);
 	jerry_value_t resultVal = result == NULL ? JS_NULL : String(result);
 	free(result);
 	for (u32 i = 0; i < extensions.size(); i++) free(extensions[i]);

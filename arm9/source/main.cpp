@@ -18,6 +18,9 @@
 #include "jerry/jerryscript-port-default.h"
 #include "logging.hpp"
 #include "timeouts.hpp"
+#include "util/font.hpp"
+
+#include "font_nftr.h"
 
 
 
@@ -64,8 +67,9 @@ int main(int argc, char **argv) {
 	// startup
 	srand(time(NULL));
 	fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
-	consoleInit();
-	keyboardInit();
+	NitroFont font = fontLoad(font_nftr);
+	consoleInit(font);
+	keyboardInit(font);
 	keyboardSetPressHandler(onKeyDown);
 	keyboardSetReleaseHandler(onKeyUp);
 	fatInitDefault();
@@ -77,7 +81,7 @@ int main(int argc, char **argv) {
 	if (argc > 1) runFile(argv[1]);
 	else {
 		if (access("sd:/", F_OK) == 0) chdir("sd:/");
-		char *filePath = fileBrowse("Select a script to run.", ".", {(char *) "js"}, true);
+		char *filePath = fileBrowse(font, "Select a script to run.", ".", {(char *) "js"}, true);
 		if (filePath != NULL) runFile(filePath);
 		else repl();
 	}
