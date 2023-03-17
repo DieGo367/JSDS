@@ -14,23 +14,27 @@ declare function setInterval(handler: string | Function, timeout?: number, ...ar
 declare function setTimeout(handler: string | Function, timeout?: number, ...arguments: any[]): number;
 
 interface Console {
+	log(...data: any[]): void;
+	info(...data: any[]): void;
+	warn(...data: any[]): void;
+	error(...data: any[]): void;
+	debug(...data: any[]): void;
+	trace(...data: any[]): void;
 	assert(condition?: boolean, ...data: any[]): void;
-	clear(): void;
 	count(label?: string): void;
 	countReset(label?: string): void;
-	debug(...data: any[]): void;
-	dir(...data: any[]): void;
-	error(...data: any[]): void;
-	group(...data: any[]): void;
-	groupEnd(): void;
-	info(...data: any[]): void;
-	log(...data: any[]): void;
-	table(tabularData?: any, properties?: string[]): void;
 	time(label?: string): void;
 	timeLog(label?: string, ...data: any[]): void;
 	timeEnd(label?: string): void;
-	trace(...data: any[]): void;
-	warn(...data: any[]): void;
+	group(...data: any[]): void;
+	groupEnd(): void;
+	dir(...data: any[]): void;
+	table(tabularData?: any, properties?: string[]): void;
+	clear(): void;
+	setTextColor(color: number | string): void;
+	getTextColor(): number;
+	setTextBackground(color: number | string): void;
+	getTextBackground(): number;
 }
 declare var console: Console;
 

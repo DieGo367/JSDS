@@ -24,6 +24,7 @@ extern "C" {
 #include "jerry/jerryscript.h"
 #include "logging.hpp"
 #include "timeouts.hpp"
+#include "util/color.hpp"
 #include "util/tonccpy.h"
 #include "util/unicode.hpp"
 
@@ -390,6 +391,24 @@ FUNCTION(console_timeEnd) {
 
 FUNCTION(console_clear) {
 	consoleClear();
+	return JS_UNDEFINED;
+}
+
+FUNCTION(console_setTextColor) {
+	REQUIRE_FIRST();
+	char *colorDesc = getAsString(args[0]);
+	u16 color = colorParse(colorDesc, consoleGetColor());
+	free(colorDesc);
+	consoleSetColor(color);
+	return JS_UNDEFINED;
+}
+
+FUNCTION(console_setTextBackground) {
+	REQUIRE_FIRST();
+	char *colorDesc = getAsString(args[0]);
+	u16 color = colorParse(colorDesc, consoleGetBackground());
+	free(colorDesc);
+	consoleSetBackground(color);
 	return JS_UNDEFINED;
 }
 
@@ -1335,6 +1354,10 @@ void exposeAPI() {
 	setMethod(console, "timeEnd", console_timeEnd);
 	setMethod(console, "trace", console_trace);
 	setMethod(console, "warn", console_warn);
+	setMethod(console, "setTextColor", console_setTextColor);
+	setMethod(console, "getTextColor", LAMBDA(jerry_create_number(consoleGetColor())));
+	setMethod(console, "setTextBackground", console_setTextBackground);
+	setMethod(console, "getTextBackground", LAMBDA(jerry_create_number(consoleGetBackground())));
 	jerry_release_value(console);
 
 	jerry_value_t keyboard = createObject(ref_global, "keyboard");
