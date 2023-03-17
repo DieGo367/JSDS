@@ -1,16 +1,30 @@
 #include "util/color.hpp"
 
+#include <nds/bios.h>
 #include <stdlib.h>
 #include <string.h>
 
 
 
+// Strength ranges from 0-100, 0 = fully base color, 100 = fully target color
 u16 colorBlend(u16 baseColor, u16 targetColor, u8 strength) {
 	if (!((baseColor | targetColor) & BIT(15))) return 0x0000;
-	u8 neg = 31 - strength;
-	u16 blue = ((baseColor >> 10) & 0b11111) * neg / 31 + ((targetColor >> 10) & 0b11111) * strength / 31;
-	u16 green = ((baseColor >> 5) & 0b11111) * neg / 31 + ((targetColor >> 5) & 0b11111) * strength / 31;
-	u16 red = (baseColor & 0b11111) * neg / 31 + (targetColor & 0b11111) * strength / 31;
+	
+	u8 neg = 100 - strength;
+	u16 baseBlue = (baseColor >> 10) & 0b11111;
+	u16 baseGreen = (baseColor >> 5) & 0b11111;
+	u16 baseRed = (baseColor) & 0b11111;
+	baseBlue *= baseBlue, baseGreen *= baseGreen, baseRed *= baseRed;
+	
+	u16 targetBlue = (targetColor >> 10) & 0b11111;
+	u16 targetGreen = (targetColor >> 5) & 0b11111;
+	u16 targetRed = (targetColor) & 0b11111;
+	targetBlue *= targetBlue, targetGreen *= targetGreen, targetRed *= targetRed;
+
+	u8 blue = swiSqrt(baseBlue * neg / 100 + targetBlue * strength / 100);
+	u8 green = swiSqrt(baseGreen * neg / 100 + targetGreen * strength / 100);
+	u8 red = swiSqrt(baseRed * neg / 100 + targetRed * strength / 100);
+
 	return BIT(15) | blue << 10 | green << 5 | red;
 }
 

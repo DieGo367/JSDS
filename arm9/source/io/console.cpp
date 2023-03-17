@@ -29,8 +29,8 @@ u16 colors[4] = {0};
 u16 consoleSetColor(u16 color) {
 	u16 prev = colors[3];
 	colors[3] = color;
-	colors[2] = colorBlend(colors[0], color, 24);
-	colors[1] = colorBlend(colors[0], color, 15);
+	colors[2] = colorBlend(colors[0], color, 80);
+	colors[1] = colorBlend(colors[0], color, 20);
 	return prev;
 }
 u16 consoleGetColor() { return colors[3]; }
@@ -38,8 +38,8 @@ u16 consoleGetColor() { return colors[3]; }
 u16 consoleSetBackground(u16 color) {
 	u16 prev = colors[0];
 	colors[0] = color;
-	colors[1] = colorBlend(color, colors[3], 15);
-	colors[2] = colorBlend(color, colors[3], 24);
+	colors[1] = colorBlend(color, colors[3], 20);
+	colors[2] = colorBlend(color, colors[3], 80);
 	return prev;
 }
 u16 consoleGetBackground() { return colors[0]; }

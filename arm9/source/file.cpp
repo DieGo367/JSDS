@@ -57,7 +57,7 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 	u16 *gfx = (u16 *) malloc(2 * bufferSize);
 	u16 *vramCopy = gfx + bufferLen;
 	dmaCopyWords(0, bgGetGfxPtr(7), vramCopy, bufferSize);
-	const u16 pal[] = {0, colorBlend(0, 0xFFFF, 15), colorBlend(0, 0xFFFF, 24), 0xFFFF};
+	const u16 pal[] = {0, colorBlend(0, 0xFFFF, 20), colorBlend(0, 0xFFFF, 80), 0xFFFF};
 
 	std::vector<dirent> dirContent;
 	u32 selected = 0, scrolled = 0;
