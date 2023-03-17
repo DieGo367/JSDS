@@ -3,11 +3,13 @@
 #include <nds/arm9/background.h>
 #include <nds/arm9/video.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/iosupport.h>
 
 #include "util/color.hpp"
 #include "util/font.hpp"
 #include "util/tonccpy.h"
+#include "util/unicode.hpp"
 
 
 
@@ -92,31 +94,14 @@ bool writeCodepoint(char16_t codepoint) {
 
 ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 	if (!message) return 0;
-	int amt = len;
 	bool fullUpdate = false;
-	while (amt-- > 0) {
-		bool newLined = false;
-		u8 ch = *message++;
-		if (ch & BIT(7)) {
-			if (amt >= 1 && (ch & 0xE0) == 0xC0 && (message[0] & 0xC0) == 0x80) {
-				newLined = writeCodepoint((ch & 0x1F) << 6 | (message[0] & 0x3F));
-				amt--; message++;
-			}
-			else if (amt >= 2 && (ch & 0xF0) == 0xE0 && (message[0] & 0xC0) == 0x80 && (message[1] & 0xC0) == 0x80) {
-				newLined = writeCodepoint((ch & 0x0F) << 12 | (message[0] & 0x3F) << 6 | (message[1] & 0x3F));
-				amt -= 2;
-				message += 2;
-			}
-			else if (amt >= 3 && (ch & 0xF8) == 0xF0 && (message[0] & 0xC0) == 0x80 && (message[1] & 0xC0) == 0x80 && (message[2] & 0xC0) == 0x80) {
-				newLined = writeCodepoint(REPLACEMENT_CHAR);
-				amt -= 3;
-				message += 3;
-			}
-			else newLined = writeCodepoint(REPLACEMENT_CHAR);
-		}
-		else newLined = writeCodepoint(ch);
-		if (newLined) fullUpdate = true;
+	u32 codepointLen;
+	char16_t *codepoints = UTF8toUTF16(message, len, &codepointLen);
+	char16_t *ptr = codepoints;
+	while (codepointLen-- > 0) {
+		if (writeCodepoint(*(ptr++))) fullUpdate = true;
 	}
+	free(codepoints);
 	if (!paused) {
 		if (fullUpdate) consoleDraw();
 		else dmaCopyWords(0,
