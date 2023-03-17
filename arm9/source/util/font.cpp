@@ -4,6 +4,7 @@
 
 #include "font_nftr.h"
 #include "util/tonccpy.h"
+#include "util/unicode.hpp"
 
 #define getU16(src, offset) *((u16 *) (src + offset))
 #define getU32(src, offset) *((u32 *) (src + offset))
@@ -150,31 +151,7 @@ void fontPrintString(NitroFont font, const u16 *palette, const char *str, u16 *b
 	const char *end = str;
 	while(*(end++));
 	const u32 utf8Size = end - str;
-	char16_t *utf16 = (char16_t *) malloc(utf8Size * 2);
-	char16_t *out = utf16;
-	for (u32 i = 0; i < utf8Size; i++) {
-		u8 byte = str[i];
-		if (byte < 0x80) *(out++) = byte;
-		else if (byte < 0xE0) {
-			u8 byte2 = str[++i];
-			if ((byte2 & 0xC0) != BIT(7)) break;
-			*(out++) = (byte & 0b11111) << 6 | (byte2 & 0b111111);
-		}
-		else if (byte < 0xF0) {
-			u8 byte2 = str[++i], byte3 = str[++i];
-			if ((byte2 & 0xC0) != BIT(7) || (byte3 & 0xC0) != BIT(7)) break;
-			*(out++) = (byte & 0xF) << 12 | (byte2 & 0b111111) << 6 | (byte3 & 0b111111);
-		}
-		else {
-			u8 byte2 = str[++i], byte3 = str[++i], byte4 = str[++i];
-			if ((byte2 & 0xC0) != BIT(7) || (byte3 & 0xC0) != BIT(7) || (byte4 & 0xC0) != BIT(7)) break;
-			char32_t codepoint = (byte & 0b111) << 18 | (byte2 & 0b111111) << 12 | (byte3 & 0b111111) << 6 | (byte4 & 0b111111);
-			codepoint -= 0x10000;
-			*(out++) = 0xD800 | codepoint >> 10;
-			*(out++) = 0xDC00 | (codepoint & 0x3FF);
-		}
-	}
-	*out = 0;
+	char16_t *utf16 = UTF8toUTF16(str, utf8Size);
 	fontPrintUnicode(font, palette, utf16, buffer, bufferWidth, x, y, maxWidth);
 	free(utf16);
 }

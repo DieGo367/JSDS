@@ -1,37 +1,20 @@
 #include "helpers.hpp"
 
 #include <stdlib.h>
+#include "util/unicode.hpp"
 
 
 
-jerry_value_t createStringUTF16(const char16_t* codepoints, jerry_size_t length) {
-	u8 utf8[length * 3]; // each codepoint can produce up to 3 bytes (surrogate pairs end up as 4 bytes, but that's still 2 bytes each)
-	u8 *out = utf8;
-	for (jerry_size_t i = 0; i < length; i++) {
-		char16_t codepoint = codepoints[i];
-		if (codepoint < 0x80) *(out++) = codepoint;
-		else if (codepoint < 0x800) {
-			out[0] = 0b11000000 | (codepoint >> 6 & 0b00011111);
-			out[1] = BIT(7) | (codepoint & 0b00111111);
-			out += 2;
-		}
-		else if (codepoint >= 0xD800 && codepoint < 0xDC00 && i < length && codepoints[i + 1] >= 0xDC00 && codepoints[i + 1] < 0xF000) {
-			char16_t surrogate = codepoints[++i];
-			out[0] = 0xF0 | (codepoint >> 7 & 0b111);
-			out[1] = BIT(7) | (codepoint >> 1 & 0b00111111);
-			out[2] = BIT(7) | (codepoint & 1) << 5 | (surrogate >> 5 & 0b00011111); // different mask than the rest
-			out[3] = BIT(7) | (surrogate & 0b00111111);
-			out += 4;
-		}
-		else {
-			out[0] = 0b11100000 | (codepoint >> 12 & 0xF);
-			out[1] = BIT(7) | (codepoint >> 6 & 0b00111111);
-			out[2] = BIT(7) | (codepoint & 0b00111111);
-			out += 3;
-		}
+jerry_value_t StringUTF16(const char16_t* codepoints, jerry_size_t length) {
+	jerry_size_t convertedLength;
+	char *converted = UTF16toUTF8(codepoints, length, &convertedLength);
+	if (!jerry_is_valid_utf8_string((jerry_char_t *) converted, convertedLength)) {
+		free(converted);
+		return TypeError("Invalid UTF-16");
 	}
-	if (!jerry_is_valid_utf8_string(utf8, out - utf8)) return TypeError("Invalid UTF-16");
-	return StringSized(utf8, out - utf8);
+	jerry_value_t convertedStr = StringSized(converted, convertedLength);
+	free(converted);
+	return convertedStr;
 }
 
 char *getString(const jerry_value_t stringValue, jerry_size_t *stringSize) {
@@ -208,7 +191,7 @@ void setReadonlyString(jerry_value_t object, const char *property, const char *v
 	jerry_release_value(string);
 }
 void setReadonlyStringUTF16(jerry_value_t object, const char *property, const char16_t *codepoints, jerry_size_t length) {
-	jerry_value_t string = createStringUTF16(codepoints, length);
+	jerry_value_t string = StringUTF16(codepoints, length);
 	setReadonly(object, property, string);
 	jerry_release_value(string);
 }

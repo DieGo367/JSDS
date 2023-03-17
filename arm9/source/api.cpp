@@ -25,6 +25,7 @@ extern "C" {
 #include "logging.hpp"
 #include "timeouts.hpp"
 #include "util/tonccpy.h"
+#include "util/unicode.hpp"
 
 
 
@@ -438,35 +439,17 @@ FUNCTION(Text_encodeUTF16) {
 	}
 	jerry_size_t utf8Size;
 	char *utf8 = getAsString(args[0], &utf8Size);
-	u8 utf16[utf8Size * 2];
-	char16_t *out = (char16_t *) utf16;
-	for (jerry_size_t i = 0; i < utf8Size; i++) {
-		u8 byte = utf8[i];
-		if (byte < 0x80) *(out++) = byte;
-		else if (byte < 0xE0) {
-			u8 byte2 = utf8[++i]; // Jerry validates its strings, so this shouldn't be out of range
-			*(out++) = (byte & 0b11111) << 6 | (byte2 & 0b111111);
-		}
-		else if (byte < 0xF0) {
-			u8 byte2 = utf8[++i], byte3 = utf8[++i];
-			*(out++) = (byte & 0xF) << 12 | (byte2 & 0b111111) << 6 | (byte3 & 0b111111);
-		}
-		else {
-			u8 byte2 = utf8[++i], byte3 = utf8[++i], byte4 = utf8[++i];
-			char32_t codepoint = (byte & 0b111) << 18 | (byte2 & 0b111111) << 12 | (byte3 & 0b111111) << 6 | (byte4 & 0b111111);
-			codepoint -= 0x10000;
-			*(out++) = 0xD800 | codepoint >> 10;
-			*(out++) = 0xDC00 | (codepoint & 0x3FF);
-		}
-	}
+	jerry_size_t utf16Length;
+	char16_t *utf16 = UTF8toUTF16(utf8, utf8Size, &utf16Length);
 	free(utf8);
-	jerry_size_t utf16Size = ((u8 *) out) - utf16;
+	jerry_size_t utf16Size = utf16Length * 2;
 	if (argCount > 1 && !jerry_value_is_undefined(args[1])) {
 		jerry_length_t byteOffset, bufSize;
 		jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &byteOffset, &bufSize);
 		u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 		jerry_release_value(arrayBuffer);
 		if (utf16Size > bufSize) {
+			free(utf16);
 			return TypeError("Text size is too big to encode into the given array.");
 		}
 		tonccpy(data, utf16, utf16Size);
@@ -475,6 +458,7 @@ FUNCTION(Text_encodeUTF16) {
 	jerry_value_t arrayBuffer = jerry_create_arraybuffer(utf16Size);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer);
 	tonccpy(data, utf16, utf16Size);
+	free(utf16);
 	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer(JERRY_TYPEDARRAY_UINT8, arrayBuffer);
 	jerry_release_value(arrayBuffer);
 	return u8Array;
@@ -486,7 +470,7 @@ FUNCTION(Text_decodeUTF16) {
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &byteOffset, &dataLen);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 	jerry_release_value(arrayBuffer);
-	return createStringUTF16((char16_t *) data, dataLen / 2);
+	return StringUTF16((char16_t *) data, dataLen / 2);
 }
 
 const char b64Map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

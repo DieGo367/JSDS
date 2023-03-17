@@ -9,6 +9,7 @@
 #include "keyboard_nftr.h"
 #include "util/font.hpp"
 #include "util/tonccpy.h"
+#include "util/unicode.hpp"
 
 #define lengthof(arr) sizeof(arr)/sizeof(*arr)
 
@@ -821,29 +822,7 @@ ComposeStatus keyboardComposeStatus() {
 	return composing;
 }
 void keyboardComposeAccept(char **strPtr, u32 *strSize) {
-	char *str = (char *) malloc((compCursor - compositionBuffer) * 3 + 1);
-	*strPtr = str;
-	u32 size = 0;
-	for (char16_t *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
-		char16_t codepoint = *codePtr;
-		if (codepoint < 0x80) {
-			*(str++) = codepoint;
-			size++;
-		}
-		else if (codepoint < 0x800) {
-			*(str++) = 0xC0 | codepoint >> 6;
-			*(str++) = BIT(7) | (codepoint & 0x3F);
-			size += 2;
-		}
-		else {
-			*(str++) = 0xE0 | codepoint >> 12;
-			*(str++) = BIT(7) | (codepoint >> 6 & 0x3F);
-			*(str++) = BIT(7) | (codepoint & 0x3F);
-			size += 3;
-		}
-	}
-	*str = 0;
-	*strSize = size;
+	*strPtr = UTF16toUTF8(compositionBuffer, compCursor - compositionBuffer, strSize);
 	keyboardComposeCancel();
 }
 void keyboardComposeCancel() {

@@ -16,6 +16,7 @@ extern "C" {
 #include "jerry/jerryscript.h"
 #include "logging.hpp"
 #include "timeouts.hpp"
+#include "util/unicode.hpp"
 
 
 
@@ -267,13 +268,11 @@ bool dispatchKeyboardEvent(bool down, const char16_t codepoint, const char *name
 	if (codepoint == 2) keyStr = String("Shift"); // hardcoded override to remove Left/Right variants of Shift
 	else if (codepoint < ' ') keyStr = String(name);
 	else if (codepoint < 0x80) keyStr = String((char *) &codepoint);
-	else if (codepoint < 0x800) {
-		char converted[3] = {(char) (0xC0 | codepoint >> 6), (char) (BIT(7) | (codepoint & 0x3F)), 0};
-		keyStr = String(converted);
-	}
 	else {
-		char converted[4] = {(char) (0xE0 | codepoint >> 12), (char) (BIT(7) | (codepoint >> 6 & 0x3F)), (char) (BIT(7) | (codepoint & 0x3F)), 0};
-		keyStr = String(converted);
+		u32 convertedLength;
+		char *converted = UTF16toUTF8(&codepoint, 1, &convertedLength);
+		keyStr = StringSized(converted, convertedLength);
+		free(converted);
 	}
 	jerry_value_t codeStr = String(name);
 	jerry_value_t layoutStr = String(

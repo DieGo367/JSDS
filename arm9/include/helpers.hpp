@@ -49,7 +49,7 @@ extern jerry_value_t ref_sym_toStringTag;
 // Creates a js string out of a c string and size. Return value must be released!
 #define StringSized(str, size) jerry_create_string_sz_from_utf8((const jerry_char_t *) (str), (size))
 // Creates a js string out of a list of UTF-16 string. Return value must be released! Throws a TypeError when invalid.
-jerry_value_t createStringUTF16(const char16_t* codepoints, jerry_size_t length);
+jerry_value_t StringUTF16(const char16_t* codepoints, jerry_size_t length);
 
 /*
  * Copy a string value into a new c string. Return value must be freed!
