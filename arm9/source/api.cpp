@@ -60,7 +60,7 @@ FUNCTION(IllegalConstructor) {
 FUNCTION(closeJSDS) {
 	abortFlag = true;
 	userClosed = true;
-	return jerry_create_abort_from_value(String("close() was called."), true);
+	return jerry_create_abort_from_value(String(""), true);
 }
 
 FUNCTION(alert) {

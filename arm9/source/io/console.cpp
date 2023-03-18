@@ -2,6 +2,7 @@
 
 #include <nds/arm9/background.h>
 #include <nds/arm9/video.h>
+#include <nds/arm9/cache.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/iosupport.h>
@@ -64,6 +65,7 @@ void newLine() {
 	if (colors[0]) for (u8 i = 0; i < consoleFont.tileHeight; i++) {
 		toncset16(gfxBuffer + (((linePos + i) % BUFFER_HEIGHT) * SCREEN_WIDTH) + lineWidth, colors[0], SCREEN_WIDTH - lineWidth);
 	}
+	DC_FlushRange(gfxBuffer + (linePos % BUFFER_HEIGHT) * SCREEN_WIDTH, consoleFont.tileHeight * SCREEN_WIDTH * sizeof(u16));
 	lineWidth = 0;
 	linePos += consoleFont.tileHeight;
 	toncset16(gfxBuffer + ((linePos % BUFFER_HEIGHT) * SCREEN_WIDTH), 0, SCREEN_WIDTH * consoleFont.tileHeight);

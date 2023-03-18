@@ -1,6 +1,7 @@
 #include "file.hpp"
 
 #include <algorithm>
+#include <ctype.h>
 #include <dirent.h>
 #include <fat.h>
 #include <nds/arm9/background.h>
@@ -39,7 +40,7 @@ jerry_value_t newFile(FILE *file, jerry_value_t mode) {
 }
 
 bool sortDirectoriesFirst(dirent left, dirent right) {
-	return left.d_type != right.d_type && left.d_type == DT_DIR;
+	return (left.d_type != right.d_type && left.d_type == DT_DIR) || tolower(left.d_name[0]) < tolower(right.d_name[0]);
 }
 
 char *fileBrowse(NitroFont font, const char *message, const char *path, std::vector<char *> extensions, bool replText) {

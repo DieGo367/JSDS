@@ -80,7 +80,6 @@ int main(int argc, char **argv) {
 	// run
 	if (argc > 1) runFile(argv[1]);
 	else {
-		if (access("sd:/", F_OK) == 0) chdir("sd:/");
 		char *filePath = fileBrowse(font, "Select a script to run.", ".", {(char *) "js"}, true);
 		if (filePath != NULL) runFile(filePath);
 		else repl();
