@@ -398,63 +398,7 @@ interface TouchEvent extends Event {
 
 /** Values representing either the top or bottom screen. */
 type Screen = "bottom" | "top";
-interface Profile {
-	/** The hour (0-23) that the user's alarm is set to. */
-	readonly alarmHour: number;
-	/** The minute (0-59) that the user's alarm is set to. */
-	readonly alarmMinute: number;
-	/** The user's birth day (1-31). */
-	readonly birthDay: number;
-	/** The user's birth month (1-12). */
-	readonly birthMonth: number;
-	/** The user's name. */
-	readonly name: string;
-	/** The user's personal message. */
-	readonly message: string;
-	/** The user's theme color, as a BGR15 color value. */
-	readonly color: number;
-	/** `true` if the user has set their DS to autoboot the cartridge. */
-	readonly autoMode: boolean;
-	/** The screen the user has selected for GBA mode. */
-	readonly gbaScreen: Screen;
-	/** The user's system language (as represented in that language). */
-	readonly language: string;
-}
-interface ButtonsState {
-	get A(): boolean;
-	get B(): boolean;
-	get X(): boolean;
-	get Y(): boolean;
-	get L(): boolean;
-	get R(): boolean;
-	get Up(): boolean;
-	get Down(): boolean;
-	get Left(): boolean;
-	get Right(): boolean;
-	get START(): boolean;
-	get SELECT(): boolean;
-}
-interface Buttons {
-	/** Buttons that were just pressed. */
-	pressed: ButtonsState;
-	/** Buttons that are currently held down. */
-	held: ButtonsState;
-	/** Buttons that were just released. */
-	released: ButtonsState;
-}
-interface Touch {
-	/** `true` if a touch has just begun. */
-	get start(): boolean;
-	/** `true` if the screen is being touched. */
-	get active(): boolean;
-	/** `true` if a touch has just ended. */
-	get end(): boolean;
-	/**
-	 * @returns The current touch position.
-	 * If the screen is not being touched, both numbers will be `NaN`.
-	*/
-	getPosition(): {x: number, y: number};
-}
+
 /** Home for DS-specifc functionality. */
 interface DS {
 	/** `true` if running in DSi mode. */
@@ -484,15 +428,74 @@ interface DS {
 	sleep(): void;
 	/** Turns off the DS. */
 	shutdown(): void;
-
-	/** User profile data. */
-	profile: Profile;
-	/** Button pressed/held/released states. */
-	buttons: Buttons;
-	/** Touch screen input data. */
-	touch: Touch;
 }
 declare var DS: DS;
+
+/** User profile data. */
+interface Profile {
+	/** The hour (0-23) that the user's alarm is set to. */
+	readonly alarmHour: number;
+	/** The minute (0-59) that the user's alarm is set to. */
+	readonly alarmMinute: number;
+	/** The user's birth day (1-31). */
+	readonly birthDay: number;
+	/** The user's birth month (1-12). */
+	readonly birthMonth: number;
+	/** The user's name. */
+	readonly name: string;
+	/** The user's personal message. */
+	readonly message: string;
+	/** The user's theme color, as a BGR15 color value. */
+	readonly color: number;
+	/** `true` if the user has set their DS to autoboot the cartridge. */
+	readonly autoMode: boolean;
+	/** The screen the user has selected for GBA mode. */
+	readonly gbaScreen: Screen;
+	/** The user's system language (as represented in that language). */
+	readonly language: string;
+}
+declare var Profile: Profile;
+
+interface ButtonState {
+	/** Button was just pressed. */
+	get pressed(): boolean;
+	/** Button is held down. */
+	get held(): boolean;
+	/** Button was just released. */
+	get released(): boolean;
+}
+/** Button pressed/held/released states. */
+interface Button {
+	A: ButtonState;
+	B: ButtonState;
+	X: ButtonState;
+	Y: ButtonState;
+	L: ButtonState;
+	R: ButtonState;
+	Up: ButtonState;
+	Down: ButtonState;
+	Left: ButtonState;
+	Right: ButtonState;
+	START: ButtonState;
+	SELECT: ButtonState;
+}
+declare var Button: Button;
+
+/** Touch screen input data. */
+interface Touch {
+	/** `true` if a touch has just begun. */
+	get start(): boolean;
+	/** `true` if the screen is being touched. */
+	get active(): boolean;
+	/** `true` if a touch has just ended. */
+	get end(): boolean;
+	/**
+	 * @returns The current touch position.
+	 * If the screen is not being touched, both numbers will be `NaN`.
+	*/
+	getPosition(): {x: number, y: number};
+}
+declare var Touch: Touch;
 
 interface BetaAPI {
 	gfxInit(): void;

@@ -1440,7 +1440,6 @@ void exposeAPI() {
 	defEventAttribute(ref_global, "onwake");
 
 	jerry_value_t DS = createObject(ref_global, "DS");
-
 	setMethod(DS, "getBatteryLevel", DS_getBatteryLevel);
 	setMethod(DS, "getMainScreen", LAMBDA(String(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom")));
 	setReadonly(DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
@@ -1448,48 +1447,44 @@ void exposeAPI() {
 	setMethod(DS, "shutdown", LAMBDA((systemShutDown(), JS_UNDEFINED)));
 	setMethod(DS, "sleep", DS_sleep);
 	setMethod(DS, "swapScreens", LAMBDA((lcdSwap(), JS_UNDEFINED)));
+	jerry_release_value(DS);
 
-	jerry_value_t profile = createObject(DS, "profile");
-	setReadonlyNumber(profile, "alarmHour", PersonalData->alarmHour);
-	setReadonlyNumber(profile, "alarmMinute", PersonalData->alarmMinute);
-	setReadonlyNumber(profile, "birthDay", PersonalData->birthDay);
-	setReadonlyNumber(profile, "birthMonth", PersonalData->birthMonth);
+	jerry_value_t Profile = createObject(ref_global, "Profile");
+	setReadonlyNumber(Profile, "alarmHour", PersonalData->alarmHour);
+	setReadonlyNumber(Profile, "alarmMinute", PersonalData->alarmMinute);
+	setReadonlyNumber(Profile, "birthDay", PersonalData->birthDay);
+	setReadonlyNumber(Profile, "birthMonth", PersonalData->birthMonth);
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-	setReadonlyStringUTF16(profile, "name", (char16_t *) PersonalData->name, PersonalData->nameLen);
-	setReadonlyStringUTF16(profile, "message", (char16_t *) PersonalData->message, PersonalData->messageLen);
+	setReadonlyStringUTF16(Profile, "name", (char16_t *) PersonalData->name, PersonalData->nameLen);
+	setReadonlyStringUTF16(Profile, "message", (char16_t *) PersonalData->message, PersonalData->messageLen);
 	#pragma GCC diagnostic pop
 	const u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
-	setReadonlyNumber(profile, "color", PersonalData->theme < 16 ? themeColors[PersonalData->theme] : 0);
-	setReadonly(profile, "autoMode", jerry_create_boolean(PersonalData->autoMode));
-	setReadonlyString(profile, "gbaScreen", PersonalData->gbaScreen ? "bottom" : "top");
+	setReadonlyNumber(Profile, "color", PersonalData->theme < 16 ? themeColors[PersonalData->theme] : 0);
+	setReadonly(Profile, "autoMode", jerry_create_boolean(PersonalData->autoMode));
+	setReadonlyString(Profile, "gbaScreen", PersonalData->gbaScreen ? "bottom" : "top");
 	const char languages[8][10] = {"日本語", "English", "Français", "Deutsch", "Italiano", "Español", "中文", "한국어"};
-	setReadonlyString(profile, "language", PersonalData->language < 8 ? languages[PersonalData->language] : "");
-	jerry_release_value(profile);
+	setReadonlyString(Profile, "language", PersonalData->language < 8 ? languages[PersonalData->language] : "");
+	jerry_release_value(Profile);
 
-	jerry_value_t buttons = createObject(DS, "buttons");
-	jerry_value_t pressed = createObject(buttons, "pressed");
-	jerry_value_t held = createObject(buttons, "held");
-	jerry_value_t released = createObject(buttons, "released");
-	#define DEF_GETTER_KEY_DOWN(name, value) defGetter(pressed, name, LAMBDA(jerry_create_boolean(keysDown() & value)));
-	#define DEF_GETTER_KEY_HELD(name, value) defGetter(held, name, LAMBDA(jerry_create_boolean(keysHeld() & value)));
-	#define DEF_GETTER_KEY_UP(name, value) defGetter(released, name, LAMBDA(jerry_create_boolean(keysUp() & value)));
-	FOR_BUTTONS(DEF_GETTER_KEY_DOWN);
-	FOR_BUTTONS(DEF_GETTER_KEY_HELD);
-	FOR_BUTTONS(DEF_GETTER_KEY_UP);
-	jerry_release_value(pressed);
-	jerry_release_value(held);
-	jerry_release_value(released);
-	jerry_release_value(buttons);
+	jerry_value_t Button = createObject(ref_global, "Button");
+	jerry_value_t buttonObj;
+	#define DEF_BUTTON_OBJECT(name, value) \
+		buttonObj = createObject(Button, name); \
+		defGetter(buttonObj, "pressed", LAMBDA(jerry_create_boolean(keysDown() & value))); \
+		defGetter(buttonObj, "held", LAMBDA(jerry_create_boolean(keysHeld() & value))); \
+		defGetter(buttonObj, "release", LAMBDA(jerry_create_boolean(keysUp() & value))); \
+		jerry_release_value(buttonObj);
+	FOR_BUTTONS(DEF_BUTTON_OBJECT);
+	jerry_release_value(Button);
 
-	jerry_value_t touch = createObject(DS, "touch");
-	defGetter(touch, "start", LAMBDA(jerry_create_boolean(keysDown() & KEY_TOUCH)));
-	defGetter(touch, "active", LAMBDA(jerry_create_boolean(keysHeld() & KEY_TOUCH)));
-	defGetter(touch, "end", LAMBDA(jerry_create_boolean(keysUp() & KEY_TOUCH)));
-	setMethod(touch, "getPosition", DS_touchGetPosition);
-	jerry_release_value(touch);
+	jerry_value_t Touch = createObject(ref_global, "Touch");
+	defGetter(Touch, "start", LAMBDA(jerry_create_boolean(keysDown() & KEY_TOUCH)));
+	defGetter(Touch, "active", LAMBDA(jerry_create_boolean(keysHeld() & KEY_TOUCH)));
+	defGetter(Touch, "end", LAMBDA(jerry_create_boolean(keysUp() & KEY_TOUCH)));
+	setMethod(Touch, "getPosition", DS_touchGetPosition);
+	jerry_release_value(Touch);
 
-	jerry_release_value(DS);
 	exposeBetaAPI();
 }
 
