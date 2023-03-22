@@ -107,6 +107,8 @@ void releaseClass(JS_class cls);
 
 // Create a getter on an object with the given function.
 void defGetter(jerry_value_t object, const char *property, jerry_external_handler_t getter);
+// Create a getter and setter to a property on object with the given pair of functions.
+void defGetterSetter(jerry_value_t object, const char *property, jerry_external_handler_t getter, jerry_external_handler_t setter);
 
 // Return value must be released!
 jerry_value_t getInternalProperty(jerry_value_t object, const char *property);

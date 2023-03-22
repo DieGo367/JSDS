@@ -148,6 +148,21 @@ void defGetter(jerry_value_t object, const char *property, jerry_external_handle
 	jerry_release_value(propertyStr);
 	jerry_release_value(getterDesc.getter);
 }
+jerry_property_descriptor_t getterSetterDesc = {
+	.is_get_defined = true,
+	.is_set_defined = true,
+	.is_enumerable_defined = true,
+	.is_enumerable = true
+};
+void defGetterSetter(jerry_value_t object, const char *property, jerry_external_handler_t getter, jerry_external_handler_t setter) {
+	getterSetterDesc.getter = jerry_create_external_function(getter);
+	getterSetterDesc.setter = jerry_create_external_function(setter);
+	jerry_value_t propertyStr = jerry_create_string((jerry_char_t *) property);
+	jerry_release_value(jerry_define_own_property(object, propertyStr, &getterSetterDesc));
+	jerry_release_value(propertyStr);
+	jerry_release_value(getterSetterDesc.getter);
+	jerry_release_value(getterSetterDesc.setter);
+}
 
 jerry_value_t getInternalProperty(jerry_value_t object, const char *property) {
 	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
@@ -227,22 +242,16 @@ static jerry_value_t eventAttributeSetter(const jerry_value_t function, const je
 	return JS_UNDEFINED;
 }
 
-jerry_property_descriptor_t eventAttributeDesc = {
-	.is_get_defined = true,
-	.is_set_defined = true,
-	.is_enumerable_defined = true,
-	.is_enumerable = true
-};
 void defEventAttribute(jerry_value_t eventTarget, const char *attributeName) {
 	nameDesc.value = jerry_create_string((jerry_char_t *) attributeName);
 	jerry_set_internal_property(eventTarget, nameDesc.value, JS_NULL);
-	eventAttributeDesc.getter = jerry_create_external_function(readonlyGetter);
-	jerry_release_value(jerry_define_own_property(eventAttributeDesc.getter, ref_str_name, &nameDesc));
-	eventAttributeDesc.setter = jerry_create_external_function(eventAttributeSetter);
-	jerry_release_value(jerry_define_own_property(eventAttributeDesc.setter, ref_str_name, &nameDesc));
-	jerry_release_value(jerry_define_own_property(eventTarget, nameDesc.value, &eventAttributeDesc));
-	jerry_release_value(eventAttributeDesc.getter);
-	jerry_release_value(eventAttributeDesc.setter);
+	getterSetterDesc.getter = jerry_create_external_function(readonlyGetter);
+	jerry_release_value(jerry_define_own_property(getterSetterDesc.getter, ref_str_name, &nameDesc));
+	getterSetterDesc.setter = jerry_create_external_function(eventAttributeSetter);
+	jerry_release_value(jerry_define_own_property(getterSetterDesc.setter, ref_str_name, &nameDesc));
+	jerry_release_value(jerry_define_own_property(eventTarget, nameDesc.value, &getterSetterDesc));
+	jerry_release_value(getterSetterDesc.getter);
+	jerry_release_value(getterSetterDesc.setter);
 	jerry_release_value(nameDesc.value);
 }
 

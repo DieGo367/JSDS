@@ -400,8 +400,7 @@ FUNCTION(console_clear) {
 	return JS_UNDEFINED;
 }
 
-FUNCTION(console_setTextColor) {
-	REQUIRE_FIRST();
+FUNCTION(console_textColor) {
 	char *colorDesc = getAsString(args[0]);
 	u16 color = colorParse(colorDesc, consoleGetColor());
 	free(colorDesc);
@@ -409,8 +408,7 @@ FUNCTION(console_setTextColor) {
 	return JS_UNDEFINED;
 }
 
-FUNCTION(console_setTextBackground) {
-	REQUIRE_FIRST();
+FUNCTION(console_textBackground) {
 	char *colorDesc = getAsString(args[0]);
 	u16 color = colorParse(colorDesc, consoleGetBackground());
 	free(colorDesc);
@@ -1360,10 +1358,8 @@ void exposeAPI() {
 	setMethod(console, "timeEnd", console_timeEnd);
 	setMethod(console, "trace", console_trace);
 	setMethod(console, "warn", console_warn);
-	setMethod(console, "setTextColor", console_setTextColor);
-	setMethod(console, "getTextColor", LAMBDA(jerry_create_number(consoleGetColor())));
-	setMethod(console, "setTextBackground", console_setTextBackground);
-	setMethod(console, "getTextBackground", LAMBDA(jerry_create_number(consoleGetBackground())));
+	defGetterSetter(console, "textColor", LAMBDA(jerry_create_number(consoleGetColor())), console_textColor);
+	defGetterSetter(console, "textBackground", LAMBDA(jerry_create_number(consoleGetBackground())), console_textBackground);
 	jerry_release_value(console);
 
 	jerry_value_t keyboard = createObject(ref_global, "keyboard");

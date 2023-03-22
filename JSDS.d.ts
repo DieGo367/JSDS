@@ -31,10 +31,10 @@ interface Console {
 	dir(...data: any[]): void;
 	table(tabularData?: any, properties?: string[]): void;
 	clear(): void;
-	setTextColor(color: number | string): void;
-	getTextColor(): number;
-	setTextBackground(color: number | string): void;
-	getTextBackground(): number;
+	set textColor(color: number | string): void;
+	get textColor(): number;
+	set textBackground(color: number | string): void;
+	get textBackground(): number;
 }
 declare var console: Console;
 
