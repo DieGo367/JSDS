@@ -691,7 +691,7 @@ FUNCTION(File_close) {
 	return JS_UNDEFINED;
 }
 
-FUNCTION(FileStatic_open) {
+FUNCTION(File_static_open) {
 	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	char defaultMode[] = "r";
@@ -724,7 +724,7 @@ FUNCTION(FileStatic_open) {
 	}
 }
 
-FUNCTION(FileStatic_copy) {
+FUNCTION(File_static_copy) {
 	REQUIRE(2);
 	char *sourcePath = getAsString(args[0]);
 	FILE *source = fopen(sourcePath, "r");
@@ -761,7 +761,7 @@ FUNCTION(FileStatic_copy) {
 	return JS_UNDEFINED;
 }
 
-FUNCTION(FileStatic_rename) {
+FUNCTION(File_static_rename) {
 	REQUIRE(2);
 	char *sourcePath = getAsString(args[0]);
 	char *destPath = getAsString(args[1]);
@@ -772,14 +772,14 @@ FUNCTION(FileStatic_rename) {
 	return JS_UNDEFINED;
 }
 
-FUNCTION(FileStatic_remove) {
+FUNCTION(File_static_remove) {
 	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	if (remove(path) != 0) return Error("Failed to delete file.");
 	return JS_UNDEFINED;
 }
 
-FUNCTION(FileStatic_read) {
+FUNCTION(File_static_read) {
 	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "r");
@@ -804,7 +804,7 @@ FUNCTION(FileStatic_read) {
 	return u8Array;
 }
 
-FUNCTION(FileStatic_readText) {
+FUNCTION(File_static_readText) {
 	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "r");
@@ -828,7 +828,7 @@ FUNCTION(FileStatic_readText) {
 	return str;
 }
 
-FUNCTION(FileStatic_write) {
+FUNCTION(File_static_write) {
 	REQUIRE(2);
 	EXPECT(jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	char *path = getAsString(args[0]);
@@ -850,7 +850,7 @@ FUNCTION(FileStatic_write) {
 	return jerry_create_number(bytesWritten);
 }
 
-FUNCTION(FileStatic_writeText) {
+FUNCTION(File_static_writeText) {
 	REQUIRE(2);
 	char *path = getAsString(args[0]);
 	FILE *file = fopen(path, "w");
@@ -870,7 +870,7 @@ FUNCTION(FileStatic_writeText) {
 	return jerry_create_number(bytesWritten);
 }
 
-FUNCTION(FileStatic_makeDir) {
+FUNCTION(File_static_makeDir) {
 	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	int status = -1;
@@ -891,7 +891,7 @@ FUNCTION(FileStatic_makeDir) {
 	return JS_UNDEFINED;
 }
 
-FUNCTION(FileStatic_readDir) {
+FUNCTION(File_static_readDir) {
 	REQUIRE_FIRST();
 	char *path = getAsString(args[0]);
 	DIR *dir = opendir(path);
@@ -913,7 +913,7 @@ FUNCTION(FileStatic_readDir) {
 	return dirArr;
 }
 
-FUNCTION(FileStatic_browse) {
+FUNCTION(File_static_browse) {
 	char browsePathDefault[] = ".";
 	char messageDefault[] = "Select a file.";
 	char *browsePath = browsePathDefault;
@@ -1387,17 +1387,17 @@ void exposeAPI() {
 	setMethod(File.prototype, "write", File_write);
 	setMethod(File.prototype, "seek", File_seek);
 	setMethod(File.prototype, "close", File_close);
-	setMethod(File.constructor, "open", FileStatic_open);
-	setMethod(File.constructor, "copy", FileStatic_copy);
-	setMethod(File.constructor, "rename", FileStatic_rename);
-	setMethod(File.constructor, "remove", FileStatic_remove);
-	setMethod(File.constructor, "read", FileStatic_read);
-	setMethod(File.constructor, "readText", FileStatic_readText);
-	setMethod(File.constructor, "write", FileStatic_write);
-	setMethod(File.constructor, "writeText", FileStatic_writeText);
-	setMethod(File.constructor, "makeDir", FileStatic_makeDir);
-	setMethod(File.constructor, "readDir", FileStatic_readDir);
-	setMethod(File.constructor, "browse", FileStatic_browse);
+	setMethod(File.constructor, "open", File_static_open);
+	setMethod(File.constructor, "copy", File_static_copy);
+	setMethod(File.constructor, "rename", File_static_rename);
+	setMethod(File.constructor, "remove", File_static_remove);
+	setMethod(File.constructor, "read", File_static_read);
+	setMethod(File.constructor, "readText", File_static_readText);
+	setMethod(File.constructor, "write", File_static_write);
+	setMethod(File.constructor, "writeText", File_static_writeText);
+	setMethod(File.constructor, "makeDir", File_static_makeDir);
+	setMethod(File.constructor, "readDir", File_static_readDir);
+	setMethod(File.constructor, "browse", File_static_browse);
 	ref_File = File.constructor;
 	jerry_release_value(File.prototype);
 
