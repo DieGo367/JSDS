@@ -1055,11 +1055,9 @@ FUNCTION(Event_stopImmediatePropagation) {
 }
 
 FUNCTION(Event_preventDefault) {
-	jerry_value_t cancelableBool = getInternalProperty(thisValue, "cancelable");
-	if (jerry_value_to_boolean(cancelableBool)) {
+	if (testInternalProperty(thisValue, "cancelable")) {
 		setInternalProperty(thisValue, "defaultPrevented", JS_TRUE);
 	}
-	jerry_release_value(cancelableBool);
 	return JS_UNDEFINED;
 }
 
@@ -1085,9 +1083,7 @@ FUNCTION(EventTarget_addEventListener) {
 	jerry_value_t callbackVal = args[1];
 	bool once = false;
 	if (argCount > 2 && jerry_value_is_object(args[2])) {
-		jerry_value_t onceVal = jerry_get_property(args[2], onceProp);
-		once = jerry_value_to_boolean(onceVal);
-		jerry_release_value(onceVal);
+		once = JS_testProperty(args[2], onceProp);
 	}
 
 	jerry_value_t eventListenersObj = getInternalProperty(targetObj, "eventListeners");

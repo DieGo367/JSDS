@@ -118,20 +118,11 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 		jerry_value_t stopImmediatePropagationProp = String("stopImmediatePropagation");
 
 		for (u32 i = 0; i < length && !abortFlag; i++) {
-			jerry_value_t stopImmediateBool = jerry_get_internal_property(event, stopImmediatePropagationProp);
-			bool stop = jerry_get_boolean_value(stopImmediateBool);
-			jerry_release_value(stopImmediateBool);
-			if (stop) break;
+			if (JS_testInternalProperty(event, stopImmediatePropagationProp)) break;
 
 			jerry_value_t listenerObj = jerry_get_property_by_index(listenersCopyArr, i);
-			jerry_value_t removedBool = jerry_get_property(listenerObj, removedProp);
-			bool removed = jerry_get_boolean_value(removedBool);
-			jerry_release_value(removedBool);
-			if (!removed) {
-				jerry_value_t onceBool = jerry_get_property(listenerObj, onceProp);
-				bool once = jerry_get_boolean_value(onceBool);
-				jerry_release_value(onceBool);
-				if (once) {
+			if (!JS_testProperty(listenerObj, removedProp)) {
+				if (JS_testProperty(listenerObj, onceProp)) {
 					arraySplice(listenersArr, i, 1);
 					jerry_release_value(jerry_set_property(listenerObj, removedProp, JS_TRUE));
 				}
@@ -165,10 +156,7 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	setInternalProperty(event, "stopImmediatePropagation", JS_FALSE);
 	jerry_release_value(targetProp);
 	
-	jerry_value_t canceledBool = getInternalProperty(event, "defaultPrevented");
-	bool canceled = jerry_get_boolean_value(canceledBool);
-	jerry_release_value(canceledBool);
-	return canceled;
+	return testInternalProperty(event, "defaultPrevented");
 }
 
 // Task which dispatches an event. Args: EventTarget, Event, optional callbackFunc

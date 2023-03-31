@@ -135,4 +135,9 @@ void arraySplice(jerry_value_t array, u32 start, u32 deleteCount);
 bool strictEqual(jerry_value_t a, jerry_value_t b);
 bool isInstance(jerry_value_t object, jerry_value_t function);
 
+bool JS_testProperty(jerry_value_t object, jerry_value_t property);
+bool testProperty(jerry_value_t object, const char *property);
+bool JS_testInternalProperty(jerry_value_t object, jerry_value_t property);
+bool testInternalProperty(jerry_value_t object, const char *property);
+
 #endif /* JSDS_HELPERS_HPP */

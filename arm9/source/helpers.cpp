@@ -282,3 +282,30 @@ bool isInstance(jerry_value_t object, jerry_value_t function) {
 	jerry_release_value(isInstanceBool);
 	return isInstance;
 }
+
+bool JS_testProperty(jerry_value_t object, jerry_value_t property) {
+	jerry_value_t testVal = jerry_get_property(object, property);
+	bool result = jerry_value_to_boolean(testVal);
+	jerry_release_value(testVal);
+	return result;
+}
+
+bool testProperty(jerry_value_t object, const char *property) {
+	jerry_value_t testVal = getProperty(object, property);
+	bool result = jerry_value_to_boolean(testVal);
+	jerry_release_value(testVal);
+	return result;
+}
+bool JS_testInternalProperty(jerry_value_t object, jerry_value_t property) {
+	jerry_value_t testVal = jerry_get_internal_property(object, property);
+	bool result = jerry_value_to_boolean(testVal);
+	jerry_release_value(testVal);
+	return result;
+}
+
+bool testInternalProperty(jerry_value_t object, const char *property) {
+	jerry_value_t testVal = getInternalProperty(object, property);
+	bool result = jerry_value_to_boolean(testVal);
+	jerry_release_value(testVal);
+	return result;
+}
