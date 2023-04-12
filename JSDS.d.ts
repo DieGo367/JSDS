@@ -31,9 +31,9 @@ interface Console {
 	dir(...data: any[]): void;
 	table(tabularData?: any, properties?: string[]): void;
 	clear(): void;
-	set textColor(color: number | string): void;
+	set textColor(color: number | string);
 	get textColor(): number;
-	set textBackground(color: number | string): void;
+	set textBackground(color: number | string);
 	get textBackground(): number;
 }
 declare var console: Console;
@@ -386,7 +386,7 @@ interface KeyboardEvent extends Event {
 }
 /** Events that describe a button press or release. */
 interface ButtonEvent extends Event {
-	readonly button: string;
+	readonly button: ButtonName;
 }
 /** Events that describe touch screen interaction. */
 interface TouchEvent extends Event {
@@ -456,6 +456,7 @@ interface Profile {
 }
 declare var Profile: Profile;
 
+type ButtonName = "A" | "B" | "X" | "Y" | "L" | "R" | "Up" | "Down" | "Left" | "Right" | "START" | "SELECT";
 interface ButtonState {
 	/** Button was just pressed. */
 	get pressed(): boolean;
@@ -465,20 +466,7 @@ interface ButtonState {
 	get released(): boolean;
 }
 /** Button pressed/held/released states. */
-interface Button {
-	A: ButtonState;
-	B: ButtonState;
-	X: ButtonState;
-	Y: ButtonState;
-	L: ButtonState;
-	R: ButtonState;
-	Up: ButtonState;
-	Down: ButtonState;
-	Left: ButtonState;
-	Right: ButtonState;
-	START: ButtonState;
-	SELECT: ButtonState;
-}
+type Button = Record<ButtonName, ButtonState>;
 declare var Button: Button;
 
 /** Touch screen input data. */
