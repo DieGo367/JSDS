@@ -211,6 +211,19 @@ void setReadonlyStringUTF16(jerry_value_t object, const char *property, const ch
 	jerry_release_value(string);
 }
 
+jerry_value_t Symbol(const char *symbolName) {
+	jerry_value_t string = String(symbolName);
+	jerry_value_t symbol = jerry_create_symbol(string);
+	jerry_release_value(string);
+	return symbol;
+}
+
+void setSymbol(jerry_value_t object, jerry_value_t symbol) {
+	jerry_value_t string = jerry_get_symbol_description(symbol);
+	jerry_release_value(jerry_set_property(object, string, symbol));
+	jerry_release_value(string);
+}
+
 static jerry_value_t eventAttributeSetter(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
 	jerry_value_t attrNameStr = getProperty(function, "name");
 	jerry_size_t attrNameSize = jerry_get_string_size(attrNameStr);

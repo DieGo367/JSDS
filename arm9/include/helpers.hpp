@@ -124,6 +124,11 @@ void setReadonlyString(jerry_value_t object, const char *property, const char *v
 // Sets a getter to a string on object via c string and UTF-16 string.
 void setReadonlyStringUTF16(jerry_value_t object, const char *property, const char16_t *codepoints, jerry_size_t length);
 
+// Create a symbol from c string. Return value must be released!
+jerry_value_t Symbol(const char *symbolName);
+// Assigns a symbol to object via its string description.
+void setSymbol(jerry_value_t object, jerry_value_t symbol);
+
 // Define an event attribute getter/setter on an EventTarget (i.e. "onload").
 void defEventAttribute(jerry_value_t eventTarget, const char *attributeName);
 

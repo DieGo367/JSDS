@@ -485,6 +485,159 @@ interface Touch {
 }
 declare var Touch: Touch;
 
+interface VRAM_TYPES {
+	readonly LCD: unique symbol;
+	readonly ARM7_0: unique symbol;
+	readonly ARM7_1: unique symbol;
+	readonly MAIN_BG: unique symbol;
+	readonly MAIN_BG_0x4000: unique symbol;
+	readonly MAIN_BG_0x10000: unique symbol;
+	readonly MAIN_BG_0x14000: unique symbol;
+	readonly MAIN_BG_0x20000: unique symbol;
+	readonly MAIN_BG_0x40000: unique symbol;
+	readonly MAIN_BG_0x60000: unique symbol;
+	readonly MAIN_SPRITE: unique symbol;
+	readonly MAIN_SPRITE_0x4000: unique symbol;
+	readonly MAIN_SPRITE_0x10000: unique symbol;
+	readonly MAIN_SPRITE_0x14000: unique symbol;
+	readonly MAIN_SPRITE_0x20000: unique symbol;
+	readonly MAIN_BG_EXT_PALETTE_0: unique symbol;
+	readonly MAIN_BG_EXT_PALETTE_2: unique symbol;
+	readonly MAIN_SPRITE_EXT_PALETTE: unique symbol;
+	readonly SUB_BG: unique symbol;
+	readonly SUB_BG_0x8000: unique symbol;
+	readonly SUB_SPRITE: unique symbol;
+	readonly SUB_BG_EXT_PALETTE: unique symbol;
+	readonly SUB_SPRITE_EXT_PALETTE: unique symbol;
+	readonly TEXTURE_0: unique symbol;
+	readonly TEXTURE_1: unique symbol;
+	readonly TEXTURE_2: unique symbol;
+	readonly TEXTURE_3: unique symbol;
+	readonly TEXTURE_PALETTE_0: unique symbol;
+	readonly TEXTURE_PALETTE_1: unique symbol;
+	readonly TEXTURE_PALETTE_4: unique symbol;
+	readonly TEXTURE_PALETTE_5: unique symbol;
+}
+interface VRAM_A_TYPES {
+	LCD: VRAM_TYPES["LCD"];
+	MAIN_BG: VRAM_TYPES["MAIN_BG"];
+	MAIN_BG_0x20000: VRAM_TYPES["MAIN_BG_0x20000"];
+	MAIN_BG_0x40000: VRAM_TYPES["MAIN_BG_0x40000"];
+	MAIN_BG_0x60000: VRAM_TYPES["MAIN_BG_0x60000"];
+	MAIN_SPRITE: VRAM_TYPES["MAIN_SPRITE"];
+	MAIN_SPRITE_0x20000: VRAM_TYPES["MAIN_SPRITE_0x20000"];
+	TEXTURE_0: VRAM_TYPES["TEXTURE_0"];
+	TEXTURE_1: VRAM_TYPES["TEXTURE_1"];
+	TEXTURE_2: VRAM_TYPES["TEXTURE_2"];
+	TEXTURE_3: VRAM_TYPES["TEXTURE_3"];
+}
+interface VRAM_B_TYPES extends VRAM_A_TYPES {}
+interface VRAM_C_TYPES {
+	LCD: VRAM_TYPES["LCD"];
+	ARM7_0: VRAM_TYPES["ARM7_0"];
+	ARM7_1: VRAM_TYPES["ARM7_1"];
+	MAIN_BG: VRAM_TYPES["MAIN_BG"];
+	MAIN_BG_0x20000: VRAM_TYPES["MAIN_BG_0x20000"];
+	MAIN_BG_0x40000: VRAM_TYPES["MAIN_BG_0x40000"];
+	MAIN_BG_0x60000: VRAM_TYPES["MAIN_BG_0x60000"];
+	SUB_BG: VRAM_TYPES["SUB_BG"];
+	TEXTURE_0: VRAM_TYPES["TEXTURE_0"];
+	TEXTURE_1: VRAM_TYPES["TEXTURE_1"];
+	TEXTURE_2: VRAM_TYPES["TEXTURE_2"];
+	TEXTURE_3: VRAM_TYPES["TEXTURE_3"];
+}
+interface VRAM_D_TYPES {
+	LCD: VRAM_TYPES["LCD"];
+	ARM7_0: VRAM_TYPES["ARM7_0"];
+	ARM7_1: VRAM_TYPES["ARM7_1"];
+	MAIN_BG: VRAM_TYPES["MAIN_BG"];
+	MAIN_BG_0x20000: VRAM_TYPES["MAIN_BG_0x20000"];
+	MAIN_BG_0x40000: VRAM_TYPES["MAIN_BG_0x40000"];
+	MAIN_BG_0x60000: VRAM_TYPES["MAIN_BG_0x60000"];
+	SUB_SPRITE: VRAM_TYPES["SUB_SPRITE"];
+	TEXTURE_0: VRAM_TYPES["TEXTURE_0"];
+	TEXTURE_1: VRAM_TYPES["TEXTURE_1"];
+	TEXTURE_2: VRAM_TYPES["TEXTURE_2"];
+	TEXTURE_3: VRAM_TYPES["TEXTURE_3"];
+}
+interface VRAM_E_TYPES {
+	LCD: VRAM_TYPES["LCD"];
+	MAIN_BG: VRAM_TYPES["MAIN_BG"];
+	MAIN_SPRITE: VRAM_TYPES["MAIN_SPRITE"];
+	MAIN_BG_EXT_PALETTE_0: VRAM_TYPES["MAIN_BG_EXT_PALETTE_0"];
+	TEXTURE_PALETTE_0: VRAM_TYPES["TEXTURE_PALETTE_0"];
+}
+interface VRAM_F_TYPES {
+	LCD: VRAM_TYPES["LCD"];
+	MAIN_BG: VRAM_TYPES["MAIN_BG"];
+	MAIN_BG_0x4000: VRAM_TYPES["MAIN_BG_0x4000"];
+	MAIN_BG_0x10000: VRAM_TYPES["MAIN_BG_0x10000"];
+	MAIN_BG_0x14000: VRAM_TYPES["MAIN_BG_0x14000"];
+	MAIN_SPRITE: VRAM_TYPES["MAIN_SPRITE"];
+	MAIN_SPRITE_0x4000: VRAM_TYPES["MAIN_SPRITE_0x4000"];
+	MAIN_SPRITE_0x10000: VRAM_TYPES["MAIN_SPRITE_0x10000"];
+	MAIN_SPRITE_0x20000: VRAM_TYPES["MAIN_SPRITE_0x20000"];
+	MAIN_BG_EXT_PALETTE_0: VRAM_TYPES["MAIN_BG_EXT_PALETTE_0"];
+	MAIN_BG_EXT_PALETTE_2: VRAM_TYPES["MAIN_BG_EXT_PALETTE_2"];
+	MAIN_SPRITE_EXT_PALETTE: VRAM_TYPES["MAIN_SPRITE_EXT_PALETTE"];
+	TEXTURE_PALETTE_0: VRAM_TYPES["TEXTURE_PALETTE_0"];
+	TEXTURE_PALETTE_1: VRAM_TYPES["TEXTURE_PALETTE_1"];
+	TEXTURE_PALETTE_4: VRAM_TYPES["TEXTURE_PALETTE_4"];
+	TEXTURE_PALETTE_5: VRAM_TYPES["TEXTURE_PALETTE_5"];
+}
+interface VRAM_G_TYPES extends VRAM_F_TYPES {}
+interface VRAM_H_TYPES {
+	LCD: VRAM_TYPES["LCD"];
+	SUB_BG: VRAM_TYPES["SUB_BG"];
+	SUB_BG_EXT_PALETTE: VRAM_TYPES["SUB_BG_EXT_PALETTE"];
+}
+interface VRAM_I_TYPES {
+	LCD: VRAM_TYPES["LCD"];
+	SUB_BG_0x8000: VRAM_TYPES["SUB_BG_0x8000"];
+	SUB_SPRITE: VRAM_TYPES["SUB_SPRITE"];
+	SUB_SPRITE_EXT_PALETTE: VRAM_TYPES["SUB_SPRITE_EXT_PALETTE"];
+}
+type VRAM_A = VRAM_A_TYPES[keyof VRAM_A_TYPES];
+type VRAM_B = VRAM_B_TYPES[keyof VRAM_B_TYPES];
+type VRAM_C = VRAM_C_TYPES[keyof VRAM_C_TYPES];
+type VRAM_D = VRAM_D_TYPES[keyof VRAM_D_TYPES];
+type VRAM_E = VRAM_E_TYPES[keyof VRAM_E_TYPES];
+type VRAM_F = VRAM_F_TYPES[keyof VRAM_F_TYPES];
+type VRAM_G = VRAM_G_TYPES[keyof VRAM_G_TYPES];
+type VRAM_H = VRAM_H_TYPES[keyof VRAM_H_TYPES];
+type VRAM_I = VRAM_I_TYPES[keyof VRAM_I_TYPES];
+declare var VRAM: {
+	A: VRAM_A_TYPES;
+	B: VRAM_B_TYPES;
+	C: VRAM_C_TYPES;
+	D: VRAM_D_TYPES;
+	E: VRAM_E_TYPES;
+	F: VRAM_F_TYPES;
+	G: VRAM_G_TYPES;
+	H: VRAM_H_TYPES;
+	I: VRAM_I_TYPES;
+	setBankA(mode: VRAM_A): void;
+	setBankB(mode: VRAM_B): void;
+	setBankC(mode: VRAM_C): void;
+	setBankD(mode: VRAM_D): void;
+	setBankE(mode: VRAM_E): void;
+	setBankF(mode: VRAM_F): void;
+	setBankG(mode: VRAM_G): void;
+	setBankH(mode: VRAM_H): void;
+	setBankI(mode: VRAM_I): void;
+};
+
+declare var Video: {
+	main: {
+		setBackdropColor(color: number | string): void;
+		setMode(mode: 0 | 1 | 2 | 3 | 4 | 5 | 6, is3D?: boolean): void;
+	};
+	sub: {
+		setBackdropColor(color: number | string): void;
+		setMode(mode: 0 | 1 | 2 | 3 | 4 | 5): void;
+	};
+};
+
 interface BetaAPI {
 	gfxInit(): void;
 	gfxRect(x: number, y: number, width: number, height: number, color: number): void;
