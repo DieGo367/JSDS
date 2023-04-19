@@ -65,7 +65,7 @@ void handleError(jerry_value_t error, bool sync) {
 		jerry_release_value(thrownVal);
 
 		jerry_value_t eventArgs[2] = {errorProp, errorEventInitObj};
-		jerry_value_t errorEventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+		jerry_value_t errorEventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
 		jerry_release_value(errorEventInitObj);
 		errorHandled = dispatchEvent(ref_global, errorEventObj, sync);
 		jerry_release_value(errorEventObj);
@@ -100,7 +100,7 @@ void handleRejection(jerry_value_t promise) {
 		jerry_release_value(reasonVal);
 
 		jerry_value_t eventArgs[2] = {unhandledrejectionProp, rejectionEventInitObj};
-		jerry_value_t rejectionEventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+		jerry_value_t rejectionEventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
 		jerry_release_value(rejectionEventInitObj);
 		rejectionHandled = dispatchEvent(ref_global, rejectionEventObj, true);
 		jerry_release_value(rejectionEventObj);

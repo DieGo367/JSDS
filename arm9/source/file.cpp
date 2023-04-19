@@ -28,12 +28,7 @@ jerry_object_native_info_t fileNativeInfo = {.free_cb = onFileFree};
 
 jerry_value_t newFile(FILE *file, jerry_value_t mode) {
 	jerry_value_t fileObj = jerry_create_object();
-	jerry_value_t File = getProperty(ref_global, "File");
-	jerry_value_t FilePrototype = jerry_get_property(File, ref_str_prototype);
-	jerry_release_value(jerry_set_prototype(fileObj, FilePrototype));
-	jerry_release_value(FilePrototype);
-	jerry_release_value(File);
-
+	setPrototype(fileObj, ref_File.prototype);
 	jerry_set_object_native_pointer(fileObj, file, &fileNativeInfo);
 	setReadonly(fileObj, "mode", mode);
 	return fileObj;

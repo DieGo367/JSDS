@@ -18,6 +18,8 @@ extern bool abortFlag;
 extern bool userClosed;
 extern u8 dependentEvents;
 extern bool pauseKeyEvents;
+extern bool spriteUpdateMain;
+extern bool spriteUpdateSub;
 
 enum DependentEvent {
 	vblank     = BIT(0),

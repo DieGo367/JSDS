@@ -3,6 +3,7 @@
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>
 extern "C" {
+#include <nds/arm9/sprite.h>
 #include <nds/system.h>
 }
 #include <queue>
@@ -25,6 +26,8 @@ bool abortFlag = false;
 bool userClosed = false;
 u8 dependentEvents = 0;
 bool pauseKeyEvents = false;
+bool spriteUpdateMain = false;
+bool spriteUpdateSub = false;
 
 std::queue<Task> taskQueue;
 
@@ -183,10 +186,10 @@ void queueEventName(const char *eventName, jerry_external_handler_t callback) {
 	if (callback != NULL) {
 		jerry_value_t eventArgs[2] = {eventNameStr, jerry_create_object()};
 		setProperty(eventArgs[1], "cancelable", JS_TRUE);
-		eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+		eventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
 		jerry_release_value(eventArgs[1]);
 	}
-	else eventObj = jerry_construct_object(ref_Event, &eventNameStr, 1);
+	else eventObj = jerry_construct_object(ref_Event.constructor, &eventNameStr, 1);
 	jerry_release_value(eventNameStr);
 	queueEvent(ref_global, eventObj, callback);
 	jerry_release_value(eventObj);
@@ -203,7 +206,7 @@ void queueButtonEvents(bool down) {
 		jerry_value_t buttonProp = String("button");
 		jerry_value_t eventArgs[2] = {String(down ? "buttondown" : "buttonup"), jerry_create_object()};
 		jerry_release_value(jerry_set_property(eventArgs[1], buttonProp, JS_NULL));
-		jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+		jerry_value_t eventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
 		#define TEST_VALUE(button, keyCode) if (set & keyCode) {\
 			jerry_value_t buttonStr = String(button); \
 			jerry_set_internal_property(eventObj, buttonProp, buttonStr); \
@@ -233,7 +236,7 @@ void queueTouchEvent(const char *name, int curX, int curY, bool usePrev) {
 	jerry_release_value(yNum);
 	jerry_release_value(dxNum);
 	jerry_release_value(dyNum);
-	jerry_value_t eventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+	jerry_value_t eventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
 	queueEvent(ref_global, eventObj);
 	jerry_release_value(eventArgs[0]);
 	jerry_release_value(eventArgs[1]);
@@ -284,7 +287,7 @@ bool dispatchKeyboardEvent(bool down, const char16_t codepoint, const char *name
 
 	setProperty(eventArgs[1], "shifted", jerry_create_boolean(shift));
 
-	jerry_value_t kbdEventObj = jerry_construct_object(ref_Event, eventArgs, 2);
+	jerry_value_t kbdEventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
 	bool canceled = dispatchEvent(ref_global, kbdEventObj, false);
 	jerry_release_value(kbdEventObj);
 	jerry_release_value(eventArgs[0]);
@@ -321,6 +324,8 @@ void eventLoop() {
 		if (dependentEvents & (touchstart | touchmove | touchend)) queueTouchEvents();
 		timeoutUpdate();
 		runTasks();
+		if (spriteUpdateMain) oamUpdate(&oamMain);
+		if (spriteUpdateSub) oamUpdate(&oamSub);
 		keyboardUpdate();
 		if (inREPL) {
 			if (keyboardComposeStatus() == KEYBOARD_INACTIVE) {

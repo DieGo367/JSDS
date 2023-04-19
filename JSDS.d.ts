@@ -638,6 +638,162 @@ declare var Video: {
 	};
 };
 
+/** An object associated with some allocated graphics memory. Can supply its graphics to one or more sprites. */
+interface SpriteGraphic {
+	/** Bitdepth of the graphics. If the value is `16` the image is a bitmap, otherwise it is paletted. */
+	readonly colorFormat: 4 | 8 | 16;
+	/** Width in pixels of the graphics data. */
+	readonly width: number;
+	/** Height in pixels of the graphics data. */
+	readonly height: number;
+	/** A `Uint8Array` providing direct access to the allocated graphics memory. */
+	readonly data: Uint8Array;
+	/** Frees the graphics memory associated with this object. This object is rendered useless and will error upon further usage. */
+	remove(): void;
+}
+declare var SpriteGraphic: {
+	prototype: SpriteGraphic;
+};
+interface PalettedSpriteGraphic extends SpriteGraphic {readonly colorFormat: 4 | 8}
+interface BitmapSpriteGraphic extends SpriteGraphic {readonly colorFormat: 16}
+type SpriteGraphicFromColorFormat<C extends SpriteGraphic["colorFormat"]> = 
+	C extends PalettedSpriteGraphic["colorFormat"] ? PalettedSpriteGraphic :
+	C extends BitmapSpriteGraphic["colorFormat"] ? BitmapSpriteGraphic :
+	SpriteGraphic;
+/** An affine matrix object that controls sprite transformations. Can be applied to one or more sprites to transform them all together. */
+interface SpriteAffineMatrix {
+	/** X position for the horizontal unit vector. `1` in the identity matrix. */
+	hdx: number;
+	/** Y position for the horizontal unit vector. `0` in the identity matrix. */
+	hdy: number;
+	/** X position for the vertical unit vector. `1` in the identity matrix. */
+	vdx: number;
+	/** Y position for the vertical unit vector. `1` in the identity matrix. */
+	vdy: number;
+	/**
+	 * Sets the matrix to a specific rotation and scale.
+	 * @param angle Rotation angle in degrees.
+	 * @param sx Inverse X scale.
+	 * @param sy Inverse Y scale.
+	 */
+	rotateScale(angle: number, sx: number, sy: number): void;
+	/** Clears the affine matrix slot associated with this object and marks it as open. This object is rendered useless and will error upon further usage. */
+	remove(): void;
+}
+declare var SpriteAffineMatrix: {
+	prototype: SpriteAffineMatrix;
+};
+/** An object asssociated with a given sprite slot. */
+interface Sprite {
+	/** Screen x position for the left edge of the sprite. */
+	x: number;
+	/** Screen y position for the top edge of the sprite. */
+	y: number;
+	setPosition(x: number, y: number): void;
+	/** A graphics object linking to allocated graphics memory. */
+	gfx: SpriteGraphic;
+	/** Rendering priority relative to other sprites. 0 = top, 3 = bottom. */
+	priority: 0 | 1 | 2 | 3;
+	/** Makes the sprite invisible. */
+	hidden: boolean;
+	/** Flips sprite horizontally. This value is ignored if the sprite uses an affine matrix. */
+	flipH: boolean;
+	/** Flips sprite vertically. This value is ignored if the sprite uses an affine matrix. */
+	flipV: boolean;
+	/**
+	 * An affine matrix object that can transform the sprite visual. May be shared between multiple sprites.
+	 * 
+	 * When set to `null`, the sprite is a standard sprite that does not use affine transformations.
+	 */
+	affine: SpriteAffineMatrix | null;
+	/** Doubles the sprite's view window while using an affine matrix. */
+	sizeDouble: boolean;
+	/** Enables mosaic mode for this sprite. Uses the mosaic size from the corresponding sprite engine. */
+	mosaic: boolean;
+	/** Clears the sprite slot associated with this object and marks it as open. This object is rendered useless and will error upon further usage. */
+	remove(): void;
+}
+/** Sprites using paletted graphics. */
+interface PalettedSprite extends Sprite {
+	/** Which sprite palette to use (0-15). */
+	palette: number;
+	gfx: PalettedSpriteGraphic;
+}
+declare var PalettedSprite: {
+	prototype: PalettedSprite;
+}
+/** Sprites using bitmap graphics. */
+interface BitmapSprite extends Sprite {
+	/** Alpha value of the sprite (0 = transparent, nonzero = opaque). */
+	alpha: number;
+	gfx: BitmapSpriteGraphic;
+}
+declare var BitmapSprite: {
+	prototype: BitmapSprite;
+}
+type SpriteFromGraphic<G extends SpriteGraphic> = Extract<PalettedSprite | BitmapSprite, Sprite & {gfx: Omit<G, "main">}>;
+type MainEngine<B> = {main: B};
+interface SpriteEngine<M> {
+	/**
+	 * Initializes this sprite engine to start displaying graphics.
+	 * @param allowBitmaps Whether to allow bitmap sprite graphic data on this engine.
+	 * @param use2DMapping Map tile graphics in 2D.
+	 * @param boundarySize Offset size between graphics entries.
+	 * For bitmap sprites, this should be `128` or `256`.
+	 * For 2D-mapped paletted sprites, this must be `32`.
+	 * For 1D-mapped paletted sprites, this should be `32`, `64`, `128`, or `256`.
+	 * @param useExternalPalettes Enable use of external sprite palettes.
+	 */
+	init(allowBitmaps?: boolean, use2DMapping?: boolean, boundarySize?: 32 | 64 | 128 | 256, useExternalPalettes?: boolean): void;
+	/** Enables sprite rendering from this engine. */
+	enable(): void;
+	/** Disables sprite rendering from this engine. */
+	disable(): void;
+	/**
+	 * Adds a new sprite on this sprite engine.
+	 * @param x X position of the left edge of the sprite. 0 = left of the screen, 256 = right.
+	 * @param y Y position of the top edge of the sprite. 0 = top of the screen, 192 = bottom.
+	 * @param gfx A graphics object linking to allocated graphics memory. The color format of the graphics object will control whether this is a paletted or bitmap sprite.
+	 * @param paletteOrAlpha For paletted sprites, the sprite palette number to use (0-15). For bitmap sprites, the alpha value of the sprite (0 = transparent, nonzero = opaque).
+	 * @param priority Rendering priority relative to other sprites. 0 = top, 3 = bottom.
+	 * @param hide Makes the sprite invisible.
+	 * @param flipH Flips sprite horizontally. This value is ignored if the sprite uses an affine matrix.
+	 * @param flipV Flips sprite vertically. This value is ignored if the sprite uses an affine matrix.
+	 * @param affine An affine matrix object that can transform the sprite visual. By default or when set to `null`, the sprite will not use affine transformations.
+	 * @param sizeDouble Doubles the sprite's view window while using an affine matrix.
+	 * @param mosaic Enables mosaic mode for this sprite. You can set the mosaic values from `setMosaic` on this sprite engine.
+	 * @returns A `Sprite` object associated with the newly created sprite which allows access to its parameters.
+	 */
+	addSprite<G extends SpriteGraphic & MainEngine<M>>(x: number, y: number, gfx: G, paletteOrAlpha?: number, priority?: Sprite["priority"], hide?: boolean, flipH?: boolean, flipV?: boolean, affine?: SpriteAffineMatrix | null, sizeDouble?: boolean, mosaic?: boolean): SpriteFromGraphic<G> & MainEngine<M>;
+	/**
+	 * Allocates some graphics memory and returns an object that can supply graphics to a sprite.
+	 * @param width Width of the graphics. May be rounded up to the nearest valid size. Maximum is 64.
+	 * @param height Height of the graphics. May be rounded up to the nearest valid size. Maximum is 64.
+	 * @param colorFormat Bitdepth of the graphics. `16` bits per pixel graphics are bitmap, otherwise the graphics are paletted.
+	 * @param data An optional `Uint8Array` that will be copied into the newly allocated graphics data.
+	 * @returns A `SpriteGraphic` object which can be supplied when creating a sprite, or be assigned to an existing one. Can be shared across multiple sprites.
+	 */
+	addGraphic<C extends SpriteGraphic["colorFormat"]>(width: number, height: number, colorFormat: C, data?: Uint8Array): SpriteGraphicFromColorFormat<C> & MainEngine<M>;
+	/**
+	 * Adds a new affine matrix on this sprite engine that can transform sprites.
+	 * @param hdx X position for the horizontal unit vector. Defaults to `1`.
+	 * @param hdy Y position for the horizontal unit vector. Defaults to `0`.
+	 * @param vdx X position for the vertical unit vector. Defaults to `0`.
+	 * @param vdy Y position for the vertical unit vector. Defaults to `1`.
+	 * @returns A `SpriteAffineMatrix` object which can be supplied when creating a sprite, or be assigned to an existing one. Can be shared across multiple sprites.
+	 */
+	addAffineMatrix(hdx?: number, hdy?: number, vdx?: number, vdy?: number): SpriteAffineMatrix & MainEngine<M>;
+	/**
+	 * Sets the engine-wide mosaic values for sprites that have mosaic mode enabled.
+	 */
+	setMosaic(dx: number, dy: number): void;
+}
+declare var Sprite: {
+	prototype: Sprite;
+	main: SpriteEngine<true>;
+	sub: SpriteEngine<false>;
+};
+
 interface BetaAPI {
 	gfxInit(): void;
 	gfxRect(x: number, y: number, width: number, height: number, color: number): void;

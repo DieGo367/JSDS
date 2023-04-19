@@ -128,12 +128,16 @@ JS_class createClass(jerry_value_t object, const char *name, jerry_external_hand
 }
 JS_class extendClass(jerry_value_t object, const char *name, jerry_external_handler_t constructor, jerry_value_t parentPrototype) {
 	JS_class result = createClass(object, name, constructor);
-	jerry_release_value(jerry_set_prototype(result.prototype, parentPrototype));
+	setPrototype(result.prototype, parentPrototype);
 	return result;
 }
 void releaseClass(JS_class cls) {
 	jerry_release_value(cls.constructor);
 	jerry_release_value(cls.prototype);
+}
+
+void setPrototype(jerry_value_t object, jerry_value_t prototype) {
+	jerry_release_value(jerry_set_prototype(object, prototype));
 }
 
 jerry_property_descriptor_t getterDesc = {
@@ -289,8 +293,8 @@ bool strictEqual(jerry_value_t a, jerry_value_t b) {
 	return equal;
 }
 
-bool isInstance(jerry_value_t object, jerry_value_t function) {
-	jerry_value_t isInstanceBool = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, object, function);
+bool isInstance(jerry_value_t object, JS_class ofClass) {
+	jerry_value_t isInstanceBool = jerry_binary_operation(JERRY_BIN_OP_INSTANCEOF, object, ofClass.constructor);
 	bool isInstance = jerry_get_boolean_value(isInstanceBool);
 	jerry_release_value(isInstanceBool);
 	return isInstance;

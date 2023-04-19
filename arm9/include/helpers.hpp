@@ -22,11 +22,16 @@ enum JSConstants {
 	JS_UNDEFINED = 72
 };
 
+struct JS_class {
+	jerry_value_t constructor;
+	jerry_value_t prototype;
+};
+
 // held references to JS objects
 extern jerry_value_t ref_global;
-extern jerry_value_t ref_Event;
-extern jerry_value_t ref_Error;
-extern jerry_value_t ref_File;
+extern JS_class ref_Event;
+extern JS_class ref_Error;
+extern JS_class ref_File;
 extern jerry_value_t ref_consoleCounters;
 extern jerry_value_t ref_consoleTimers;
 extern jerry_value_t ref_storage;
@@ -86,10 +91,6 @@ jerry_value_t createMethod(jerry_value_t object, const char *method, jerry_exter
 // Creates a named object and sets it on object. Return value must be released!
 jerry_value_t createObject(jerry_value_t object, const char *name);
 
-struct JS_class {
-	jerry_value_t constructor;
-	jerry_value_t prototype;
-};
 /*
  * Creates a class on object using a function as its constructor.
  * Returns a struct containing the constructor and prototype values.
@@ -104,6 +105,9 @@ JS_class createClass(jerry_value_t object, const char *name, jerry_external_hand
 JS_class extendClass(jerry_value_t object, const char *name, jerry_external_handler_t constructor, jerry_value_t parentPrototype);
 // Releases both the constructor and prototype of a class.
 void releaseClass(JS_class cls);
+
+// Sets the object's prototype.
+void setPrototype(jerry_value_t object, jerry_value_t prototype);
 
 // Create a getter on an object with the given function.
 void defGetter(jerry_value_t object, const char *property, jerry_external_handler_t getter);
@@ -138,7 +142,7 @@ bool isNewTargetUndefined();
 void arraySplice(jerry_value_t array, u32 start, u32 deleteCount);
 
 bool strictEqual(jerry_value_t a, jerry_value_t b);
-bool isInstance(jerry_value_t object, jerry_value_t function);
+bool isInstance(jerry_value_t object, JS_class ofClass);
 
 bool JS_testProperty(jerry_value_t object, jerry_value_t property);
 bool testProperty(jerry_value_t object, const char *property);
