@@ -2082,15 +2082,15 @@ void exposeAPI() {
 	setMethod(console, "timeEnd", console_timeEnd);
 	setMethod(console, "trace", console_trace);
 	setMethod(console, "warn", console_warn);
-	defGetterSetter(console, "textColor", LAMBDA(jerry_create_number(consoleGetColor())), console_textColor);
-	defGetterSetter(console, "textBackground", LAMBDA(jerry_create_number(consoleGetBackground())), console_textBackground);
+	defGetterSetter(console, "textColor", RETURN(jerry_create_number(consoleGetColor())), console_textColor);
+	defGetterSetter(console, "textBackground", RETURN(jerry_create_number(consoleGetBackground())), console_textBackground);
 	jerry_release_value(console);
 
 	jerry_value_t keyboard = createObject(ref_global, "keyboard");
-	setMethod(keyboard, "hide", LAMBDA((keyboardHide(), JS_UNDEFINED)));
-	setMethod(keyboard, "show", LAMBDA((keyboardShow(), JS_UNDEFINED)));
-	setMethod(keyboard, "watchButtons", LAMBDA((keyboardButtonControls(true), JS_UNDEFINED)));
-	setMethod(keyboard, "ignoreButtons", LAMBDA((keyboardButtonControls(false), JS_UNDEFINED)));
+	setMethod(keyboard, "hide", VOID(keyboardHide()));
+	setMethod(keyboard, "show", VOID(keyboardShow()));
+	setMethod(keyboard, "watchButtons", VOID(keyboardButtonControls(true)));
+	setMethod(keyboard, "ignoreButtons", VOID(keyboardButtonControls(false)));
 	jerry_release_value(keyboard);
 
 	jerry_value_t Text = createObject(ref_global, "Text");
@@ -2163,12 +2163,12 @@ void exposeAPI() {
 
 	jerry_value_t DS = createObject(ref_global, "DS");
 	setMethod(DS, "getBatteryLevel", DS_getBatteryLevel);
-	setMethod(DS, "getMainScreen", LAMBDA(String(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom")));
+	setMethod(DS, "getMainScreen", RETURN(String(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom")));
 	setReadonly(DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
 	setMethod(DS, "setMainScreen", DS_setMainScreen);
-	setMethod(DS, "shutdown", LAMBDA((systemShutDown(), JS_UNDEFINED)));
+	setMethod(DS, "shutdown", VOID(systemShutDown()));
 	setMethod(DS, "sleep", DS_sleep);
-	setMethod(DS, "swapScreens", LAMBDA((lcdSwap(), JS_UNDEFINED)));
+	setMethod(DS, "swapScreens", VOID(lcdSwap()));
 	jerry_release_value(DS);
 
 	jerry_value_t Profile = createObject(ref_global, "Profile");
@@ -2193,17 +2193,17 @@ void exposeAPI() {
 	jerry_value_t buttonObj;
 	#define DEF_BUTTON_OBJECT(name, value) \
 		buttonObj = createObject(Button, name); \
-		defGetter(buttonObj, "pressed", LAMBDA(jerry_create_boolean(keysDown() & value))); \
-		defGetter(buttonObj, "held", LAMBDA(jerry_create_boolean(keysHeld() & value))); \
-		defGetter(buttonObj, "release", LAMBDA(jerry_create_boolean(keysUp() & value))); \
+		defGetter(buttonObj, "pressed", RETURN(jerry_create_boolean(keysDown() & value))); \
+		defGetter(buttonObj, "held", RETURN(jerry_create_boolean(keysHeld() & value))); \
+		defGetter(buttonObj, "release", RETURN(jerry_create_boolean(keysUp() & value))); \
 		jerry_release_value(buttonObj);
 	FOR_BUTTONS(DEF_BUTTON_OBJECT);
 	jerry_release_value(Button);
 
 	jerry_value_t Touch = createObject(ref_global, "Touch");
-	defGetter(Touch, "start", LAMBDA(jerry_create_boolean(keysDown() & KEY_TOUCH)));
-	defGetter(Touch, "active", LAMBDA(jerry_create_boolean(keysHeld() & KEY_TOUCH)));
-	defGetter(Touch, "end", LAMBDA(jerry_create_boolean(keysUp() & KEY_TOUCH)));
+	defGetter(Touch, "start", RETURN(jerry_create_boolean(keysDown() & KEY_TOUCH)));
+	defGetter(Touch, "active", RETURN(jerry_create_boolean(keysHeld() & KEY_TOUCH)));
+	defGetter(Touch, "end", RETURN(jerry_create_boolean(keysUp() & KEY_TOUCH)));
 	setMethod(Touch, "getPosition", DS_touchGetPosition);
 	jerry_release_value(Touch);
 
@@ -2330,8 +2330,8 @@ void exposeAPI() {
 	ref_BitmapSprite = BitmapSprite;
 	jerry_value_t SpriteEngine = jerry_create_object();
 	setMethod(SpriteEngine, "init", SpriteEngine_init);
-	setMethod(SpriteEngine, "enable", LAMBDA((oamEnable(SPRITE_ENGINE(thisValue)), JS_UNDEFINED)));
-	setMethod(SpriteEngine, "disable", LAMBDA((oamDisable(SPRITE_ENGINE(thisValue)), JS_UNDEFINED)));
+	setMethod(SpriteEngine, "enable", VOID(oamEnable(SPRITE_ENGINE(thisValue))));
+	setMethod(SpriteEngine, "disable", VOID(oamDisable(SPRITE_ENGINE(thisValue))));
 	setMethod(SpriteEngine, "addSprite", SpriteEngine_addSprite);
 	setMethod(SpriteEngine, "addGraphic", SpriteEngine_addGraphic);
 	setMethod(SpriteEngine, "addAffineMatrix", SpriteEngine_addAffineMatrix);
@@ -2345,7 +2345,6 @@ void exposeAPI() {
 	setPrototype(sub, SpriteEngine);
 	jerry_release_value(sub);
 	jerry_release_value(SpriteEngine);
-	jerry_release_value(Sprite.constructor);
 	ref_Sprite = Sprite;
 
 	JS_class SpriteGraphic = createClass(ref_global, "SpriteGraphic", IllegalConstructor);

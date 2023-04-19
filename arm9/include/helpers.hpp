@@ -11,7 +11,9 @@
 
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
 #define FUNCTION(name) static jerry_value_t name(CALL_INFO)
-#define LAMBDA(returnVal) [](CALL_INFO) -> jerry_value_t { return returnVal; }
+
+#define VOID(code) [](CALL_INFO) -> jerry_value_t { code; return JS_UNDEFINED; }
+#define RETURN(returnVal) [](CALL_INFO) -> jerry_value_t { return returnVal; }
 
 // constant js values, these do not need to be freed and can be used without restraint
 // Values copied from Jerry internals, would need to be changed if Jerry changes them in the future
