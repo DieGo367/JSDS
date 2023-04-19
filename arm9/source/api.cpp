@@ -1804,6 +1804,21 @@ FUNCTION(SpriteEngine_init) {
 	return JS_UNDEFINED;
 }
 
+FUNCTION(SpriteEngine_enable) {
+	bool isMain = JS_testInternalProperty(thisValue, ref_str_main);
+	oamEnable(isMain ? &oamMain : &oamSub);
+	if (isMain) spriteUpdateMain = true;
+	else spriteUpdateSub = true;
+	return JS_UNDEFINED;
+}
+FUNCTION(SpriteEngine_disable) {
+	bool isMain = JS_testInternalProperty(thisValue, ref_str_main);
+	oamDisable(isMain ? &oamMain : &oamSub);
+	if (isMain) spriteUpdateMain = false;
+	else spriteUpdateSub = false;
+	return JS_UNDEFINED;
+}
+
 FUNCTION(SpriteEngine_addSprite) {
 	REQUIRE(3);
 	EXPECT(isInstance(args[2], ref_SpriteGraphic), SpriteGraphic);
@@ -2330,8 +2345,8 @@ void exposeAPI() {
 	ref_BitmapSprite = BitmapSprite;
 	jerry_value_t SpriteEngine = jerry_create_object();
 	setMethod(SpriteEngine, "init", SpriteEngine_init);
-	setMethod(SpriteEngine, "enable", VOID(oamEnable(SPRITE_ENGINE(thisValue))));
-	setMethod(SpriteEngine, "disable", VOID(oamDisable(SPRITE_ENGINE(thisValue))));
+	setMethod(SpriteEngine, "enable", SpriteEngine_enable);
+	setMethod(SpriteEngine, "disable", SpriteEngine_disable);
 	setMethod(SpriteEngine, "addSprite", SpriteEngine_addSprite);
 	setMethod(SpriteEngine, "addGraphic", SpriteEngine_addGraphic);
 	setMethod(SpriteEngine, "addAffineMatrix", SpriteEngine_addAffineMatrix);
