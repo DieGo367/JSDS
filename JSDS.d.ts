@@ -742,9 +742,9 @@ interface SpriteEngine<M> {
 	 * For bitmap sprites, this should be `128` or `256`.
 	 * For 2D-mapped paletted sprites, this must be `32`.
 	 * For 1D-mapped paletted sprites, this should be `32`, `64`, `128`, or `256`.
-	 * @param useExternalPalettes Enable use of external sprite palettes.
+	 * @param useExtendedPalettes Enable use of extended sprite palettes for 8 BPP graphics.
 	 */
-	init(allowBitmaps?: boolean, use2DMapping?: boolean, boundarySize?: 32 | 64 | 128 | 256, useExternalPalettes?: boolean): void;
+	init(allowBitmaps?: boolean, use2DMapping?: boolean, boundarySize?: 32 | 64 | 128 | 256, useExtendedPalettes?: boolean): void;
 	/** Enables sprite rendering from this engine. */
 	enable(): void;
 	/** Disables sprite rendering from this engine. */
