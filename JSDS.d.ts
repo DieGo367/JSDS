@@ -787,6 +787,8 @@ interface SpriteEngine<M> {
 	 * Sets the engine-wide mosaic values for sprites that have mosaic mode enabled.
 	 */
 	setMosaic(dx: number, dy: number): void;
+	/** Palette data for the sprites in this engine. */
+	readonly palette: Uint16Array;
 }
 declare var Sprite: {
 	prototype: Sprite;
