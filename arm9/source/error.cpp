@@ -20,54 +20,48 @@ void handleError(jerry_value_t error, bool sync) {
 	bool errorHandled = false;
 
 	jerry_value_t errorProp = String("error");
-	jerry_value_t eventListenersObj = getInternal(ref_global, "eventListeners");
-	jerry_value_t errorEventListenersArr = jerry_get_property(eventListenersObj, errorProp);
-	jerry_release_value(eventListenersObj);
-	if (jerry_value_is_array(errorEventListenersArr) && jerry_get_array_length(errorEventListenersArr) > 0) {
-		jerry_value_t errorEvent = createEvent(errorProp, true);
+	jerry_value_t errorEvent = createEvent(errorProp, true);
 
-		jerry_error_t errorCode = jerry_get_error_type(error);
-		jerry_value_t thrownVal = jerry_get_value_from_error(error, false);
-		defReadonly(errorEvent, errorProp, thrownVal);
-		if (errorCode == JERRY_ERROR_NONE) {
-			jerry_value_t thrownStr = jerry_value_to_string(thrownVal);
-			jerry_value_t uncaughtStr = String("Uncaught ");
-			jerry_value_t concatenatedStr = jerry_binary_operation(JERRY_BIN_OP_ADD, uncaughtStr, thrownStr);
-			defReadonly(errorEvent, "message", concatenatedStr);
-			jerry_release_value(concatenatedStr);
-			jerry_release_value(uncaughtStr);
-			jerry_release_value(thrownStr);
-		}
-		else {
-			jerry_value_t thrownStr = jerry_value_to_string(thrownVal);
-			defReadonly(errorEvent, "message", thrownStr);
-			jerry_release_value(thrownStr);
-
-			jerry_value_t backtraceArr = jerry_get_internal_property(thrownVal, ref_str_backtrace);
-			jerry_value_t resourceStr = jerry_get_property_by_index(backtraceArr, 0);
-			char *resource = rawString(resourceStr);
-			jerry_release_value(resourceStr);
-			jerry_release_value(backtraceArr);
-
-			char *colon = strchr(resource, ':');
-			jerry_value_t filenameStr = StringSized(resource, colon - resource);
-			defReadonly(errorEvent, "filename", filenameStr);
-			jerry_release_value(filenameStr);
-
-			char *endptr = NULL;
-			int64 lineno = strtoll(colon + 1, &endptr, 10);
-			jerry_value_t linenoNum = endptr == (colon + 1) ? jerry_create_number_nan() : jerry_create_number(lineno);
-			defReadonly(errorEvent, "lineno", linenoNum);
-			jerry_release_value(linenoNum);
-			free(resource);
-		}
-		jerry_release_value(thrownVal);
-
-		errorHandled = dispatchEvent(ref_global, errorEvent, sync);
-		jerry_release_value(errorEvent);
-	}
-	jerry_release_value(errorEventListenersArr);
+	jerry_error_t errorCode = jerry_get_error_type(error);
+	jerry_value_t thrownVal = jerry_get_value_from_error(error, false);
+	defReadonly(errorEvent, errorProp, thrownVal);
 	jerry_release_value(errorProp);
+	if (errorCode == JERRY_ERROR_NONE) {
+		jerry_value_t thrownStr = jerry_value_to_string(thrownVal);
+		jerry_value_t uncaughtStr = String("Uncaught ");
+		jerry_value_t concatenatedStr = jerry_binary_operation(JERRY_BIN_OP_ADD, uncaughtStr, thrownStr);
+		defReadonly(errorEvent, "message", concatenatedStr);
+		jerry_release_value(concatenatedStr);
+		jerry_release_value(uncaughtStr);
+		jerry_release_value(thrownStr);
+	}
+	else {
+		jerry_value_t thrownStr = jerry_value_to_string(thrownVal);
+		defReadonly(errorEvent, "message", thrownStr);
+		jerry_release_value(thrownStr);
+
+		jerry_value_t backtraceArr = jerry_get_internal_property(thrownVal, ref_str_backtrace);
+		jerry_value_t resourceStr = jerry_get_property_by_index(backtraceArr, 0);
+		char *resource = rawString(resourceStr);
+		jerry_release_value(resourceStr);
+		jerry_release_value(backtraceArr);
+
+		char *colon = strchr(resource, ':');
+		jerry_value_t filenameStr = StringSized(resource, colon - resource);
+		defReadonly(errorEvent, "filename", filenameStr);
+		jerry_release_value(filenameStr);
+
+		char *endptr = NULL;
+		int64 lineno = strtoll(colon + 1, &endptr, 10);
+		jerry_value_t linenoNum = endptr == (colon + 1) ? jerry_create_number_nan() : jerry_create_number(lineno);
+		defReadonly(errorEvent, "lineno", linenoNum);
+		jerry_release_value(linenoNum);
+		free(resource);
+	}
+	jerry_release_value(thrownVal);
+
+	errorHandled = dispatchEvent(ref_global, errorEvent, sync);
+	jerry_release_value(errorEvent);
 
 	if (!errorHandled) {
 		u16 previousColor = consoleSetColor(LOGCOLOR_ERROR);
@@ -83,23 +77,15 @@ void handleError(jerry_value_t error, bool sync) {
 void handleRejection(jerry_value_t promise) {
 	bool rejectionHandled = false;
 	
-	jerry_value_t eventListenersObj = getInternal(ref_global, "eventListeners");
-	jerry_value_t unhandledrejectionProp = String("unhandledrejection");
-	jerry_value_t rejectionEventListenersArr = jerry_get_property(eventListenersObj, unhandledrejectionProp);
-	if (jerry_value_is_array(rejectionEventListenersArr) && jerry_get_array_length(rejectionEventListenersArr) > 0) {
-		jerry_value_t rejectionEvent = createEvent(unhandledrejectionProp, true);
-		
-		defReadonly(rejectionEvent, "promise", promise);
-		jerry_value_t reasonVal = jerry_get_promise_result(promise);
-		defReadonly(rejectionEvent, "reason", reasonVal);
-		jerry_release_value(reasonVal);
+	jerry_value_t rejectionEvent = createEvent("unhandledrejection", true);
+	
+	defReadonly(rejectionEvent, "promise", promise);
+	jerry_value_t reasonVal = jerry_get_promise_result(promise);
+	defReadonly(rejectionEvent, "reason", reasonVal);
+	jerry_release_value(reasonVal);
 
-		rejectionHandled = dispatchEvent(ref_global, rejectionEvent, true);
-		jerry_release_value(rejectionEvent);
-	}
-	jerry_release_value(rejectionEventListenersArr);
-	jerry_release_value(unhandledrejectionProp);
-	jerry_release_value(eventListenersObj);
+	rejectionHandled = dispatchEvent(ref_global, rejectionEvent, true);
+	jerry_release_value(rejectionEvent);
 
 	if (!rejectionHandled) {
 		jerry_value_t reasonVal = jerry_get_promise_result(promise);
