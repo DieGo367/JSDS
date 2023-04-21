@@ -3,11 +3,8 @@
 
 #include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
-#include "helpers.hpp"
 
 
-
-extern JS_class ref_Event;
 
 typedef void (*TaskFunction) (const jerry_value_t *args, u32 argCount);
 struct Task {
@@ -42,6 +39,8 @@ void runMicrotasks();
 
 void runParsedCodeTask(const jerry_value_t *args, u32 argCount);
 
+jerry_value_t createEvent(jerry_value_t type, bool cancelable);
+jerry_value_t createEvent(const char *type, bool cancelable);
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync);
 void queueEvent(jerry_value_t target, jerry_value_t event, jerry_external_handler_t callback = NULL);
 void queueEventName(const char *eventName, jerry_external_handler_t callback = NULL);

@@ -103,6 +103,24 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
 	jerry_release_value(resultVal);
 }
 
+jerry_value_t createEvent(jerry_value_t type, bool cancelable) {
+	jerry_value_t event = jerry_create_object();
+	setPrototype(event, ref_Event.prototype);
+	setInternal(event, "stopImmediatePropagation", JS_FALSE); // stop immediate propagation flag
+	defReadonly(event, "target", JS_NULL);
+	defReadonly(event, "cancelable", jerry_create_boolean(cancelable));
+	defReadonly(event, "defaultPrevented", JS_FALSE);        
+	defReadonly(event, "timeStamp", (double) time(NULL));
+	defReadonly(event, "type", type);
+	return event;
+}
+jerry_value_t createEvent(const char *type, bool cancelable) {
+	jerry_value_t string = String(type);
+	jerry_value_t event = createEvent(string, cancelable);
+	jerry_release_value(string);
+	return event;
+}
+
 /**
  * Dispatches event onto target.
  * If sync is true, runs "synchronously" (no microtasks are run). JS functions should set it to true.
@@ -185,66 +203,40 @@ void queueEvent(jerry_value_t target, jerry_value_t event, jerry_external_handle
 
 // Queues a task that fires a simple event on the global context. Becomes canceleable if callback is provided.
 void queueEventName(const char *eventName, jerry_external_handler_t callback) {
-	jerry_value_t eventNameStr = String(eventName);
-	jerry_value_t eventObj;
-	if (callback != NULL) {
-		jerry_value_t eventArgs[2] = {eventNameStr, jerry_create_object()};
-		setProperty(eventArgs[1], "cancelable", JS_TRUE);
-		eventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
-		jerry_release_value(eventArgs[1]);
-	}
-	else eventObj = jerry_construct_object(ref_Event.constructor, &eventNameStr, 1);
-	jerry_release_value(eventNameStr);
-	queueEvent(ref_global, eventObj, callback);
-	jerry_release_value(eventObj);
-}
-
-FUNCTION(sleepCallback) {
-	systemSleep();
-	return JS_UNDEFINED;
+	jerry_value_t event = createEvent(eventName, callback != NULL);
+	queueEvent(ref_global, event, callback);
+	jerry_release_value(event);
 }
 
 void queueButtonEvents(bool down) {
 	u32 set = down ? keysDown() : keysUp();
 	if (set) {
 		jerry_value_t buttonProp = String("button");
-		jerry_value_t eventArgs[2] = {String(down ? "buttondown" : "buttonup"), jerry_create_object()};
-		jerry_release_value(jerry_set_property(eventArgs[1], buttonProp, JS_NULL));
-		jerry_value_t eventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
+		jerry_value_t buttonEvent = createEvent(down ? "buttondown" : "buttonup", false);
+		defReadonly(buttonEvent, buttonProp, JS_NULL);
 		#define TEST_VALUE(button, keyCode) if (set & keyCode) { \
-			jerry_value_t buttonStr = String(button); \
-			jerry_set_internal_property(eventObj, buttonProp, buttonStr); \
-			jerry_release_value(buttonStr); \
-			queueEvent(ref_global, eventObj); \
+			setInternal(buttonEvent, buttonProp, button); \
+			queueEvent(ref_global, buttonEvent); \
 		}
 		FOR_BUTTONS(TEST_VALUE)
-		jerry_release_value(eventObj);
-		jerry_release_value(eventArgs[0]);
-		jerry_release_value(eventArgs[1]);
+		jerry_release_value(buttonEvent);
 		jerry_release_value(buttonProp);
 	}
 }
 
 u16 prevX = 0, prevY = 0;
 void queueTouchEvent(const char *name, int curX, int curY, bool usePrev) {
-	jerry_value_t eventArgs[2] = {String(name), jerry_create_object()};
-	jerry_value_t xNum = jerry_create_number(curX);
-	jerry_value_t yNum = jerry_create_number(curY);
+	jerry_value_t touchEvent = createEvent(name, false);
+	defReadonly(touchEvent, "x", (double) curX);
+	defReadonly(touchEvent, "y", (double) curY);
 	jerry_value_t dxNum = usePrev ? jerry_create_number(curX - (int) prevX) : jerry_create_number_nan();
 	jerry_value_t dyNum = usePrev ? jerry_create_number(curY - (int) prevY) : jerry_create_number_nan();
-	setProperty(eventArgs[1], "x", xNum);
-	setProperty(eventArgs[1], "y", yNum);
-	setProperty(eventArgs[1], "dx", dxNum);
-	setProperty(eventArgs[1], "dy", dyNum);
-	jerry_release_value(xNum);
-	jerry_release_value(yNum);
+	defReadonly(touchEvent, "dx", dxNum);
+	defReadonly(touchEvent, "dy", dyNum);
 	jerry_release_value(dxNum);
 	jerry_release_value(dyNum);
-	jerry_value_t eventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
-	queueEvent(ref_global, eventObj);
-	jerry_release_value(eventArgs[0]);
-	jerry_release_value(eventArgs[1]);
-	jerry_release_value(eventObj);
+	queueEvent(ref_global, touchEvent);
+	jerry_release_value(touchEvent);
 }
 
 void queueTouchEvents() {
@@ -260,42 +252,29 @@ void queueTouchEvents() {
 }
 
 bool dispatchKeyboardEvent(bool down, const char16_t codepoint, const char *name, u8 location, bool shift, int layout, bool repeat) {
-	jerry_value_t eventArgs[2] = {String(down ? "keydown" : "keyup"), jerry_create_object()};
-	setProperty(eventArgs[1], "cancelable", JS_TRUE);
+	jerry_value_t keyboardEvent = createEvent(down ? "keydown" : "keyup", true);
 
 	jerry_value_t keyStr;
 	if (codepoint == 2) keyStr = String("Shift"); // hardcoded override to remove Left/Right variants of Shift
 	else if (codepoint < ' ') keyStr = String(name);
 	else if (codepoint < 0x80) keyStr = String((char *) &codepoint);
-	else {
-		u32 convertedLength;
-		char *converted = UTF16toUTF8(&codepoint, 1, &convertedLength);
-		keyStr = StringSized(converted, convertedLength);
-		free(converted);
-	}
-	jerry_value_t codeStr = String(name);
-	jerry_value_t layoutStr = String(
+	else keyStr = StringUTF16(&codepoint, 1);
+	defReadonly(keyboardEvent, "key", keyStr);
+	jerry_release_value(keyStr);
+	
+	defReadonly(keyboardEvent, "code", name);
+	defReadonly(keyboardEvent, "layout",
 		layout == 0 ? "AlphaNumeric" : 
 		layout == 1 ? "LatinAccented" :
 		layout == 2 ? "Kana" :
 		layout == 3 ? "Symbol" :
 		layout == 4 ? "Pictogram"
 	: "");
-	setProperty(eventArgs[1], "key", keyStr);
-	setProperty(eventArgs[1], "code", codeStr);
-	setProperty(eventArgs[1], "layout", layoutStr);
-	setProperty(eventArgs[1], "repeat", jerry_create_boolean(repeat));
-	jerry_release_value(keyStr);
-	jerry_release_value(codeStr);
-	jerry_release_value(layoutStr);
+	defReadonly(keyboardEvent, "repeat", jerry_create_boolean(repeat));
+	defReadonly(keyboardEvent, "shifted", jerry_create_boolean(shift));
 
-	setProperty(eventArgs[1], "shifted", jerry_create_boolean(shift));
-
-	jerry_value_t kbdEventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
-	bool canceled = dispatchEvent(ref_global, kbdEventObj, false);
-	jerry_release_value(kbdEventObj);
-	jerry_release_value(eventArgs[0]);
-	jerry_release_value(eventArgs[1]);
+	bool canceled = dispatchEvent(ref_global, keyboardEvent, false);
+	jerry_release_value(keyboardEvent);
 	return canceled;
 }
 
@@ -321,7 +300,7 @@ void eventLoop() {
 		swiWaitForVBlank();
 		if (dependentEvents & vblank) queueEventName("vblank");
 		scanKeys();
-		if (keysDown() & KEY_LID) queueEventName("sleep", sleepCallback);
+		if (keysDown() & KEY_LID) queueEventName("sleep", VOID(systemSleep()));
 		if (keysUp() & KEY_LID) queueEventName("wake");
 		if (dependentEvents & (buttondown)) queueButtonEvents(true);
 		if (dependentEvents & (buttonup)) queueButtonEvents(false);
@@ -356,35 +335,6 @@ void eventLoop() {
 }
 
 
-FUNCTION(EventConstructor) {
-	CONSTRUCTOR(Event); REQUIRE(1);
-
-	setInternal(thisValue, "stopImmediatePropagation", JS_FALSE); // stop immediate propagation flag
-	defReadonly(thisValue, "target", JS_NULL);
-	defReadonly(thisValue, "cancelable", JS_FALSE);
-	defReadonly(thisValue, "defaultPrevented", JS_FALSE);                 // canceled flag
-	jerry_value_t currentTimeNum = jerry_create_number(time(NULL));
-	defReadonly(thisValue, "timeStamp", currentTimeNum);
-	jerry_release_value(currentTimeNum);
-	jerry_value_t typeStr = jerry_value_to_string(args[0]);	
-	defReadonly(thisValue, "type", typeStr);
-	jerry_release_value(typeStr);
-
-	if (argCount > 1 && jerry_value_is_object(args[1])) {
-		jerry_value_t keysArr = jerry_get_object_keys(args[1]);
-		u32 length = jerry_get_array_length(keysArr);
-		for (u32 i = 0; i < length; i++) {
-			jerry_value_t key = jerry_get_property_by_index(keysArr, i);
-			jerry_value_t value = jerry_get_property(args[1], key);
-			defReadonly(thisValue, key, value);
-			jerry_release_value(value);
-			jerry_release_value(key);
-		}
-		jerry_release_value(keysArr);
-	}
-
-	return JS_UNDEFINED;
-}
 
 FUNCTION(Event_stopImmediatePropagation) {
 	setInternal(thisValue, "stopImmediatePropagation", JS_TRUE);
@@ -525,7 +475,7 @@ FUNCTION(EventTarget_dispatchEvent) {
 }
 
 void exposeEventAPI(jerry_value_t global) {
-	JS_class Event = createClass(global, "Event", EventConstructor);
+	JS_class Event = createClass(global, "Event", IllegalConstructor);
 	setMethod(Event.prototype, "stopImmediatePropagation", Event_stopImmediatePropagation);
 	setMethod(Event.prototype, "preventDefault", Event_preventDefault);
 	ref_Event = Event;

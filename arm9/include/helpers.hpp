@@ -109,6 +109,7 @@ jerry_value_t getInternal(jerry_value_t object, const char *property);
 char *getInternalString(jerry_value_t object, const char *property, jerry_length_t *stringSize = NULL);
 void setInternal(jerry_value_t object, const char *property, jerry_value_t value);
 void setInternal(jerry_value_t object, const char *property, double number);
+void setInternal(jerry_value_t object, jerry_value_t property, const char *value);
 
 // void setPropertyNonEnumerable(jerry_value_t object, const char *property, jerry_value_t value);
 

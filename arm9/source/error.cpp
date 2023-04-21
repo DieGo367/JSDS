@@ -24,24 +24,23 @@ void handleError(jerry_value_t error, bool sync) {
 	jerry_value_t errorEventListenersArr = jerry_get_property(eventListenersObj, errorProp);
 	jerry_release_value(eventListenersObj);
 	if (jerry_value_is_array(errorEventListenersArr) && jerry_get_array_length(errorEventListenersArr) > 0) {
-		jerry_value_t errorEventInitObj = jerry_create_object();
+		jerry_value_t errorEvent = createEvent(errorProp, true);
 
 		jerry_error_t errorCode = jerry_get_error_type(error);
 		jerry_value_t thrownVal = jerry_get_value_from_error(error, false);
-		setProperty(errorEventInitObj, "cancelable", JS_TRUE);
-		jerry_release_value(jerry_set_property(errorEventInitObj, errorProp, thrownVal));
+		defReadonly(errorEvent, errorProp, thrownVal);
 		if (errorCode == JERRY_ERROR_NONE) {
 			jerry_value_t thrownStr = jerry_value_to_string(thrownVal);
 			jerry_value_t uncaughtStr = String("Uncaught ");
 			jerry_value_t concatenatedStr = jerry_binary_operation(JERRY_BIN_OP_ADD, uncaughtStr, thrownStr);
-			setProperty(errorEventInitObj, "message", concatenatedStr);
+			defReadonly(errorEvent, "message", concatenatedStr);
 			jerry_release_value(concatenatedStr);
 			jerry_release_value(uncaughtStr);
 			jerry_release_value(thrownStr);
 		}
 		else {
 			jerry_value_t thrownStr = jerry_value_to_string(thrownVal);
-			setProperty(errorEventInitObj, "message", thrownStr);
+			defReadonly(errorEvent, "message", thrownStr);
 			jerry_release_value(thrownStr);
 
 			jerry_value_t backtraceArr = jerry_get_internal_property(thrownVal, ref_str_backtrace);
@@ -52,23 +51,20 @@ void handleError(jerry_value_t error, bool sync) {
 
 			char *colon = strchr(resource, ':');
 			jerry_value_t filenameStr = StringSized(resource, colon - resource);
-			setProperty(errorEventInitObj, "filename", filenameStr);
+			defReadonly(errorEvent, "filename", filenameStr);
 			jerry_release_value(filenameStr);
 
 			char *endptr = NULL;
 			int64 lineno = strtoll(colon + 1, &endptr, 10);
 			jerry_value_t linenoNum = endptr == (colon + 1) ? jerry_create_number_nan() : jerry_create_number(lineno);
-			setProperty(errorEventInitObj, "lineno", linenoNum);
+			defReadonly(errorEvent, "lineno", linenoNum);
 			jerry_release_value(linenoNum);
 			free(resource);
 		}
 		jerry_release_value(thrownVal);
 
-		jerry_value_t eventArgs[2] = {errorProp, errorEventInitObj};
-		jerry_value_t errorEventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
-		jerry_release_value(errorEventInitObj);
-		errorHandled = dispatchEvent(ref_global, errorEventObj, sync);
-		jerry_release_value(errorEventObj);
+		errorHandled = dispatchEvent(ref_global, errorEvent, sync);
+		jerry_release_value(errorEvent);
 	}
 	jerry_release_value(errorEventListenersArr);
 	jerry_release_value(errorProp);
@@ -91,19 +87,15 @@ void handleRejection(jerry_value_t promise) {
 	jerry_value_t unhandledrejectionProp = String("unhandledrejection");
 	jerry_value_t rejectionEventListenersArr = jerry_get_property(eventListenersObj, unhandledrejectionProp);
 	if (jerry_value_is_array(rejectionEventListenersArr) && jerry_get_array_length(rejectionEventListenersArr) > 0) {
-		jerry_value_t rejectionEventInitObj = jerry_create_object();
+		jerry_value_t rejectionEvent = createEvent(unhandledrejectionProp, true);
 		
-		setProperty(rejectionEventInitObj, "cancelable", JS_TRUE);
-		setProperty(rejectionEventInitObj, "promise", promise);
+		defReadonly(rejectionEvent, "promise", promise);
 		jerry_value_t reasonVal = jerry_get_promise_result(promise);
-		setProperty(rejectionEventInitObj, "reason", reasonVal);
+		defReadonly(rejectionEvent, "reason", reasonVal);
 		jerry_release_value(reasonVal);
 
-		jerry_value_t eventArgs[2] = {unhandledrejectionProp, rejectionEventInitObj};
-		jerry_value_t rejectionEventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
-		jerry_release_value(rejectionEventInitObj);
-		rejectionHandled = dispatchEvent(ref_global, rejectionEventObj, true);
-		jerry_release_value(rejectionEventObj);
+		rejectionHandled = dispatchEvent(ref_global, rejectionEvent, true);
+		jerry_release_value(rejectionEvent);
 	}
 	jerry_release_value(rejectionEventListenersArr);
 	jerry_release_value(unhandledrejectionProp);

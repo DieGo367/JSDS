@@ -43,24 +43,16 @@ FUNCTION(DS_setMainScreen) {
 }
 
 FUNCTION(DS_sleep) {
-	jerry_value_t eventArgs[2] = {String("sleep"), jerry_create_object()};
-	setProperty(eventArgs[1], "cancelable", JS_TRUE);
-	jerry_value_t eventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
-	bool canceled = dispatchEvent(ref_global, eventObj, true);
-	jerry_release_value(eventObj);
-	jerry_release_value(eventArgs[0]);
-	jerry_release_value(eventArgs[1]);
+	jerry_value_t sleepEvent = createEvent("sleep", true);
+	bool canceled = dispatchEvent(ref_global, sleepEvent, true);
+	jerry_release_value(sleepEvent);
 	if (!canceled) {
 		systemSleep();
 		swiWaitForVBlank();
 		swiWaitForVBlank(); // I know this is jank but it's the easiest solution to stop 'wake' from dispatching before the system sleeps
-		eventArgs[0] = String("wake");
-		eventArgs[1] = jerry_create_object();
-		eventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
-		dispatchEvent(ref_global, eventObj, true);
-		jerry_release_value(eventObj);
-		jerry_release_value(eventArgs[0]);
-		jerry_release_value(eventArgs[1]);
+		jerry_value_t wakeEvent = createEvent("wake", false);
+		dispatchEvent(ref_global, wakeEvent, true);
+		jerry_release_value(wakeEvent);
 	}
 	return JS_UNDEFINED;
 }

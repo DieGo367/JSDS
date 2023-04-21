@@ -98,6 +98,11 @@ void setInternal(jerry_value_t object, const char *property, double number) {
 	setInternal(object, property, n);
 	jerry_release_value(n);
 }
+void setInternal(jerry_value_t object, jerry_value_t property, const char *value) {
+	jerry_value_t valueStr = String(value);
+	jerry_set_internal_property(object, property, valueStr);
+	jerry_release_value(valueStr);
+}
 
 jerry_property_descriptor_t nonEnumerableDesc = {
 	.is_value_defined = true,
