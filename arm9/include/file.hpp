@@ -10,7 +10,6 @@
 char *fileBrowse(NitroFont font, const char *message, const char *path, std::vector<char *> extensions, bool replText = false);
 
 void storageLoad(const char *resourceName);
-bool storageSave();
 
 void exposeFileAPI(jerry_value_t global);
 void releaseFileReferences();

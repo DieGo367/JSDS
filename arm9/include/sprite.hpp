@@ -3,6 +3,8 @@
 
 #include "jerry/jerryscript.h"
 
+void spriteUpdate();
+
 void exposeSpriteAPI(jerry_value_t global);
 void releaseSpriteReferences();
 

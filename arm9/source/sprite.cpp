@@ -19,6 +19,8 @@ const char WAS_REMOVED[] = "Using a previously removed object.";
 
 #define BOUND(n, min, max) n < min ? min : n > max ? max : n
 
+bool spriteUpdateMain = false;
+bool spriteUpdateSub = false;
 u8 spriteUsage[SPRITE_COUNT] = {0};
 #define USAGE_SPRITE_MAIN BIT(0)
 #define USAGE_MATRIX_MAIN BIT(1)
@@ -33,6 +35,13 @@ inline int getID(jerry_value_t obj) {
 	jerry_release_value(idNum);
 	return id;
 }
+
+void spriteUpdate() {
+	if (spriteUpdateMain) oamUpdate(&oamMain);
+	if (spriteUpdateSub) oamUpdate(&oamSub);
+}
+
+
 
 FUNCTION(Sprite_set_x) {
 	NOT_REMOVED(thisValue);

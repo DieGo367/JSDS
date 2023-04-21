@@ -4,7 +4,6 @@ extern "C" {
 #include <nds/system.h>
 }
 #include <nds/arm9/input.h>
-#include <nds/arm9/sprite.h>
 #include <nds/interrupts.h>
 #include <queue>
 #include <stdlib.h>
@@ -12,14 +11,12 @@ extern "C" {
 #include <time.h>
 
 #include "error.hpp"
-#include "file.hpp"
 #include "helpers.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
-#include "jerry/jerryscript.h"
 #include "logging.hpp"
 #include "timeouts.hpp"
-#include "util/unicode.hpp"
+#include "sprite.hpp"
 
 
 
@@ -30,8 +27,6 @@ bool abortFlag = false;
 bool userClosed = false;
 u8 dependentEvents = 0;
 bool pauseKeyEvents = false;
-bool spriteUpdateMain = false;
-bool spriteUpdateSub = false;
 
 std::queue<Task> taskQueue;
 
@@ -307,8 +302,7 @@ void eventLoop() {
 		if (dependentEvents & (touchstart | touchmove | touchend)) queueTouchEvents();
 		timeoutUpdate();
 		runTasks();
-		if (spriteUpdateMain) oamUpdate(&oamMain);
-		if (spriteUpdateSub) oamUpdate(&oamSub);
+		spriteUpdate();
 		keyboardUpdate();
 		if (inREPL) {
 			if (keyboardComposeStatus() == KEYBOARD_INACTIVE) {
