@@ -5,9 +5,8 @@
 
 #include "error.hpp"
 #include "event.hpp"
-#include "helpers.hpp"
-#include "jerry/jerryscript.h"
 #include "logging.hpp"
+#include "util/helpers.hpp"
 #include "util/timing.hpp"
 
 

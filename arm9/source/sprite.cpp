@@ -2,7 +2,7 @@
 #include <nds/arm9/trig_lut.h>
 
 #include "event.hpp"
-#include "helpers.hpp"
+#include "util/helpers.hpp"
 
 
 

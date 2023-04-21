@@ -5,12 +5,12 @@
 #include "encoding.hpp"
 #include "event.hpp"
 #include "file.hpp"
-#include "helpers.hpp"
 #include "io.hpp"
 #include "io/keyboard.hpp"
 #include "sprite.hpp"
 #include "system.hpp"
 #include "timeouts.hpp"
+#include "util/helpers.hpp"
 #include "video.hpp"
 
 // beta, will get rid of these soon

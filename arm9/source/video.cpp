@@ -1,8 +1,8 @@
 #include <nds/arm9/video.h>
 #include <stdlib.h>
 
-#include "helpers.hpp"
 #include "util/color.hpp"
+#include "util/helpers.hpp"
 
 
 

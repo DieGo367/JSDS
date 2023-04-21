@@ -11,14 +11,13 @@
 #include "error.hpp"
 #include "event.hpp"
 #include "file.hpp"
-#include "helpers.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
-#include "jerry/jerryscript.h"
 #include "jerry/jerryscript-port-default.h"
 #include "logging.hpp"
 #include "timeouts.hpp"
 #include "util/font.hpp"
+#include "util/helpers.hpp"
 
 #include "font_nftr.h"
 

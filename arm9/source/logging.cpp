@@ -3,10 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "helpers.hpp"
 #include "io/console.hpp"
-#include "jerry/jerryscript.h"
 #include "util/color.hpp"
+#include "util/helpers.hpp"
 
 
 

@@ -1,10 +1,10 @@
 #include <stdlib.h>
 
-#include "helpers.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
 #include "logging.hpp"
 #include "util/color.hpp"
+#include "util/helpers.hpp"
 #include "util/timing.hpp"
 
 

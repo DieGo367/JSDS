@@ -8,7 +8,7 @@ extern "C" {
 #include <string.h>
 
 #include "event.hpp"
-#include "helpers.hpp"
+#include "util/helpers.hpp"
 
 
 

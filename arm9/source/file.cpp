@@ -13,10 +13,10 @@
 #include <unistd.h>
 #include <vector>
 
-#include "helpers.hpp"
 #include "io/console.hpp"
 #include "util/color.hpp"
 #include "util/font.hpp"
+#include "util/helpers.hpp"
 #include "util/tonccpy.h"
 
 
