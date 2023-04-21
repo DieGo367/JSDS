@@ -4,19 +4,34 @@
 #include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
 
+
+
 #define FOR_BUTTONS(DO) \
 	DO("A", KEY_A) DO("B", KEY_B) DO("X", KEY_X) DO("Y", KEY_Y) DO("L", KEY_L)  DO("R", KEY_R) \
 	DO("Up", KEY_UP)  DO("Down", KEY_DOWN) DO("Left", KEY_LEFT)  DO("Right", KEY_RIGHT) \
 	DO("START", KEY_START) DO("SELECT", KEY_SELECT)
 
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
-#define FUNCTION(name) static jerry_value_t name(CALL_INFO)
+// Defines a handler for a JS function.
+#define FUNCTION(name) jerry_value_t name(CALL_INFO)
 
+// Lambda JS function handler that runs some code before returning undefined
 #define VOID(code) [](CALL_INFO) -> jerry_value_t { code; return JS_UNDEFINED; }
-#define RETURN(returnVal) [](CALL_INFO) -> jerry_value_t { return returnVal; }
 
-// constant js values, these do not need to be freed and can be used without restraint
-// Values copied from Jerry internals, would need to be changed if Jerry changes them in the future
+// Lambda JS function handler that returns the result of an expression
+#define RETURN(expression) [](CALL_INFO) -> jerry_value_t { return expression; }
+
+// Throws a JS error if not enough arguments are specified.
+#define REQUIRE(n) if (argCount < n) return requireArgError(n, argCount);
+
+// Test for any type and return a TypeError if failed.
+#define EXPECT(test, type) if (!(test)) return TypeError("Expected type '" #type "'.")
+
+// Require the function to be called as a constructor only.
+#define CONSTRUCTOR(name) if (isNewTargetUndefined()) return TypeError("Constructor '" #name "' cannot be invoked without 'new'.")
+
+// Constant JS values, these do not need to be freed and can be used without restraint.
+// The values are copied from JerryScript's internals, and would need to be updated if they change in the future (aka this is jank)
 enum JSConstants {
 	JS_TRUE = 56,
 	JS_FALSE = 40,
@@ -31,12 +46,7 @@ struct JS_class {
 
 // held references to JS objects
 extern jerry_value_t ref_global;
-extern JS_class ref_Event;
 extern JS_class ref_Error;
-extern JS_class ref_File;
-extern jerry_value_t ref_consoleCounters;
-extern jerry_value_t ref_consoleTimers;
-extern jerry_value_t ref_storage;
 extern jerry_value_t ref_func_push;
 extern jerry_value_t ref_func_slice;
 extern jerry_value_t ref_func_splice;
@@ -46,10 +56,16 @@ extern jerry_value_t ref_str_prototype;
 extern jerry_value_t ref_str_backtrace;
 extern jerry_value_t ref_sym_toStringTag;
 
+// Function for classes that should not be constructed via new.
+jerry_value_t IllegalConstructor(CALL_INFO);
+
 // Creates a jerry common error.
 #define Error(message) jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) (message))
 // Creates a jerry type error.
 #define TypeError(message) jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) (message))
+
+// Returns appropriate error for given arg count.
+jerry_value_t requireArgError(u32 expected, u32 received);
 
 // Creates a js string out of a c string. Return value must be released!
 #define String(str) jerry_create_string_from_utf8((const jerry_char_t *) (str))

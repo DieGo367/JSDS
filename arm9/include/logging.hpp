@@ -21,8 +21,8 @@ enum LogColors {
 	LOGCOLOR_REJECTED = 0x801F,
 };
 
-void logIndentAdd();
-void logIndentRemove();
+void loggingAddIndent();
+void loggingRemoveIndent();
 void logIndent();
 
 void log(const jerry_value_t args[], jerry_length_t argCount);

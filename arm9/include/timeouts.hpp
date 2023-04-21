@@ -1,19 +1,14 @@
 #ifndef JSDS_TIMEOUTS_HPP
 #define JSDS_TIMEOUTS_HPP
 
-#include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
 
 
 
-jerry_value_t addTimeout(jerry_value_t handler, const jerry_value_t *args, u32 argCount, int ticks, bool repeat, bool isInternal = false);
-void clearTimeout(jerry_value_t idVal);
 void timeoutUpdate();
 void clearTimeouts();
 bool timeoutsExist();
 
-int counterAdd();
-int counterGet(int id);
-void counterRemove(int id);
+void exposeTimeoutAPI(jerry_value_t global);
 
 #endif /* JSDS_TIMEOUTS_HPP */

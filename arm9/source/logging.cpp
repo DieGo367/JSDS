@@ -11,11 +11,12 @@
 
 
 const u8 MAX_PRINT_RECURSION = 0;
-
 int indent = 0;
-void logIndentAdd() { indent++; }
-void logIndentRemove() { indent = indent > 0 ? indent - 1 : 0; }
+void loggingAddIndent() { indent++; }
+void loggingRemoveIndent() { indent = indent > 0 ? indent - 1 : 0; }
 void logIndent() { for (int i = 0; i < indent; i++) putchar('\t'); }
+
+
 
 void log(const jerry_value_t args[], jerry_length_t argCount) {
 	consolePause();
@@ -322,7 +323,7 @@ void logObject(jerry_value_t obj, u8 level) {
 	jerry_release_value(keysArr);
 }
 
-static jerry_length_t tableValueWidth(jerry_value_t value) {
+jerry_length_t tableValueWidth(jerry_value_t value) {
 	jerry_type_t type = jerry_value_get_type(value);
 	switch (type) {
 		case JERRY_TYPE_STRING: return jerry_get_string_length(value);
@@ -344,7 +345,7 @@ static jerry_length_t tableValueWidth(jerry_value_t value) {
 	}
 }
 
-static void tableValuePrint(jerry_value_t value, u8 width) {
+void tableValuePrint(jerry_value_t value, u8 width) {
 	u16 previousColor = consoleGetColor();
 	jerry_type_t type = jerry_value_get_type(value);
 	switch (type) {

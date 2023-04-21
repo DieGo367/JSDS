@@ -1,7 +1,6 @@
 #include "timeouts.hpp"
 
 #include <map>
-#include <nds/timers.h>
 #include <stdlib.h>
 
 #include "error.hpp"
@@ -9,61 +8,30 @@
 #include "helpers.hpp"
 #include "jerry/jerryscript.h"
 #include "logging.hpp"
+#include "util/timing.hpp"
 
 
 
 struct Timeout {
 	int id;
-	int timeout;
+	int duration;
 	jerry_value_t handler;
 	jerry_value_t *args;
 	u32 argCount;
 	int nestLevel;
-	int remaining;
 	bool repeat;
 	bool queued;
 };
 
 std::map<int, Timeout> timeouts;
-std::map<int, int> counters;
-int ids = 0;
-int internalIds = 0;
-int counterIds = 0;
 int nestLevel = 0;
-bool timerOn = false;
-int timerUsage = 0;
 
-void timingTick() {
-	for (const auto &[id, timeout] : timeouts) {
-		timeouts[id].remaining--;
-	}
-	for (const auto &[id, tick] : counters) {
-		counters[id] = counters[id] + 1;
-	}
-}
-void timingUse() {
-	timerUsage++;
-	if (!timerOn) {
-		timerStart(0, ClockDivider_1024, TIMER_FREQ_1024(1000), timingTick);
-		timerOn = true;
-	}
-}
-void timingDone() {
-	if (--timerUsage <= 0) {
-		timerUsage = 0;
-		if (timerOn) {
-			timerStop(0);
-			timerOn = false;
-		}
-	}
-}
-
-jerry_value_t addTimeout(jerry_value_t handler, const jerry_value_t *args, u32 argCount, int ticks, bool repeat, bool isInternal) {
+jerry_value_t addTimeout(jerry_value_t handler, const jerry_value_t *args, u32 argCount, int ticks, bool repeat) {
 	Timeout t;
-	t.id = isInternal ? --internalIds : ++ids;
 	if (ticks < 0) ticks = 0;
 	if (nestLevel > 5 && ticks < 4) ticks = 4;
-	t.timeout = ticks;
+	t.id = timerAdd(ticks);
+	t.duration = ticks;
 	t.handler = jerry_acquire_value(handler);
 	t.argCount = argCount;
 	if (argCount > 0) {
@@ -75,11 +43,9 @@ jerry_value_t addTimeout(jerry_value_t handler, const jerry_value_t *args, u32 a
 	else t.args = NULL;
 	t.repeat = repeat;
 	t.nestLevel = nestLevel + 1;
-	t.remaining = t.timeout;
 	t.queued = false;
 
 	timeouts[t.id] = t;
-	timingUse();
 	return jerry_create_number(t.id);
 }
 
@@ -92,7 +58,7 @@ void clearTimeout(jerry_value_t idVal) {
 		timeouts.erase(id);
 		jerry_release_value(t.handler);
 		for (u32 i = 0; i < t.argCount; i++) jerry_release_value(t.args[i]);
-		timingDone();
+		timerRemove(id);
 	}
 }
 
@@ -122,28 +88,30 @@ void runTimeoutTask(const jerry_value_t args[], u32 argCount) {
 	nestLevel = prevNestLevel;
 	if (timeouts.count(t.id) > 0) {
 		if (t.repeat) { // continue interval
-			timeouts[t.id].remaining = t.timeout;
 			timeouts[t.id].queued = false;
+			timerSet(t.id, t.duration);
 		}
 		else { // remove timeout
 			timeouts.erase(t.id);
 			jerry_release_value(t.handler);
 			for (u32 i = 0; i < t.argCount; i++) jerry_release_value(t.args[i]);
-			timingDone();
+			timerRemove(t.id);
 		}
 	}
 }
 
 void timeoutUpdate() {
-	if (!timerOn) return;
+	if (!timingOn()) return;
 	int minAmount = 0;
 	while (minAmount < 1) {
 		minAmount = 1;
 		for (const auto &[id, timeout] : timeouts) {
-			if (!timeout.queued && timeout.remaining < minAmount) minAmount = timeout.remaining;
+			int remaining = timerGet(id);
+			if (!timeout.queued && remaining < minAmount) minAmount = remaining;
 		}
 		if (minAmount < 1) for (const auto &[id, timeout] : timeouts) {
-			if (!timeout.queued && timeout.remaining == minAmount) {
+			int remaining = timerGet(id);
+			if (!timeout.queued && remaining == minAmount) {
 				jerry_value_t idNum = jerry_create_number(id);
 				queueTask(runTimeoutTask, &idNum, 1);
 				jerry_release_value(idNum);
@@ -157,6 +125,7 @@ void clearTimeouts() {
 	for (const auto &[id, timeout] : timeouts) {
 		jerry_release_value(timeout.handler);
 		for (u32 i = 0; i < timeout.argCount; i++) jerry_release_value(timeout.args[i]);
+		timerRemove(id);
 	}
 	timeouts.clear();
 }
@@ -165,15 +134,37 @@ bool timeoutsExist() {
 	return timeouts.size() > 0;
 }
 
-int counterAdd() {
-	counters[++counterIds] = 0;
-	timingUse();
-	return counterIds;
+
+
+FUNCTION(setTimeout) {
+	if (argCount >= 2) {
+		jerry_value_t ticksNum = jerry_value_to_number(args[1]);
+		int ticks = jerry_value_as_int32(ticksNum);
+		jerry_release_value(ticksNum);
+		return addTimeout(args[0], args + 2, argCount - 2, ticks, false);
+	}
+	else return addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, NULL, 0, 0, false);
 }
-int counterGet(int id) {
-	return counters.at(id);
+
+FUNCTION(setInterval) {
+	if (argCount >= 2) {
+		jerry_value_t ticksNum = jerry_value_to_number(args[1]);
+		int ticks = jerry_value_as_int32(ticksNum);
+		jerry_release_value(ticksNum);
+		return addTimeout(args[0], args + 2, argCount - 2, ticks, true);
+	}
+	else return addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, NULL, 0, 0, true);
 }
-void counterRemove(int id) {
-	counters.erase(id);
-	timingDone();
+
+FUNCTION(clearInterval) {
+	if (argCount > 0) clearTimeout(args[0]);
+	else clearTimeout(JS_UNDEFINED);
+	return JS_UNDEFINED;
+}
+
+void exposeTimeoutAPI(jerry_value_t global) {
+	setMethod(global, "clearInterval", clearInterval);
+	setMethod(global, "clearTimeout", clearInterval);
+	setMethod(global, "setInterval", setInterval);
+	setMethod(global, "setTimeout", setTimeout);
 }

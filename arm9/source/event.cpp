@@ -1,13 +1,15 @@
 #include "event.hpp"
 
-#include <nds/arm9/input.h>
-#include <nds/interrupts.h>
 extern "C" {
-#include <nds/arm9/sprite.h>
 #include <nds/system.h>
 }
+#include <nds/arm9/input.h>
+#include <nds/arm9/sprite.h>
+#include <nds/interrupts.h>
 #include <queue>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #include "error.hpp"
 #include "file.hpp"
@@ -20,6 +22,8 @@ extern "C" {
 #include "util/unicode.hpp"
 
 
+
+JS_class ref_Event;
 
 bool inREPL = false;
 bool abortFlag = false;
@@ -207,7 +211,7 @@ void queueButtonEvents(bool down) {
 		jerry_value_t eventArgs[2] = {String(down ? "buttondown" : "buttonup"), jerry_create_object()};
 		jerry_release_value(jerry_set_property(eventArgs[1], buttonProp, JS_NULL));
 		jerry_value_t eventObj = jerry_construct_object(ref_Event.constructor, eventArgs, 2);
-		#define TEST_VALUE(button, keyCode) if (set & keyCode) {\
+		#define TEST_VALUE(button, keyCode) if (set & keyCode) { \
 			jerry_value_t buttonStr = String(button); \
 			jerry_set_internal_property(eventObj, buttonProp, buttonStr); \
 			jerry_release_value(buttonStr); \
@@ -349,4 +353,207 @@ void eventLoop() {
 			}
 		}
 	}
+}
+
+
+FUNCTION(EventConstructor) {
+	CONSTRUCTOR(Event); REQUIRE(1);
+
+	setInternalProperty(thisValue, "stopImmediatePropagation", JS_FALSE); // stop immediate propagation flag
+	setReadonly(thisValue, "target", JS_NULL);
+	setReadonly(thisValue, "cancelable", JS_FALSE);
+	setReadonly(thisValue, "defaultPrevented", JS_FALSE);                 // canceled flag
+	jerry_value_t currentTimeNum = jerry_create_number(time(NULL));
+	setReadonly(thisValue, "timeStamp", currentTimeNum);
+	jerry_release_value(currentTimeNum);
+	jerry_value_t typeStr = jerry_value_to_string(args[0]);	
+	setReadonly(thisValue, "type", typeStr);
+	jerry_release_value(typeStr);
+
+	if (argCount > 1 && jerry_value_is_object(args[1])) {
+		jerry_value_t keysArr = jerry_get_object_keys(args[1]);
+		u32 length = jerry_get_array_length(keysArr);
+		for (u32 i = 0; i < length; i++) {
+			jerry_value_t key = jerry_get_property_by_index(keysArr, i);
+			jerry_value_t value = jerry_get_property(args[1], key);
+			JS_setReadonly(thisValue, key, value);
+			jerry_release_value(value);
+			jerry_release_value(key);
+		}
+		jerry_release_value(keysArr);
+	}
+
+	return JS_UNDEFINED;
+}
+
+FUNCTION(Event_stopImmediatePropagation) {
+	setInternalProperty(thisValue, "stopImmediatePropagation", JS_TRUE);
+	return JS_UNDEFINED;
+}
+
+FUNCTION(Event_preventDefault) {
+	if (testInternalProperty(thisValue, "cancelable")) {
+		setInternalProperty(thisValue, "defaultPrevented", JS_TRUE);
+	}
+	return JS_UNDEFINED;
+}
+
+FUNCTION(EventTargetConstructor) {
+	if (thisValue != ref_global) CONSTRUCTOR(EventTarget);
+
+	jerry_value_t eventListenersObj = jerry_create_object();
+	setInternalProperty(thisValue, "eventListeners", eventListenersObj);
+	jerry_release_value(eventListenersObj);
+
+	return JS_UNDEFINED;
+}
+
+FUNCTION(EventTarget_addEventListener) {
+	REQUIRE(2);
+	if (jerry_value_is_null(args[1])) return JS_UNDEFINED;
+	jerry_value_t targetObj = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
+	
+	jerry_value_t callbackProp = String("callback");
+	jerry_value_t onceProp = String("once");
+
+	jerry_value_t typeStr = jerry_value_to_string(args[0]);
+	jerry_value_t callbackVal = args[1];
+	bool once = false;
+	if (argCount > 2 && jerry_value_is_object(args[2])) {
+		once = JS_testProperty(args[2], onceProp);
+	}
+
+	jerry_value_t eventListenersObj = getInternalProperty(targetObj, "eventListeners");
+	jerry_value_t listenersArr = jerry_get_property(eventListenersObj, typeStr); // listeners of the given type
+	if (jerry_value_is_undefined(listenersArr)) {
+		listenersArr = jerry_create_array(0);
+		jerry_release_value(jerry_set_property(eventListenersObj, typeStr, listenersArr));
+	}
+	jerry_release_value(eventListenersObj);
+
+	u32 length = jerry_get_array_length(listenersArr);
+	bool shouldAppend = true;
+	for (u32 i = 0; shouldAppend && i < length; i++) {
+		jerry_value_t storedListenerObj = jerry_get_property_by_index(listenersArr, i);
+		jerry_value_t storedCallbackVal = jerry_get_property(storedListenerObj, callbackProp);
+		if (strictEqual(callbackVal, storedCallbackVal)) shouldAppend = false;
+		jerry_release_value(storedCallbackVal);
+		jerry_release_value(storedListenerObj);
+	}
+
+	if (shouldAppend) {
+		jerry_value_t listenerObj = jerry_create_object();
+
+		jerry_release_value(jerry_set_property(listenerObj, callbackProp, callbackVal));
+		jerry_release_value(jerry_set_property(listenerObj, onceProp, jerry_create_boolean(once)));
+		setProperty(listenerObj, "removed", JS_FALSE);
+
+		jerry_release_value(jerry_call_function(ref_func_push, listenersArr, &listenerObj, 1));
+		jerry_release_value(listenerObj);
+
+		if (targetObj == ref_global) {
+			char *type = getString(typeStr);
+			if (strcmp(type, "vblank") == 0) dependentEvents |= vblank;
+			else if (strcmp(type, "buttondown") == 0) dependentEvents |= buttondown;
+			else if (strcmp(type, "buttonup") == 0) dependentEvents |= buttonup;
+			else if (strcmp(type, "touchstart") == 0) dependentEvents |= touchstart;
+			else if (strcmp(type, "touchmove") == 0) dependentEvents |= touchmove;
+			else if (strcmp(type, "touchend") == 0) dependentEvents |= touchend;
+			else if (strcmp(type, "keydown") == 0) dependentEvents |= keydown;
+			else if (strcmp(type, "keyup") == 0) dependentEvents |= keyup;
+			free(type);
+		}
+	}
+
+	jerry_release_value(listenersArr);
+	jerry_release_value(typeStr);
+	jerry_release_value(onceProp);
+	jerry_release_value(callbackProp);
+
+	return JS_UNDEFINED;
+}
+
+FUNCTION(EventTarget_removeEventListener) {
+	REQUIRE(2);
+	jerry_value_t targetObj = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
+	jerry_value_t callbackProp = String("callback");
+	jerry_value_t typeStr = jerry_value_to_string(args[0]);
+	jerry_value_t callbackVal = args[1];
+
+	jerry_value_t eventListenersObj = getInternalProperty(targetObj, "eventListeners");
+	jerry_value_t listenersArr = jerry_get_property(eventListenersObj, typeStr); // listeners of the given type
+	jerry_release_value(eventListenersObj);
+	if (jerry_value_is_array(listenersArr)) {
+		u32 length = jerry_get_array_length(listenersArr);
+		bool removed = false;
+		for (u32 i = 0; !removed && i < length; i++) {
+			jerry_value_t storedListenerObj = jerry_get_property_by_index(listenersArr, i);
+			jerry_value_t storedCallbackVal = jerry_get_property(storedListenerObj, callbackProp);
+			if (strictEqual(callbackVal, storedCallbackVal)) {
+				arraySplice(listenersArr, i, 1);
+				setProperty(storedListenerObj, "removed", JS_TRUE);
+				removed = true;
+				if (targetObj == ref_global && jerry_get_array_length(listenersArr) == 0) {
+					char *type = getString(typeStr);
+					if (strcmp(type, "vblank") == 0) dependentEvents &= ~(vblank);
+					else if (strcmp(type, "buttondown") == 0) dependentEvents &= ~(buttondown);
+					else if (strcmp(type, "buttonup") == 0) dependentEvents &= ~(buttonup);
+					else if (strcmp(type, "touchstart") == 0) dependentEvents &= ~(touchstart);
+					else if (strcmp(type, "touchmove") == 0) dependentEvents &= ~(touchmove);
+					else if (strcmp(type, "touchend") == 0) dependentEvents &= ~(touchend);
+					else if (strcmp(type, "keydown") == 0) dependentEvents &= ~(keydown);
+					else if (strcmp(type, "keyup") == 0) dependentEvents &= ~(keyup);
+					free(type);
+				}
+			}
+			jerry_release_value(storedCallbackVal);
+			jerry_release_value(storedListenerObj);
+		}
+	}
+	jerry_release_value(listenersArr);
+	jerry_release_value(typeStr);
+	jerry_release_value(callbackProp);
+
+	return JS_UNDEFINED;
+}
+
+FUNCTION(EventTarget_dispatchEvent) {
+	REQUIRE(1); EXPECT(isInstance(args[0], ref_Event), Event);
+	jerry_value_t targetObj = jerry_value_is_undefined(thisValue) ? ref_global : thisValue;
+	bool canceled = dispatchEvent(targetObj, args[0], true);
+	return jerry_create_boolean(!canceled);
+}
+
+void exposeEventAPI(jerry_value_t global) {
+	JS_class Event = createClass(global, "Event", EventConstructor);
+	setMethod(Event.prototype, "stopImmediatePropagation", Event_stopImmediatePropagation);
+	setMethod(Event.prototype, "preventDefault", Event_preventDefault);
+	ref_Event = Event;
+
+	JS_class EventTarget = createClass(global, "EventTarget", EventTargetConstructor);
+	setMethod(EventTarget.prototype, "addEventListener", EventTarget_addEventListener);
+	setMethod(EventTarget.prototype, "removeEventListener", EventTarget_removeEventListener);
+	setMethod(EventTarget.prototype, "dispatchEvent", EventTarget_dispatchEvent);
+
+	// turn global into an EventTarget
+	setPrototype(global, EventTarget.prototype);
+	EventTargetConstructor(EventTarget.constructor, global, NULL, 0);
+	releaseClass(EventTarget);
+
+	defEventAttribute(global, "onerror");
+	defEventAttribute(global, "onunhandledrejection");
+	defEventAttribute(global, "onkeydown");
+	defEventAttribute(global, "onkeyup");
+	defEventAttribute(global, "onbuttondown");
+	defEventAttribute(global, "onbuttonup");
+	defEventAttribute(global, "onsleep");
+	defEventAttribute(global, "ontouchstart");
+	defEventAttribute(global, "ontouchmove");
+	defEventAttribute(global, "ontouchend");
+	defEventAttribute(global, "onvblank");
+	defEventAttribute(global, "onwake");
+}
+
+void releaseEventReferences() {
+	releaseClass(ref_Event);
 }

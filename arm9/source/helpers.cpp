@@ -5,6 +5,16 @@
 
 
 
+FUNCTION(IllegalConstructor) {
+	return TypeError("Illegal constructor");
+}
+
+jerry_value_t requireArgError(u32 expected, u32 received) {
+	char msg[30];
+	snprintf(msg, sizeof(msg), "%lu argument%s required, got %lu.", expected, expected == 1 ? "" : "s", received);
+	return TypeError(msg);
+}
+
 jerry_value_t StringUTF16(const char16_t* codepoints, jerry_size_t length) {
 	jerry_size_t convertedLength;
 	char *converted = UTF16toUTF8(codepoints, length, &convertedLength);

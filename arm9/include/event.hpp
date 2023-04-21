@@ -3,8 +3,11 @@
 
 #include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
+#include "helpers.hpp"
 
 
+
+extern JS_class ref_Event;
 
 typedef void (*TaskFunction) (const jerry_value_t *args, u32 argCount);
 struct Task {
@@ -47,5 +50,8 @@ bool onKeyDown(const char16_t codepoint, const char *name, bool shift, int layou
 bool onKeyUp(const char16_t codepoint, const char *name, bool shift, int layout);
 
 void eventLoop();
+
+void exposeEventAPI(jerry_value_t global);
+void releaseEventReferences();
 
 #endif /* JSDS_EVENT_HPP */
