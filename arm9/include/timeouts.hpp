@@ -3,8 +3,6 @@
 
 #include "jerry/jerryscript.h"
 
-
-
 void timeoutUpdate();
 void clearTimeouts();
 bool timeoutsExist();

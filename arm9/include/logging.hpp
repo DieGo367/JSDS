@@ -4,8 +4,6 @@
 #include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
 
-
-
 enum LogColors {
 	LOGCOLOR_INFO = 0xFFE0,
 	LOGCOLOR_WARN = 0x9BFF,

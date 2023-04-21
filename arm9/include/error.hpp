@@ -4,8 +4,6 @@
 #include <nds/ndstypes.h>
 #include "jerry/jerryscript.h"
 
-
-
 void handleError(jerry_value_t error, bool sync);
 
 void handleRejectedPromises();
