@@ -53,7 +53,7 @@ FUNCTION(Text_encodeUTF16) {
 		EXPECT(jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	}
 	jerry_size_t utf8Size;
-	char *utf8 = getAsString(args[0], &utf8Size);
+	char *utf8 = toRawString(args[0], &utf8Size);
 	jerry_size_t utf16Length;
 	char16_t *utf16 = UTF8toUTF16(utf8, utf8Size, &utf16Length);
 	free(utf8);
@@ -136,7 +136,7 @@ FUNCTION(Base64_decode) {
 		EXPECT(jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 	}
 	jerry_size_t asciiSize;
-	char *ascii = getString(args[0], &asciiSize);
+	char *ascii = rawString(args[0], &asciiSize);
 	const char errorMsg[] = "Unable to decode Base64.";
 
 	if (asciiSize % 4 == 1) {

@@ -27,7 +27,7 @@ jerry_value_t StringUTF16(const char16_t* codepoints, jerry_size_t length) {
 	return convertedStr;
 }
 
-char *getString(const jerry_value_t stringValue, jerry_size_t *stringSize) {
+char *rawString(const jerry_value_t stringValue, jerry_size_t *stringSize) {
 	jerry_size_t size = jerry_get_utf8_string_size(stringValue);
 	if (stringSize != NULL) *stringSize = size;
 	char *buffer = (char *) malloc(size + 1);
@@ -35,20 +35,20 @@ char *getString(const jerry_value_t stringValue, jerry_size_t *stringSize) {
 	buffer[size] = '\0';
 	return buffer;
 }
-char *getAsString(const jerry_value_t value, jerry_size_t *stringSize) {
+char *toRawString(const jerry_value_t value, jerry_size_t *stringSize) {
 	jerry_value_t stringVal = jerry_value_to_string(value);
-	char *string = getString(stringVal, stringSize);
+	char *string = rawString(stringVal, stringSize);
 	jerry_release_value(stringVal);
 	return string;
 }
 
 void printString(jerry_value_t stringValue) {
-	char *string = getString(stringValue);
+	char *string = rawString(stringValue);
 	printf(string);
 	free(string);
 }
 void printValue(const jerry_value_t value) {
-	char *string = getAsString(value);
+	char *string = toRawString(value);
 	printf(string);
 	free(string);
 }
@@ -59,21 +59,44 @@ jerry_value_t getProperty(jerry_value_t object, const char *property) {
 	jerry_release_value(propertyStr);
 	return value;
 }
+char *getPropertyString(jerry_value_t object, const char *property, jerry_length_t *stringSize) {
+	jerry_value_t stringVal = getProperty(object, property);
+	char *string = rawString(stringVal, stringSize);
+	jerry_release_value(stringVal);
+	return string;
+}
 void setProperty(jerry_value_t object, const char *property, jerry_value_t value) {
 	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
 	jerry_release_value(jerry_set_property(object, propertyStr, value));
 	jerry_release_value(propertyStr);
 }
-char *getStringProperty(jerry_value_t object, const char *property, jerry_length_t *stringSize) {
-	jerry_value_t stringVal = getProperty(object, property);
-	char *string = getString(stringVal, stringSize);
-	jerry_release_value(stringVal);
-	return string;
-}
-void setStringProperty(jerry_value_t object, const char *property, const char *value) {
+void setProperty(jerry_value_t object, const char *property, const char *value) {
 	jerry_value_t stringVal = String(value);
 	setProperty(object, property, stringVal);
 	jerry_release_value(stringVal);
+}
+
+jerry_value_t getInternal(jerry_value_t object, const char *property) {
+	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
+	jerry_value_t value = jerry_get_internal_property(object, propertyStr);
+	jerry_release_value(propertyStr);
+	return value;
+}
+char *getInternalString(jerry_value_t object, const char *property, jerry_length_t *stringSize) {
+	jerry_value_t stringVal = getInternal(object, property);
+	char *string = rawString(stringVal, stringSize);
+	jerry_release_value(stringVal);
+	return string;
+}
+void setInternal(jerry_value_t object, const char *property, jerry_value_t value) {
+	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
+	jerry_set_internal_property(object, propertyStr, value);
+	jerry_release_value(propertyStr);
+}
+void setInternal(jerry_value_t object, const char *property, double number) {
+	jerry_value_t n = jerry_create_number(number);
+	setInternal(object, property, n);
+	jerry_release_value(n);
 }
 
 jerry_property_descriptor_t nonEnumerableDesc = {
@@ -105,15 +128,7 @@ void setMethod(jerry_value_t object, const char *method, jerry_external_handler_
 	jerry_release_value(nameDesc.value);
 	jerry_release_value(func);
 }
-jerry_value_t createMethod(jerry_value_t object, const char *method, jerry_external_handler_t function) {
-	jerry_value_t func = jerry_create_external_function(function);
-	// Function.prototype.name isn't being set automatically, so it must be defined manually
-	nameDesc.value = jerry_create_string((jerry_char_t *) method);
-	jerry_release_value(jerry_define_own_property(func, ref_str_name, &nameDesc));
-	jerry_release_value(jerry_set_property(object, nameDesc.value, func));
-	jerry_release_value(nameDesc.value);
-	return func;
-}
+
 jerry_value_t createObject(jerry_value_t object, const char *name) {
 	jerry_value_t createdObj = jerry_create_object();
 	jerry_value_t nameStr = jerry_create_string((jerry_char_t *) name);
@@ -178,25 +193,13 @@ void defGetterSetter(jerry_value_t object, const char *property, jerry_external_
 	jerry_release_value(getterSetterDesc.setter);
 }
 
-jerry_value_t getInternalProperty(jerry_value_t object, const char *property) {
-	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
-	jerry_value_t value = jerry_get_internal_property(object, propertyStr);
-	jerry_release_value(propertyStr);
-	return value;
-}
-void setInternalProperty(jerry_value_t object, const char *property, jerry_value_t value) {
-	jerry_value_t propertyStr = jerry_create_string((const jerry_char_t *) property);
-	jerry_set_internal_property(object, propertyStr, value);
-	jerry_release_value(propertyStr);
-}
-
 static jerry_value_t readonlyGetter(const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount) {
 	jerry_value_t internalKey = getProperty(function, "name");
 	jerry_value_t value = jerry_get_internal_property(thisValue, internalKey);
 	jerry_release_value(internalKey);
 	return value;
 }
-void JS_setReadonly(jerry_value_t object, jerry_value_t property, jerry_value_t value) {
+void defReadonly(jerry_value_t object, jerry_value_t property, jerry_value_t value) {
 	jerry_set_internal_property(object, property, value);
 	getterDesc.getter = jerry_create_external_function(readonlyGetter);
 	nameDesc.value = property;
@@ -204,24 +207,24 @@ void JS_setReadonly(jerry_value_t object, jerry_value_t property, jerry_value_t 
 	jerry_release_value(jerry_define_own_property(object, property, &getterDesc));
 	jerry_release_value(getterDesc.getter);
 }
-void setReadonly(jerry_value_t object, const char *property, jerry_value_t value) {
+void defReadonly(jerry_value_t object, const char *property, jerry_value_t value) {
 	jerry_value_t propertyStr = jerry_create_string((jerry_char_t *) property);
-	JS_setReadonly(object, propertyStr, value);
+	defReadonly(object, propertyStr, value);
 	jerry_release_value(propertyStr);
 }
-void setReadonlyNumber(jerry_value_t object, const char *property, double value) {
-	jerry_value_t n = jerry_create_number(value);
-	setReadonly(object, property, n);
+void defReadonly(jerry_value_t object, const char *property, double number) {
+	jerry_value_t n = jerry_create_number(number);
+	defReadonly(object, property, n);
 	jerry_release_value(n);
 }
-void setReadonlyString(jerry_value_t object, const char *property, const char *value) {
+void defReadonly(jerry_value_t object, const char *property, const char *value) {
 	jerry_value_t string = String(value);
-	setReadonly(object, property, string);
+	defReadonly(object, property, string);
 	jerry_release_value(string);
 }
-void setReadonlyStringUTF16(jerry_value_t object, const char *property, const char16_t *codepoints, jerry_size_t length) {
+void defReadonly(jerry_value_t object, const char *property, const char16_t *codepoints, jerry_size_t length) {
 	jerry_value_t string = StringUTF16(codepoints, length);
-	setReadonly(object, property, string);
+	defReadonly(object, property, string);
 	jerry_release_value(string);
 }
 
@@ -310,28 +313,27 @@ bool isInstance(jerry_value_t object, JS_class ofClass) {
 	return isInstance;
 }
 
-bool JS_testProperty(jerry_value_t object, jerry_value_t property) {
+bool testProperty(jerry_value_t object, jerry_value_t property) {
 	jerry_value_t testVal = jerry_get_property(object, property);
 	bool result = jerry_value_to_boolean(testVal);
 	jerry_release_value(testVal);
 	return result;
 }
-
 bool testProperty(jerry_value_t object, const char *property) {
 	jerry_value_t testVal = getProperty(object, property);
 	bool result = jerry_value_to_boolean(testVal);
 	jerry_release_value(testVal);
 	return result;
 }
-bool JS_testInternalProperty(jerry_value_t object, jerry_value_t property) {
+
+bool testInternal(jerry_value_t object, jerry_value_t property) {
 	jerry_value_t testVal = jerry_get_internal_property(object, property);
 	bool result = jerry_value_to_boolean(testVal);
 	jerry_release_value(testVal);
 	return result;
 }
-
-bool testInternalProperty(jerry_value_t object, const char *property) {
-	jerry_value_t testVal = getInternalProperty(object, property);
+bool testInternal(jerry_value_t object, const char *property) {
+	jerry_value_t testVal = getInternal(object, property);
 	bool result = jerry_value_to_boolean(testVal);
 	jerry_release_value(testVal);
 	return result;

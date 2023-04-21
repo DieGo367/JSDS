@@ -25,7 +25,7 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 		i++;
 		u16 prevColor = consoleGetColor();
 		u16 prevBackground = consoleGetBackground();
-		char *msg = getString(args[0]);
+		char *msg = rawString(args[0]);
 		char *pos = msg;
 		if (pos) while (i < argCount) {
 			char *escapedPos = strchr(pos, '%');
@@ -41,7 +41,7 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 			else if (specifier == 'd' || specifier == 'i') { // output next param as integer (parseInt)
 				if (jerry_value_is_symbol(args[i])) printf("NaN");
 				else {
-					char *string = getAsString(args[i]);
+					char *string = toRawString(args[i]);
 					char *endptr = NULL;
 					s64 integer = strtoll(string, &endptr, 10);
 					if (endptr == string) printf("NaN");
@@ -54,7 +54,7 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 			else if (specifier == 'f') { // output next param as float (parseFloat)
 				if (jerry_value_is_symbol(args[i])) printf("NaN");
 				else {
-					char *string = getAsString(args[i]);
+					char *string = toRawString(args[i]);
 					char *endptr = NULL;
 					double floatVal = strtod(string, &endptr);
 					if (endptr == string) printf("NaN");
@@ -76,7 +76,7 @@ void log(const jerry_value_t args[], jerry_length_t argCount) {
 				i++;
 			}
 			else if (specifier == 'c') { // use next param as CSS rule
-				char *cssRule = getAsString(args[i]);
+				char *cssRule = toRawString(args[i]);
 				char *semicolon = strchr(cssRule, ';');
 				char *cssPos = cssRule;
 				char attribute[31] = {0};
@@ -141,7 +141,7 @@ void logLiteral(jerry_value_t value, u8 level) {
 			break;
 		case JERRY_TYPE_STRING: {
 			consoleSetColor(LOGCOLOR_STRING);
-			char *string = getString(value);
+			char *string = rawString(value);
 			if (strchr(string, '"') == NULL) printf("\"%s\"", string);
 			else if (strchr(string, '\'') == NULL) printf("'%s'", string);
 			else if (strchr(string, '`') == NULL) printf("`%s`", string);
@@ -167,7 +167,7 @@ void logLiteral(jerry_value_t value, u8 level) {
 		} break;
 		case JERRY_TYPE_FUNCTION: {
 			consoleSetColor(LOGCOLOR_FUNCTION);
-			char *name = getStringProperty(value, "name");
+			char *name = getPropertyString(value, "name");
 			putchar('[');
 			if (jerry_value_is_async_function(value)) printf("Async");
 			printf("Function");
@@ -178,8 +178,8 @@ void logLiteral(jerry_value_t value, u8 level) {
 		case JERRY_TYPE_ERROR: {
 			jerry_value_t thrownVal = jerry_get_value_from_error(value, false);
 			if (isInstance(thrownVal, ref_Error)) {
-				char *message = getStringProperty(thrownVal, "message");
-				char *name = getStringProperty(thrownVal, "name");
+				char *message = getPropertyString(thrownVal, "message");
+				char *name = getPropertyString(thrownVal, "name");
 				printf("Uncaught %s: %s", name, message);
 				free(message);
 				free(name);
@@ -187,7 +187,7 @@ void logLiteral(jerry_value_t value, u8 level) {
 				u32 length = jerry_get_array_length(backtraceArr);
 				for (u32 i = 0; i < length; i++) {
 					jerry_value_t traceLineStr = jerry_get_property_by_index(backtraceArr, i);
-					char *traceLine = getString(traceLineStr);
+					char *traceLine = rawString(traceLineStr);
 					for (int j = 0; j < level; j++) putchar(' ');
 					printf("\n @ %s", traceLine);
 					free(traceLine);
@@ -287,7 +287,7 @@ void logObject(jerry_value_t obj, u8 level) {
 		for (u32 i = 0; i < length; i++) {
 			jerry_value_t keyStr = jerry_get_property_by_index(keysArr, i);
 			jerry_size_t keySize;
-			char* key = getString(keyStr, &keySize);
+			char* key = rawString(keyStr, &keySize);
 			jerry_release_value(keyStr);
 			char capture[keySize + 1];
 			if (sscanf(key, "%[A-Za-z0-9]", capture) > 0 && strcmp(key, capture) == 0) {
@@ -350,7 +350,7 @@ void tableValuePrint(jerry_value_t value, u8 width) {
 	jerry_type_t type = jerry_value_get_type(value);
 	switch (type) {
 		case JERRY_TYPE_STRING: {
-			char* string = getString(value);
+			char* string = rawString(value);
 			printf("%-*s", width, string);
 			free(string);
 		} break;
@@ -497,7 +497,7 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 		printf("%-*s", idxColWidth, "i");
 		for (u32 colIdx = 0; colIdx < sharedKeyCount; colIdx++) {
 			jerry_value_t sharedKeyStr = jerry_get_property_by_index(sharedKeysArr, colIdx);
-			char *sharedKey = getString(sharedKeyStr);
+			char *sharedKey = rawString(sharedKeyStr);
 			printf("|%-*s", colWidths[colIdx], sharedKey);
 			free(sharedKey);
 			jerry_release_value(sharedKeyStr);
@@ -514,7 +514,7 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 		// print for each row in the object
 		for (u32 rowIdx = 0; rowIdx < keyCount; rowIdx++) {
 			jerry_value_t rowKeyStr = jerry_get_property_by_index(keysArr, rowIdx);
-			char *row = getString(rowKeyStr);
+			char *row = rawString(rowKeyStr);
 			logIndent();
 			printf("%-*s", idxColWidth, row);
 			free(row);
@@ -547,7 +547,7 @@ void logTable(const jerry_value_t args[], jerry_value_t argCount) {
 		for (u32 i = 0; i < keyCount; i++) {
 			// print key
 			jerry_value_t keyStr = jerry_get_property_by_index(keysArr, i);
-			char *key = getString(keyStr);
+			char *key = rawString(keyStr);
 			logIndent();
 			printf("%-*s|", idxColWidth, key);
 			free(key);

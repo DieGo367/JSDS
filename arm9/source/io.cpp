@@ -85,7 +85,7 @@ FUNCTION(console_trace) {
 	u32 length = jerry_get_array_length(backtraceArr);
 	for (u32 i = 0; i < length; i++) {
 		jerry_value_t lineStr = jerry_get_property_by_index(backtraceArr, i);
-		char *line = getString(lineStr);
+		char *line = rawString(lineStr);
 		logIndent();
 		printf(" @ %s\n", line);
 		free(line);
@@ -258,7 +258,7 @@ FUNCTION(console_timeEnd) {
 }
 
 FUNCTION(console_set_textColor) {
-	char *colorDesc = getAsString(args[0]);
+	char *colorDesc = toRawString(args[0]);
 	u16 color = colorParse(colorDesc, consoleGetColor());
 	free(colorDesc);
 	consoleSetColor(color);
@@ -266,7 +266,7 @@ FUNCTION(console_set_textColor) {
 }
 
 FUNCTION(console_set_textBackground) {
-	char *colorDesc = getAsString(args[0]);
+	char *colorDesc = toRawString(args[0]);
 	u16 color = colorParse(colorDesc, consoleGetBackground());
 	free(colorDesc);
 	consoleSetBackground(color);

@@ -32,12 +32,12 @@
 
 // Constant JS values, these do not need to be freed and can be used without restraint.
 // The values are copied from JerryScript's internals, and would need to be updated if they change in the future (aka this is jank)
-enum JSConstants {
-	JS_TRUE = 56,
-	JS_FALSE = 40,
-	JS_NULL = 88,
-	JS_UNDEFINED = 72
-};
+
+#define JS_TRUE ((jerry_value_t) 56)
+#define JS_FALSE ((jerry_value_t) 40)
+#define JS_NULL ((jerry_value_t) 88)
+#define JS_UNDEFINED ((jerry_value_t) 72)
+
 
 struct JS_class {
 	jerry_value_t constructor;
@@ -59,9 +59,9 @@ extern jerry_value_t ref_sym_toStringTag;
 // Function for classes that should not be constructed via new.
 jerry_value_t IllegalConstructor(CALL_INFO);
 
-// Creates a jerry common error.
+// Creates a jerry common error. Return value must be released!
 #define Error(message) jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) (message))
-// Creates a jerry type error.
+// Creates a jerry type error. Return value must be released!
 #define TypeError(message) jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) (message))
 
 // Returns appropriate error for given arg count.
@@ -78,34 +78,42 @@ jerry_value_t StringUTF16(const char16_t* codepoints, jerry_size_t length);
  * Copy a string value into a new c string. Return value must be freed!
  * If stringSize is not NULL, the value it points to will be set to the size as reported by JerryScript (which doesn't count the terminator).
  */
-char *getString(const jerry_value_t stringValue, jerry_size_t *stringSize = NULL);
+char *rawString(const jerry_value_t stringValue, jerry_size_t *stringSize = NULL);
 /*
  * Convert any value into a new c string. Return value must be freed!
  * If stringSize is not NULL, the value it points to will be set to the size as reported by JerryScript (which doesn't count the terminator).
  */
-char *getAsString(const jerry_value_t value, jerry_size_t *stringSize = NULL);
+char *toRawString(const jerry_value_t value, jerry_size_t *stringSize = NULL);
 
 // Print a string value.
 void printString(jerry_value_t stringValue);
 // Print any value as a string.
 void printValue(const jerry_value_t value);
 
-// Get property (via c string) from object. Return value must be released!
+// Return value must be released!
 jerry_value_t getProperty(jerry_value_t object, const char *property);
-void setProperty(jerry_value_t object, const char *property, jerry_value_t value);
 /*
- * Copy a string value from object via property (c string) into a new c string. Return value must be freed!
+ * Copy a string value from object into a new c string. Return value must be freed!
  * If stringSize is not NULL, the value it points to will be set to the size as reported by JerryScript (which doesn't count the terminator).
  */
-char *getStringProperty(jerry_value_t object, const char *property, jerry_length_t *stringSize = NULL);
-void setStringProperty(jerry_value_t object, const char *property, const char *value);
+char *getPropertyString(jerry_value_t object, const char *property, jerry_length_t *stringSize = NULL);
+void setProperty(jerry_value_t object, const char *property, jerry_value_t value);
+void setProperty(jerry_value_t object, const char *property, const char *value);
+
+// Return value must be released!
+jerry_value_t getInternal(jerry_value_t object, const char *property);
+/*
+ * Copy a string value from object internal into a new c string. Return value must be freed!
+ * If stringSize is not NULL, the value it points to will be set to the size as reported by JerryScript (which doesn't count the terminator).
+ */
+char *getInternalString(jerry_value_t object, const char *property, jerry_length_t *stringSize = NULL);
+void setInternal(jerry_value_t object, const char *property, jerry_value_t value);
+void setInternal(jerry_value_t object, const char *property, double number);
 
 // void setPropertyNonEnumerable(jerry_value_t object, const char *property, jerry_value_t value);
 
 // Sets a function property.
 void setMethod(jerry_value_t object, const char *method, jerry_external_handler_t function);
-// Sets and returns function. Return value must be released!
-jerry_value_t createMethod(jerry_value_t object, const char *method, jerry_external_handler_t function);
 // Creates a named object and sets it on object. Return value must be released!
 jerry_value_t createObject(jerry_value_t object, const char *name);
 
@@ -124,27 +132,16 @@ JS_class extendClass(jerry_value_t object, const char *name, jerry_external_hand
 // Releases both the constructor and prototype of a class.
 void releaseClass(JS_class cls);
 
-// Sets the object's prototype.
 void setPrototype(jerry_value_t object, jerry_value_t prototype);
 
-// Create a getter on an object with the given function.
 void defGetter(jerry_value_t object, const char *property, jerry_external_handler_t getter);
-// Create a getter and setter to a property on object with the given pair of functions.
 void defGetterSetter(jerry_value_t object, const char *property, jerry_external_handler_t getter, jerry_external_handler_t setter);
 
-// Return value must be released!
-jerry_value_t getInternalProperty(jerry_value_t object, const char *property);
-void setInternalProperty(jerry_value_t object, const char *property, jerry_value_t value);
-// Create a getter on an object (property via js value) that returns the value of an internal property.
-void JS_setReadonly(jerry_value_t object, jerry_value_t property, jerry_value_t value);
-// Create a getter on an object (property via c string) that returns the value of an internal property.
-void setReadonly(jerry_value_t object, const char *property, jerry_value_t value);
-// Sets a getter to a number on object via c string and double value.
-void setReadonlyNumber(jerry_value_t object, const char *property, double value);
-// Sets a getter to a string on object via c strings.
-void setReadonlyString(jerry_value_t object, const char *property, const char *value);
-// Sets a getter to a string on object via c string and UTF-16 string.
-void setReadonlyStringUTF16(jerry_value_t object, const char *property, const char16_t *codepoints, jerry_size_t length);
+void defReadonly(jerry_value_t object, jerry_value_t property, jerry_value_t value);
+void defReadonly(jerry_value_t object, const char *property, jerry_value_t value);
+void defReadonly(jerry_value_t object, const char *property, double number);
+void defReadonly(jerry_value_t object, const char *property, const char *value);
+void defReadonly(jerry_value_t object, const char *property, const char16_t *codepoints, jerry_size_t length);
 
 // Create a symbol from c string. Return value must be released!
 jerry_value_t Symbol(const char *symbolName);
@@ -162,9 +159,9 @@ void arraySplice(jerry_value_t array, u32 start, u32 deleteCount);
 bool strictEqual(jerry_value_t a, jerry_value_t b);
 bool isInstance(jerry_value_t object, JS_class ofClass);
 
-bool JS_testProperty(jerry_value_t object, jerry_value_t property);
+bool testProperty(jerry_value_t object, jerry_value_t property);
 bool testProperty(jerry_value_t object, const char *property);
-bool JS_testInternalProperty(jerry_value_t object, jerry_value_t property);
-bool testInternalProperty(jerry_value_t object, const char *property);
+bool testInternal(jerry_value_t object, jerry_value_t property);
+bool testInternal(jerry_value_t object, const char *property);
 
 #endif /* JSDS_HELPERS_HPP */

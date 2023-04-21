@@ -112,8 +112,8 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_value_t targetProp = String("target");
 	jerry_set_internal_property(event, targetProp, target);
 
-	jerry_value_t eventListenersObj = getInternalProperty(target, "eventListeners");
-	jerry_value_t typeStr = getInternalProperty(event, "type");
+	jerry_value_t eventListenersObj = getInternal(target, "eventListeners");
+	jerry_value_t typeStr = getInternal(event, "type");
 	jerry_value_t listenersArr = jerry_get_property(eventListenersObj, typeStr); // listeners of given type
 	if (jerry_value_is_array(listenersArr)) {
 		jerry_value_t listenersCopyArr = jerry_call_function(ref_func_slice, listenersArr, NULL, 0);
@@ -125,11 +125,11 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 		jerry_value_t stopImmediatePropagationProp = String("stopImmediatePropagation");
 
 		for (u32 i = 0; i < length && !abortFlag; i++) {
-			if (JS_testInternalProperty(event, stopImmediatePropagationProp)) break;
+			if (testInternal(event, stopImmediatePropagationProp)) break;
 
 			jerry_value_t listenerObj = jerry_get_property_by_index(listenersCopyArr, i);
-			if (!JS_testProperty(listenerObj, removedProp)) {
-				if (JS_testProperty(listenerObj, onceProp)) {
+			if (!testProperty(listenerObj, removedProp)) {
+				if (testProperty(listenerObj, onceProp)) {
 					arraySplice(listenersArr, i, 1);
 					jerry_release_value(jerry_set_property(listenerObj, removedProp, JS_TRUE));
 				}
@@ -160,10 +160,10 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_release_value(eventListenersObj);
 
 	jerry_set_internal_property(event, targetProp, JS_NULL);
-	setInternalProperty(event, "stopImmediatePropagation", JS_FALSE);
+	setInternal(event, "stopImmediatePropagation", JS_FALSE);
 	jerry_release_value(targetProp);
 	
-	return testInternalProperty(event, "defaultPrevented");
+	return testInternal(event, "defaultPrevented");
 }
 
 // Task which dispatches an event. Args: EventTarget, Event, optional callbackFunc
@@ -359,15 +359,15 @@ void eventLoop() {
 FUNCTION(EventConstructor) {
 	CONSTRUCTOR(Event); REQUIRE(1);
 
-	setInternalProperty(thisValue, "stopImmediatePropagation", JS_FALSE); // stop immediate propagation flag
-	setReadonly(thisValue, "target", JS_NULL);
-	setReadonly(thisValue, "cancelable", JS_FALSE);
-	setReadonly(thisValue, "defaultPrevented", JS_FALSE);                 // canceled flag
+	setInternal(thisValue, "stopImmediatePropagation", JS_FALSE); // stop immediate propagation flag
+	defReadonly(thisValue, "target", JS_NULL);
+	defReadonly(thisValue, "cancelable", JS_FALSE);
+	defReadonly(thisValue, "defaultPrevented", JS_FALSE);                 // canceled flag
 	jerry_value_t currentTimeNum = jerry_create_number(time(NULL));
-	setReadonly(thisValue, "timeStamp", currentTimeNum);
+	defReadonly(thisValue, "timeStamp", currentTimeNum);
 	jerry_release_value(currentTimeNum);
 	jerry_value_t typeStr = jerry_value_to_string(args[0]);	
-	setReadonly(thisValue, "type", typeStr);
+	defReadonly(thisValue, "type", typeStr);
 	jerry_release_value(typeStr);
 
 	if (argCount > 1 && jerry_value_is_object(args[1])) {
@@ -376,7 +376,7 @@ FUNCTION(EventConstructor) {
 		for (u32 i = 0; i < length; i++) {
 			jerry_value_t key = jerry_get_property_by_index(keysArr, i);
 			jerry_value_t value = jerry_get_property(args[1], key);
-			JS_setReadonly(thisValue, key, value);
+			defReadonly(thisValue, key, value);
 			jerry_release_value(value);
 			jerry_release_value(key);
 		}
@@ -387,13 +387,13 @@ FUNCTION(EventConstructor) {
 }
 
 FUNCTION(Event_stopImmediatePropagation) {
-	setInternalProperty(thisValue, "stopImmediatePropagation", JS_TRUE);
+	setInternal(thisValue, "stopImmediatePropagation", JS_TRUE);
 	return JS_UNDEFINED;
 }
 
 FUNCTION(Event_preventDefault) {
-	if (testInternalProperty(thisValue, "cancelable")) {
-		setInternalProperty(thisValue, "defaultPrevented", JS_TRUE);
+	if (testInternal(thisValue, "cancelable")) {
+		setInternal(thisValue, "defaultPrevented", JS_TRUE);
 	}
 	return JS_UNDEFINED;
 }
@@ -402,7 +402,7 @@ FUNCTION(EventTargetConstructor) {
 	if (thisValue != ref_global) CONSTRUCTOR(EventTarget);
 
 	jerry_value_t eventListenersObj = jerry_create_object();
-	setInternalProperty(thisValue, "eventListeners", eventListenersObj);
+	setInternal(thisValue, "eventListeners", eventListenersObj);
 	jerry_release_value(eventListenersObj);
 
 	return JS_UNDEFINED;
@@ -420,10 +420,10 @@ FUNCTION(EventTarget_addEventListener) {
 	jerry_value_t callbackVal = args[1];
 	bool once = false;
 	if (argCount > 2 && jerry_value_is_object(args[2])) {
-		once = JS_testProperty(args[2], onceProp);
+		once = testProperty(args[2], onceProp);
 	}
 
-	jerry_value_t eventListenersObj = getInternalProperty(targetObj, "eventListeners");
+	jerry_value_t eventListenersObj = getInternal(targetObj, "eventListeners");
 	jerry_value_t listenersArr = jerry_get_property(eventListenersObj, typeStr); // listeners of the given type
 	if (jerry_value_is_undefined(listenersArr)) {
 		listenersArr = jerry_create_array(0);
@@ -452,7 +452,7 @@ FUNCTION(EventTarget_addEventListener) {
 		jerry_release_value(listenerObj);
 
 		if (targetObj == ref_global) {
-			char *type = getString(typeStr);
+			char *type = rawString(typeStr);
 			if (strcmp(type, "vblank") == 0) dependentEvents |= vblank;
 			else if (strcmp(type, "buttondown") == 0) dependentEvents |= buttondown;
 			else if (strcmp(type, "buttonup") == 0) dependentEvents |= buttonup;
@@ -480,7 +480,7 @@ FUNCTION(EventTarget_removeEventListener) {
 	jerry_value_t typeStr = jerry_value_to_string(args[0]);
 	jerry_value_t callbackVal = args[1];
 
-	jerry_value_t eventListenersObj = getInternalProperty(targetObj, "eventListeners");
+	jerry_value_t eventListenersObj = getInternal(targetObj, "eventListeners");
 	jerry_value_t listenersArr = jerry_get_property(eventListenersObj, typeStr); // listeners of the given type
 	jerry_release_value(eventListenersObj);
 	if (jerry_value_is_array(listenersArr)) {
@@ -494,7 +494,7 @@ FUNCTION(EventTarget_removeEventListener) {
 				setProperty(storedListenerObj, "removed", JS_TRUE);
 				removed = true;
 				if (targetObj == ref_global && jerry_get_array_length(listenersArr) == 0) {
-					char *type = getString(typeStr);
+					char *type = rawString(typeStr);
 					if (strcmp(type, "vblank") == 0) dependentEvents &= ~(vblank);
 					else if (strcmp(type, "buttondown") == 0) dependentEvents &= ~(buttondown);
 					else if (strcmp(type, "buttonup") == 0) dependentEvents &= ~(buttonup);

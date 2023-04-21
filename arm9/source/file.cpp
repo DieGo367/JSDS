@@ -233,11 +233,11 @@ bool storageSave() {
 			for (u32 i = 0; i < length; i++) {
 				jerry_value_t keyStr = jerry_get_property_by_index(keysArr, i);
 				jerry_value_t valueStr = jerry_get_property(ref_storage, keyStr);
-				char *key = getString(keyStr, &size);
+				char *key = rawString(keyStr, &size);
 				fwrite(&size, sizeof(u32), 1, file);
 				fwrite(key, 1, size, file);
 				free(key);
-				char *value = getString(valueStr, &size);
+				char *value = rawString(valueStr, &size);
 				fwrite(&size, sizeof(u32), 1, file);
 				fwrite(value, 1, size, file);
 				free(value);
@@ -257,15 +257,10 @@ bool storageSave() {
 FUNCTION(File_read) {
 	REQUIRE(1);
 
-	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
-	char *mode = getString(modeStr);
-	if (mode[0] != 'r' && mode[1] != '+') {
-		free(mode);
-		jerry_release_value(modeStr);
-		return Error("Unable to read in current file mode.");
-	}
+	char *mode = getInternalString(thisValue, "mode");
+	bool unable = mode[0] != 'r' && mode[1] != '+';
 	free(mode);
-	jerry_release_value(modeStr);
+	if (unable)	return Error("Unable to read in current file mode.");
 	
 	jerry_length_t bytesToRead = jerry_value_as_uint32(args[0]);
 	jerry_value_t arrayBuffer = jerry_create_arraybuffer(bytesToRead);
@@ -292,15 +287,10 @@ FUNCTION(File_write) {
 	REQUIRE(1);
 	EXPECT(jerry_get_typedarray_type(args[0]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
 
-	jerry_value_t modeStr = getInternalProperty(thisValue, "mode");
-	char *mode = getString(modeStr);
-	if (mode[0] != 'w' && mode[0] != 'a' && mode[1] != '+') {
-		free(mode);
-		jerry_release_value(modeStr);
-		return Error("Unable to write in current file mode.");
-	}
+	char *mode = getInternalString(thisValue, "mode");
+	bool unable = mode[0] != 'w' && mode[0] != 'a' && mode[1] != '+';
 	free(mode);
-	jerry_release_value(modeStr);
+	if (unable) return Error("Unable to write in current file mode.");
 	
 	jerry_length_t offset, bufSize;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[0], &offset, &bufSize);
@@ -321,7 +311,7 @@ FUNCTION(File_seek) {
 
 	int mode = SEEK_SET;
 	if (argCount > 1) {
-		char *seekMode = getAsString(args[1]);
+		char *seekMode = toRawString(args[1]);
 		if (strcmp(seekMode, "start") == 0) mode = SEEK_SET;
 		else if (strcmp(seekMode, "current") == 0) mode = SEEK_CUR;
 		else if (strcmp(seekMode, "end") == 0) mode = SEEK_END;
@@ -346,11 +336,11 @@ FUNCTION(File_close) {
 
 FUNCTION(File_static_open) {
 	REQUIRE(1);
-	char *path = getAsString(args[0]);
+	char *path = toRawString(args[0]);
 	char defaultMode[] = "r";
 	char *mode = defaultMode;
 	if (argCount > 1) {
-		mode = getAsString(args[1]);
+		mode = toRawString(args[1]);
 		if (strcmp(mode, "r") != 0 && strcmp(mode, "r+") != 0
 		 && strcmp(mode, "w") != 0 && strcmp(mode, "w+") != 0
 		 && strcmp(mode, "a") != 0 && strcmp(mode, "a+") != 0
@@ -372,7 +362,7 @@ FUNCTION(File_static_open) {
 		jerry_value_t fileObj = jerry_create_object();
 		setPrototype(fileObj, ref_File.prototype);
 		jerry_set_object_native_pointer(fileObj, file, &fileNativeInfo);
-		setReadonly(fileObj, "mode", modeStr);
+		defReadonly(fileObj, "mode", modeStr);
 		jerry_release_value(modeStr);
 		if (mode != defaultMode) free(mode);
 		free(path);
@@ -382,7 +372,7 @@ FUNCTION(File_static_open) {
 
 FUNCTION(File_static_copy) {
 	REQUIRE(2);
-	char *sourcePath = getAsString(args[0]);
+	char *sourcePath = toRawString(args[0]);
 	FILE *source = fopen(sourcePath, "r");
 	free(sourcePath);
 	if (source == NULL) return Error("Unable to open source file during copy.");
@@ -399,7 +389,7 @@ FUNCTION(File_static_copy) {
 	}
 	fclose(source);
 
-	char *destPath = getAsString(args[1]);
+	char *destPath = toRawString(args[1]);
 	FILE *dest = fopen(destPath, "w");
 	free(destPath);
 	if (dest == NULL) {
@@ -419,8 +409,8 @@ FUNCTION(File_static_copy) {
 
 FUNCTION(File_static_rename) {
 	REQUIRE(2);
-	char *sourcePath = getAsString(args[0]);
-	char *destPath = getAsString(args[1]);
+	char *sourcePath = toRawString(args[0]);
+	char *destPath = toRawString(args[1]);
 	int status = rename(sourcePath, destPath);
 	free(sourcePath);
 	free(destPath);
@@ -430,14 +420,14 @@ FUNCTION(File_static_rename) {
 
 FUNCTION(File_static_remove) {
 	REQUIRE(1);
-	char *path = getAsString(args[0]);
+	char *path = toRawString(args[0]);
 	if (remove(path) != 0) return Error("Failed to delete file.");
 	return JS_UNDEFINED;
 }
 
 FUNCTION(File_static_read) {
 	REQUIRE(1);
-	char *path = getAsString(args[0]);
+	char *path = toRawString(args[0]);
 	FILE *file = fopen(path, "r");
 	free(path);
 	if (file == NULL) return Error("Unable to open file.");
@@ -462,7 +452,7 @@ FUNCTION(File_static_read) {
 
 FUNCTION(File_static_readText) {
 	REQUIRE(1);
-	char *path = getAsString(args[0]);
+	char *path = toRawString(args[0]);
 	FILE *file = fopen(path, "r");
 	free(path);
 	if (file == NULL) return Error("Unable to open file.");
@@ -487,7 +477,7 @@ FUNCTION(File_static_readText) {
 FUNCTION(File_static_write) {
 	REQUIRE(2);
 	EXPECT(jerry_get_typedarray_type(args[1]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
-	char *path = getAsString(args[0]);
+	char *path = toRawString(args[0]);
 	FILE *file = fopen(path, "w");
 	free(path);
 	if (file == NULL) return Error("Unable to open file.");
@@ -508,13 +498,13 @@ FUNCTION(File_static_write) {
 
 FUNCTION(File_static_writeText) {
 	REQUIRE(2);
-	char *path = getAsString(args[0]);
+	char *path = toRawString(args[0]);
 	FILE *file = fopen(path, "w");
 	free(path);
 	if (file == NULL) return Error("Unable to open file.");
 	
 	jerry_size_t textSize;
-	char *text = getAsString(args[1], &textSize);
+	char *text = toRawString(args[1], &textSize);
 	u32 bytesWritten = fwrite(text, 1, textSize, file);
 	if (ferror(file)) {
 		fclose(file);
@@ -528,7 +518,7 @@ FUNCTION(File_static_writeText) {
 
 FUNCTION(File_static_makeDir) {
 	REQUIRE(1);
-	char *path = getAsString(args[0]);
+	char *path = toRawString(args[0]);
 	int status = -1;
 	if (argCount > 1 && jerry_value_to_boolean(args[1])) {
 		char *slash = strchr(path, '/');
@@ -549,7 +539,7 @@ FUNCTION(File_static_makeDir) {
 
 FUNCTION(File_static_readDir) {
 	REQUIRE(1);
-	char *path = getAsString(args[0]);
+	char *path = toRawString(args[0]);
 	DIR *dir = opendir(path);
 	free(path);
 	if (dir == NULL) return Error("Unable to open directory.");
@@ -560,7 +550,7 @@ FUNCTION(File_static_readDir) {
 		jerry_value_t entryObj = jerry_create_object();
 		setProperty(entryObj, "isDirectory", jerry_create_boolean(entry->d_type == DT_DIR));
 		setProperty(entryObj, "isFile", jerry_create_boolean(entry->d_type == DT_REG));
-		setStringProperty(entryObj, "name", entry->d_name);
+		setProperty(entryObj, "name", entry->d_name);
 		jerry_call_function(ref_func_push, dirArr, &entryObj, 1);
 		jerry_release_value(entryObj);
 		entry = readdir(dir);
@@ -581,7 +571,7 @@ FUNCTION(File_static_browse) {
 		jerry_value_t messageProp = String("message");
 		if (jerry_has_property(args[0], pathProp)) {
 			jerry_value_t pathVal = jerry_get_property(args[0], pathProp);
-			if (pathVal != JS_UNDEFINED) browsePath = getAsString(pathVal);
+			if (pathVal != JS_UNDEFINED) browsePath = toRawString(pathVal);
 			jerry_release_value(pathVal);
 		}
 		if (jerry_has_property(args[0], extensionsProp)) {
@@ -590,7 +580,7 @@ FUNCTION(File_static_browse) {
 				u32 length = jerry_get_array_length(extensionsArr);
 				for (u32 i = 0; i < length; i++) {
 					jerry_value_t extVal = jerry_get_property_by_index(extensionsArr, i);
-					extensions.emplace_back(getAsString(extVal));
+					extensions.emplace_back(toRawString(extVal));
 					jerry_release_value(extVal);
 				}
 			}
@@ -598,7 +588,7 @@ FUNCTION(File_static_browse) {
 		}
 		if (jerry_has_property(args[0], messageProp)) {
 			jerry_value_t messageVal = jerry_get_property(args[0], messageProp);
-			if (messageVal != JS_UNDEFINED) message = getAsString(messageVal);
+			if (messageVal != JS_UNDEFINED) message = toRawString(messageVal);
 			jerry_release_value(messageVal);
 		}
 		jerry_release_value(messageProp);
@@ -665,16 +655,6 @@ FUNCTION(storage_removeItem) {
 	return JS_UNDEFINED;
 }
 
-FUNCTION(storage_clear) {
-	jerry_release_value(ref_storage);
-	ref_storage = jerry_create_object();
-	return JS_UNDEFINED;
-}
-
-FUNCTION(storage_save) {
-	return jerry_create_boolean(storageSave());
-}
-
 void exposeFileAPI(jerry_value_t global) {
 	// Simple custom File class, nothing like the web version
 	JS_class File = createClass(global, "File", IllegalConstructor);
@@ -702,8 +682,8 @@ void exposeFileAPI(jerry_value_t global) {
 	setMethod(storage, "getItem", storage_getItem);
 	setMethod(storage, "setItem", storage_setItem);
 	setMethod(storage, "removeItem", storage_removeItem);
-	setMethod(storage, "clear", storage_clear);
-	setMethod(storage, "save", storage_save);
+	setMethod(storage, "clear", VOID(jerry_release_value(ref_storage); ref_storage = jerry_create_object()));
+	setMethod(storage, "save", RETURN(jerry_create_boolean(storageSave())));
 	jerry_release_value(storage);
 }
 void releaseFileReferences() {

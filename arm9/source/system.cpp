@@ -27,7 +27,7 @@ FUNCTION(DS_getBatteryLevel) {
 FUNCTION(DS_setMainScreen) {
 	if (argCount > 0 && jerry_value_is_string(args[0])) {
 		bool set = false;
-		char *screen = getString(args[0]);
+		char *screen = rawString(args[0]);
 		if (strcmp(screen, "top") == 0) {
 			lcdMainOnTop();
 			set = true;
@@ -89,7 +89,7 @@ void exposeSystemAPI(jerry_value_t global) {
 	jerry_value_t DS = createObject(global, "DS");
 	setMethod(DS, "getBatteryLevel", DS_getBatteryLevel);
 	setMethod(DS, "getMainScreen", RETURN(String(REG_POWERCNT & POWER_SWAP_LCDS ? "top" : "bottom")));
-	setReadonly(DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
+	defReadonly(DS, "isDSiMode", jerry_create_boolean(isDSiMode()));
 	setMethod(DS, "setMainScreen", DS_setMainScreen);
 	setMethod(DS, "shutdown", VOID(systemShutDown()));
 	setMethod(DS, "sleep", DS_sleep);
@@ -97,21 +97,21 @@ void exposeSystemAPI(jerry_value_t global) {
 	jerry_release_value(DS);
 
 	jerry_value_t Profile = createObject(global, "Profile");
-	setReadonlyNumber(Profile, "alarmHour", PersonalData->alarmHour);
-	setReadonlyNumber(Profile, "alarmMinute", PersonalData->alarmMinute);
-	setReadonlyNumber(Profile, "birthDay", PersonalData->birthDay);
-	setReadonlyNumber(Profile, "birthMonth", PersonalData->birthMonth);
+	defReadonly(Profile, "alarmHour", (double) PersonalData->alarmHour);
+	defReadonly(Profile, "alarmMinute", (double) PersonalData->alarmMinute);
+	defReadonly(Profile, "birthDay", (double) PersonalData->birthDay);
+	defReadonly(Profile, "birthMonth", (double) PersonalData->birthMonth);
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-	setReadonlyStringUTF16(Profile, "name", (char16_t *) PersonalData->name, PersonalData->nameLen);
-	setReadonlyStringUTF16(Profile, "message", (char16_t *) PersonalData->message, PersonalData->messageLen);
+	defReadonly(Profile, "name", (char16_t *) PersonalData->name, PersonalData->nameLen);
+	defReadonly(Profile, "message", (char16_t *) PersonalData->message, PersonalData->messageLen);
 	#pragma GCC diagnostic pop
 	const u16 themeColors[16] = {0xCE0C, 0x8137, 0x8C1F, 0xFE3F, 0x825F, 0x839E, 0x83F5, 0x83E0, 0x9E80, 0xC769, 0xFAE6, 0xF960, 0xC800, 0xE811, 0xF41A, 0xC81F};
-	setReadonlyNumber(Profile, "color", PersonalData->theme < 16 ? themeColors[PersonalData->theme] : 0);
-	setReadonly(Profile, "autoMode", jerry_create_boolean(PersonalData->autoMode));
-	setReadonlyString(Profile, "gbaScreen", PersonalData->gbaScreen ? "bottom" : "top");
+	defReadonly(Profile, "color", (double) (PersonalData->theme < 16 ? themeColors[PersonalData->theme] : 0));
+	defReadonly(Profile, "autoMode", jerry_create_boolean(PersonalData->autoMode));
+	defReadonly(Profile, "gbaScreen", PersonalData->gbaScreen ? "bottom" : "top");
 	const char languages[8][10] = {"日本語", "English", "Français", "Deutsch", "Italiano", "Español", "中文", "한국어"};
-	setReadonlyString(Profile, "language", PersonalData->language < 8 ? languages[PersonalData->language] : "");
+	defReadonly(Profile, "language", PersonalData->language < 8 ? languages[PersonalData->language] : "");
 	jerry_release_value(Profile);
 
 	jerry_value_t Button = createObject(global, "Button");

@@ -158,7 +158,7 @@ FUNCTION(VRAM_setBankI) {
 
 FUNCTION(Video_main_setBackdropColor) {
 	REQUIRE(1);
-	char *colorDesc = getAsString(args[0]);
+	char *colorDesc = toRawString(args[0]);
 	u16 color = colorParse(colorDesc, 0);
 	free(colorDesc);
 	setBackdropColor(color);
@@ -166,7 +166,7 @@ FUNCTION(Video_main_setBackdropColor) {
 }
 FUNCTION(Video_sub_setBackdropColor) {
 	REQUIRE(1);
-	char *colorDesc = getAsString(args[0]);
+	char *colorDesc = toRawString(args[0]);
 	u16 color = colorParse(colorDesc, 0);
 	free(colorDesc);
 	setBackdropColorSub(color);

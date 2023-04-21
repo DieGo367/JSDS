@@ -20,7 +20,7 @@ void handleError(jerry_value_t error, bool sync) {
 	bool errorHandled = false;
 
 	jerry_value_t errorProp = String("error");
-	jerry_value_t eventListenersObj = getInternalProperty(ref_global, "eventListeners");
+	jerry_value_t eventListenersObj = getInternal(ref_global, "eventListeners");
 	jerry_value_t errorEventListenersArr = jerry_get_property(eventListenersObj, errorProp);
 	jerry_release_value(eventListenersObj);
 	if (jerry_value_is_array(errorEventListenersArr) && jerry_get_array_length(errorEventListenersArr) > 0) {
@@ -46,7 +46,7 @@ void handleError(jerry_value_t error, bool sync) {
 
 			jerry_value_t backtraceArr = jerry_get_internal_property(thrownVal, ref_str_backtrace);
 			jerry_value_t resourceStr = jerry_get_property_by_index(backtraceArr, 0);
-			char *resource = getString(resourceStr);
+			char *resource = rawString(resourceStr);
 			jerry_release_value(resourceStr);
 			jerry_release_value(backtraceArr);
 
@@ -87,7 +87,7 @@ void handleError(jerry_value_t error, bool sync) {
 void handleRejection(jerry_value_t promise) {
 	bool rejectionHandled = false;
 	
-	jerry_value_t eventListenersObj = getInternalProperty(ref_global, "eventListeners");
+	jerry_value_t eventListenersObj = getInternal(ref_global, "eventListeners");
 	jerry_value_t unhandledrejectionProp = String("unhandledrejection");
 	jerry_value_t rejectionEventListenersArr = jerry_get_property(eventListenersObj, unhandledrejectionProp);
 	if (jerry_value_is_array(rejectionEventListenersArr) && jerry_get_array_length(rejectionEventListenersArr) > 0) {

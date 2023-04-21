@@ -26,7 +26,7 @@ struct Timeout {
 std::map<int, Timeout> timeouts;
 int nestLevel = 0;
 
-jerry_value_t addTimeout(jerry_value_t handler, const jerry_value_t *args, u32 argCount, int ticks, bool repeat) {
+int addTimeout(jerry_value_t handler, const jerry_value_t *args, u32 argCount, int ticks, bool repeat) {
 	Timeout t;
 	if (ticks < 0) ticks = 0;
 	if (nestLevel > 5 && ticks < 4) ticks = 4;
@@ -46,13 +46,10 @@ jerry_value_t addTimeout(jerry_value_t handler, const jerry_value_t *args, u32 a
 	t.queued = false;
 
 	timeouts[t.id] = t;
-	return jerry_create_number(t.id);
+	return t.id;
 }
 
-void clearTimeout(jerry_value_t idVal) {
-	jerry_value_t idNum = jerry_value_to_number(idVal);
-	int id = jerry_value_as_int32(idNum);
-	jerry_release_value(idNum);
+void clearTimeout(int id) {
 	if (timeouts.count(id) != 0) {
 		Timeout t = timeouts[id];
 		timeouts.erase(id);
@@ -75,7 +72,7 @@ void runTimeoutTask(const jerry_value_t args[], u32 argCount) {
 	}
 	else {
 		jerry_length_t handlerSize;
-		char *handler = getAsString(t.handler, &handlerSize);
+		char *handler = toRawString(t.handler, &handlerSize);
 		resultVal = jerry_eval((jerry_char_t *) handler, handlerSize, JERRY_PARSE_NO_OPTS);
 		free(handler);
 	}
@@ -138,27 +135,20 @@ bool timeoutsExist() {
 
 FUNCTION(setTimeout) {
 	if (argCount >= 2) {
-		jerry_value_t ticksNum = jerry_value_to_number(args[1]);
-		int ticks = jerry_value_as_int32(ticksNum);
-		jerry_release_value(ticksNum);
-		return addTimeout(args[0], args + 2, argCount - 2, ticks, false);
+		return jerry_create_number(addTimeout(args[0], args + 2, argCount - 2, jerry_value_as_int32(args[1]), false));
 	}
-	else return addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, NULL, 0, 0, false);
+	else return jerry_create_number(addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, NULL, 0, 0, false));
 }
 
 FUNCTION(setInterval) {
 	if (argCount >= 2) {
-		jerry_value_t ticksNum = jerry_value_to_number(args[1]);
-		int ticks = jerry_value_as_int32(ticksNum);
-		jerry_release_value(ticksNum);
-		return addTimeout(args[0], args + 2, argCount - 2, ticks, true);
+		return jerry_create_number(addTimeout(args[0], args + 2, argCount - 2, jerry_value_as_int32(args[1]), true));
 	}
-	else return addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, NULL, 0, 0, true);
+	else return jerry_create_number(addTimeout(argCount > 0 ? args[0] : JS_UNDEFINED, NULL, 0, 0, true));
 }
 
 FUNCTION(clearInterval) {
-	if (argCount > 0) clearTimeout(args[0]);
-	else clearTimeout(JS_UNDEFINED);
+	if (argCount > 0) clearTimeout(jerry_value_as_int32(args[0]));
 	return JS_UNDEFINED;
 }
 

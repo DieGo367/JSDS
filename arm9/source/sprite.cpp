@@ -15,7 +15,7 @@ JS_class ref_SpriteGraphic;
 JS_class ref_SpriteAffineMatrix;
 
 const char WAS_REMOVED[] = "Using a previously removed object.";
-#define NOT_REMOVED(obj) if (JS_testInternalProperty(obj, ref_str_removed)) return TypeError(WAS_REMOVED)
+#define NOT_REMOVED(obj) if (testInternal(obj, ref_str_removed)) return TypeError(WAS_REMOVED)
 
 #define BOUND(n, min, max) n < min ? min : n > max ? max : n
 
@@ -24,11 +24,11 @@ u8 spriteUsage[SPRITE_COUNT] = {0};
 #define USAGE_MATRIX_MAIN BIT(1)
 #define USAGE_SPRITE_SUB BIT(2)
 #define USAGE_MATRIX_SUB BIT(3)
-#define SPRITE_ENGINE(obj) (JS_testInternalProperty(obj, ref_str_main) ? &oamMain : &oamSub)
+#define SPRITE_ENGINE(obj) (testInternal(obj, ref_str_main) ? &oamMain : &oamSub)
 #define SPRITE_ENTRY(obj) (SPRITE_ENGINE(obj)->oamMemory + getID(obj))
 
 inline int getID(jerry_value_t obj) {
-	jerry_value_t idNum = getInternalProperty(obj, "id");
+	jerry_value_t idNum = getInternal(obj, "id");
 	int id = jerry_value_as_integer(idNum);
 	jerry_release_value(idNum);
 	return id;
@@ -68,13 +68,13 @@ FUNCTION(Sprite_set_gfx) {
 	OamState *engine = SPRITE_ENGINE(thisValue);
 	if (SPRITE_ENGINE(args[0]) != engine) return TypeError("Given SpriteGraphic was from the wrong engine.");
 	
-	jerry_value_t sizeNum = getInternalProperty(args[0], "size");
-	jerry_value_t bppNum = getInternalProperty(args[0], "colorFormat");
+	jerry_value_t sizeNum = getInternal(args[0], "size");
+	jerry_value_t bppNum = getInternal(args[0], "colorFormat");
 	SpriteSize size = (SpriteSize) jerry_value_as_uint32(sizeNum);
 	int bpp = jerry_value_as_int32(bppNum);
 	jerry_release_value(sizeNum);
 	jerry_release_value(bppNum);
-	jerry_value_t typedArray = getInternalProperty(args[0], "data");
+	jerry_value_t typedArray = getInternal(args[0], "data");
 	jerry_length_t byteOffset, arrayBufferLen;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(typedArray, &byteOffset, &arrayBufferLen);
 	u8 *gfxData = jerry_get_arraybuffer_pointer(arrayBuffer);
@@ -89,12 +89,12 @@ FUNCTION(Sprite_set_gfx) {
 		gfxData
 	);
 
-	setInternalProperty(thisValue, "gfx", args[0]);
+	setInternal(thisValue, "gfx", args[0]);
 	return JS_UNDEFINED;
 }
 FUNCTION(Sprite_get_gfx) {
 	NOT_REMOVED(thisValue);
-	return getInternalProperty(thisValue, "gfx");
+	return getInternal(thisValue, "gfx");
 }
 
 FUNCTION(Sprite_set_palette) {
@@ -132,11 +132,11 @@ FUNCTION(Sprite_set_hidden) {
 	}
 	else if (!sprite->isRotateScale) { // unhide (if isRotateScale is true, then it is already visible)
 		sprite->isHidden = false;
-		jerry_value_t affineObj = getInternalProperty(thisValue, "affine");
+		jerry_value_t affineObj = getInternal(thisValue, "affine");
 		if (!jerry_value_is_null(affineObj)) {
 			// reattach affine index and reset sizeDouble value
 			sprite->rotationIndex = getID(affineObj);
-			sprite->isSizeDouble = testInternalProperty(thisValue, "sizeDouble");
+			sprite->isSizeDouble = testInternal(thisValue, "sizeDouble");
 			sprite->isRotateScale = true;
 		}
 		jerry_release_value(affineObj);
@@ -152,27 +152,27 @@ FUNCTION(Sprite_get_hidden) {
 FUNCTION(Sprite_set_flipH) {
 	NOT_REMOVED(thisValue);
 	bool set = jerry_get_boolean_value(args[0]);
-	setInternalProperty(thisValue, "flipH", jerry_create_boolean(set));
+	setInternal(thisValue, "flipH", jerry_create_boolean(set));
 	SpriteEntry *sprite = SPRITE_ENTRY(thisValue);
 	if (!sprite->isRotateScale) sprite->hFlip = set;
 	return JS_UNDEFINED;
 }
 FUNCTION(Sprite_get_flipH) {
 	NOT_REMOVED(thisValue);
-	return getInternalProperty(thisValue, "flipH");
+	return getInternal(thisValue, "flipH");
 }
 
 FUNCTION(Sprite_set_flipV) {
 	NOT_REMOVED(thisValue);
 	bool set = jerry_get_boolean_value(args[0]);
-	setInternalProperty(thisValue, "flipV", jerry_create_boolean(set));
+	setInternal(thisValue, "flipV", jerry_create_boolean(set));
 	SpriteEntry *sprite = SPRITE_ENTRY(thisValue);
 	if (!sprite->isRotateScale) sprite->vFlip = set;
 	return JS_UNDEFINED;
 }
 FUNCTION(Sprite_get_flipV) {
 	NOT_REMOVED(thisValue);
-	return getInternalProperty(thisValue, "flipV");
+	return getInternal(thisValue, "flipV");
 }
 
 FUNCTION(Sprite_set_affine) {
@@ -184,8 +184,8 @@ FUNCTION(Sprite_set_affine) {
 			sprite->isRotateScale = false;
 			sprite->isSizeDouble = false;
 		}
-		sprite->hFlip = testInternalProperty(thisValue, "flipH");
-		sprite->vFlip = testInternalProperty(thisValue, "flipV");
+		sprite->hFlip = testInternal(thisValue, "flipH");
+		sprite->vFlip = testInternal(thisValue, "flipV");
 	}
 	else {
 		EXPECT(isInstance(args[0], ref_SpriteAffineMatrix), SpriteAffineMatrix);
@@ -193,29 +193,29 @@ FUNCTION(Sprite_set_affine) {
 		if (SPRITE_ENGINE(args[0]) != engine) return TypeError("Given SpriteAffineMatrix was from the wrong engine.");
 		if (sprite->isRotateScale || !sprite->isHidden) {
 			sprite->rotationIndex = getID(args[0]);
-			sprite->isSizeDouble = testInternalProperty(thisValue, "sizeDouble");
+			sprite->isSizeDouble = testInternal(thisValue, "sizeDouble");
 			sprite->isRotateScale = true;
 		}
 	}
-	setInternalProperty(thisValue, "affine", args[0]);
+	setInternal(thisValue, "affine", args[0]);
 	return JS_UNDEFINED;
 }
 FUNCTION(Sprite_get_affine) {
 	NOT_REMOVED(thisValue);
-	return getInternalProperty(thisValue, "affine");
+	return getInternal(thisValue, "affine");
 }
 
 FUNCTION(Sprite_set_sizeDouble) {
 	NOT_REMOVED(thisValue);
 	bool set = jerry_get_boolean_value(args[0]);
-	setInternalProperty(thisValue, "sizeDouble", jerry_create_boolean(set));
+	setInternal(thisValue, "sizeDouble", jerry_create_boolean(set));
 	SpriteEntry *sprite = SPRITE_ENTRY(thisValue);
 	if (sprite->isRotateScale) sprite->isSizeDouble = set;
 	return JS_UNDEFINED;
 }
 FUNCTION(Sprite_get_sizeDouble) {
 	NOT_REMOVED(thisValue);
-	return getInternalProperty(thisValue, "sizeDouble");
+	return getInternal(thisValue, "sizeDouble");
 }
 
 FUNCTION(Sprite_set_mosaic) {
@@ -241,7 +241,7 @@ FUNCTION(Sprite_remove) {
 
 FUNCTION(SpriteGraphic_get_width) {
 	NOT_REMOVED(thisValue);
-	jerry_value_t sizeNum = getInternalProperty(thisValue, "size");
+	jerry_value_t sizeNum = getInternal(thisValue, "size");
 	SpriteSize size = (SpriteSize) jerry_value_as_uint32(sizeNum);
 	jerry_release_value(sizeNum);
 	if (size == SpriteSize_8x8 || size == SpriteSize_8x16 || size == SpriteSize_8x32) return jerry_create_number(8);
@@ -252,7 +252,7 @@ FUNCTION(SpriteGraphic_get_width) {
 }
 FUNCTION(SpriteGraphic_get_height) {
 	NOT_REMOVED(thisValue);
-	jerry_value_t sizeNum = getInternalProperty(thisValue, "size");
+	jerry_value_t sizeNum = getInternal(thisValue, "size");
 	SpriteSize size = (SpriteSize) jerry_value_as_uint32(sizeNum);
 	jerry_release_value(sizeNum);
 	if (size == SpriteSize_8x8 || size == SpriteSize_16x8 || size == SpriteSize_32x8) return jerry_create_number(8);
@@ -264,7 +264,7 @@ FUNCTION(SpriteGraphic_get_height) {
 
 FUNCTION(SpriteGraphic_remove) {
 	NOT_REMOVED(thisValue);
-	jerry_value_t typedArray = getInternalProperty(thisValue, "data");
+	jerry_value_t typedArray = getInternal(thisValue, "data");
 	jerry_length_t byteOffset, byteLength;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(typedArray, &byteOffset, &byteLength);
 	u8 *gfxData = jerry_get_arraybuffer_pointer(arrayBuffer);
@@ -324,7 +324,7 @@ FUNCTION(SpriteAffineMatrix_rotateScale) {
 
 FUNCTION(SpriteAffineMatrix_remove) {
 	NOT_REMOVED(thisValue);
-	u8 usageMask = (JS_testInternalProperty(thisValue, ref_str_main) ? USAGE_MATRIX_MAIN : USAGE_MATRIX_SUB);
+	u8 usageMask = (testInternal(thisValue, ref_str_main) ? USAGE_MATRIX_MAIN : USAGE_MATRIX_SUB);
 	spriteUsage[getID(thisValue)] ^= ~usageMask;
 	jerry_set_internal_property(thisValue, ref_str_removed, JS_TRUE);
 	return JS_UNDEFINED;
@@ -351,7 +351,7 @@ FUNCTION(SpriteEngine_init) {
 	else if (boundarySize == 128) mapping = SpriteMapping_1D_128;
 	else if (boundarySize == 256) mapping = SpriteMapping_1D_256;
 	else return TypeError("Boundary size for 1D sprite tiles should be 32, 64, 128, or 256.");
-	bool isMain = JS_testInternalProperty(thisValue, ref_str_main);
+	bool isMain = testInternal(thisValue, ref_str_main);
 	oamInit(isMain ? &oamMain : &oamSub, mapping, useExternalPalettes);
 	if (isMain) spriteUpdateMain = true;
 	else spriteUpdateSub = true;
@@ -359,14 +359,14 @@ FUNCTION(SpriteEngine_init) {
 }
 
 FUNCTION(SpriteEngine_enable) {
-	bool isMain = JS_testInternalProperty(thisValue, ref_str_main);
+	bool isMain = testInternal(thisValue, ref_str_main);
 	oamEnable(isMain ? &oamMain : &oamSub);
 	if (isMain) spriteUpdateMain = true;
 	else spriteUpdateSub = true;
 	return JS_UNDEFINED;
 }
 FUNCTION(SpriteEngine_disable) {
-	bool isMain = JS_testInternalProperty(thisValue, ref_str_main);
+	bool isMain = testInternal(thisValue, ref_str_main);
 	oamDisable(isMain ? &oamMain : &oamSub);
 	if (isMain) spriteUpdateMain = false;
 	else spriteUpdateSub = false;
@@ -397,13 +397,13 @@ FUNCTION(SpriteEngine_addSprite) {
 	}
 	if (id == -1) return Error("Out of sprite slots.");
 
-	jerry_value_t sizeNum = getInternalProperty(args[2], "size");
-	jerry_value_t bppNum = getInternalProperty(args[2], "colorFormat");
+	jerry_value_t sizeNum = getInternal(args[2], "size");
+	jerry_value_t bppNum = getInternal(args[2], "colorFormat");
 	SpriteSize size = (SpriteSize) jerry_value_as_uint32(sizeNum);
 	int bpp = jerry_value_as_int32(bppNum);
 	jerry_release_value(sizeNum);
 	jerry_release_value(bppNum);
-	jerry_value_t typedArray = getInternalProperty(args[2], "data");
+	jerry_value_t typedArray = getInternal(args[2], "data");
 	jerry_length_t byteOffset, arrayBufferLen;
 	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(typedArray, &byteOffset, &arrayBufferLen);
 	u8 *gfxData = jerry_get_arraybuffer_pointer(arrayBuffer);
@@ -435,15 +435,13 @@ FUNCTION(SpriteEngine_addSprite) {
 	if (hide) engine->oamMemory[id].isHidden = true;
 
 	jerry_value_t spriteObj = jerry_create_object();
-	jerry_value_t idNum = jerry_create_number(id);
-	setInternalProperty(spriteObj, "id", idNum);
-	jerry_release_value(idNum);
-	JS_setReadonly(spriteObj, ref_str_main, jerry_get_internal_property(thisValue, ref_str_main));
+	setInternal(spriteObj, "id", (double) id);
+	defReadonly(spriteObj, ref_str_main, jerry_get_internal_property(thisValue, ref_str_main));
 	setPrototype(spriteObj, bpp == 16 ? ref_BitmapSprite.prototype : ref_PalettedSprite.prototype);
-	setInternalProperty(spriteObj, "flipH", JS_FALSE);
-	setInternalProperty(spriteObj, "flipV", JS_FALSE);
-	setInternalProperty(spriteObj, "affine", setsAffine ? args[8] : JS_NULL);
-	setInternalProperty(spriteObj, "sizeDouble", jerry_create_boolean(sizeDouble));
+	setInternal(spriteObj, "flipH", JS_FALSE);
+	setInternal(spriteObj, "flipV", JS_FALSE);
+	setInternal(spriteObj, "affine", setsAffine ? args[8] : JS_NULL);
+	setInternal(spriteObj, "sizeDouble", jerry_create_boolean(sizeDouble));
 	return spriteObj;
 }
 
@@ -503,13 +501,11 @@ FUNCTION(SpriteEngine_addGraphic) {
 	jerry_release_value(arrayBuffer);
 	
 	jerry_value_t spriteGraphicObj = jerry_create_object();
-	JS_setReadonly(spriteGraphicObj, ref_str_main, jerry_get_internal_property(thisValue, ref_str_main));
+	defReadonly(spriteGraphicObj, ref_str_main, jerry_get_internal_property(thisValue, ref_str_main));
 	setPrototype(spriteGraphicObj, ref_SpriteGraphic.prototype);
-	setReadonly(spriteGraphicObj, "colorFormat", args[2]);
-	jerry_value_t sizeNum = jerry_create_number(size);
-	setInternalProperty(spriteGraphicObj, "size", sizeNum);
-	jerry_release_value(sizeNum);
-	setReadonly(spriteGraphicObj, "data", typedArray);
+	defReadonly(spriteGraphicObj, "colorFormat", args[2]);
+	setInternal(spriteGraphicObj, "size", (double) size);
+	defReadonly(spriteGraphicObj, "data", typedArray);
 	jerry_release_value(typedArray);
 	return spriteGraphicObj;
 }
@@ -535,17 +531,15 @@ FUNCTION(SpriteEngine_addAffineMatrix) {
 	oamAffineTransformation(engine, id, hdx, hdy, vdx, vdy);
 	
 	jerry_value_t affineObj = jerry_create_object();
-	jerry_value_t idNum = jerry_create_number(id);
-	setInternalProperty(affineObj, "id", idNum);
-	jerry_release_value(idNum);
-	JS_setReadonly(affineObj, ref_str_main, jerry_get_internal_property(thisValue, ref_str_main));
+	setInternal(affineObj, "id", (double) id);
+	defReadonly(affineObj, ref_str_main, jerry_get_internal_property(thisValue, ref_str_main));
 	setPrototype(affineObj, ref_SpriteAffineMatrix.prototype);
 	return affineObj;
 }
 
 FUNCTION(SpriteEngine_setMosaic) {
 	REQUIRE(2);
-	bool isMain = JS_testInternalProperty(thisValue, ref_str_main);
+	bool isMain = testInternal(thisValue, ref_str_main);
 	int dx = jerry_value_as_uint32(args[0]);
 	int dy = jerry_value_as_uint32(args[1]);
 	(isMain ? oamSetMosaic : oamSetMosaicSub)(BOUND(dx, 0, 15), BOUND(dy, 0, 15));
@@ -587,7 +581,7 @@ void exposeSpriteAPI(jerry_value_t global) {
 	jerry_set_internal_property(main, ref_str_main, JS_TRUE);
 	jerry_value_t mainSpritePaletteArrayBuffer = jerry_create_arraybuffer_external(256 * sizeof(u16), (u8*) SPRITE_PALETTE, [](void * _){});
 	jerry_value_t mainSpritePaletteTypedArray = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT16, mainSpritePaletteArrayBuffer, 0, 256);
-	setReadonly(main, "palette", mainSpritePaletteTypedArray);
+	defReadonly(main, "palette", mainSpritePaletteTypedArray);
 	jerry_release_value(mainSpritePaletteTypedArray);
 	jerry_release_value(mainSpritePaletteArrayBuffer);
 	setPrototype(main, SpriteEngine);
@@ -596,7 +590,7 @@ void exposeSpriteAPI(jerry_value_t global) {
 	jerry_set_internal_property(sub, ref_str_main, JS_FALSE);
 	jerry_value_t subSpritePaletteArrayBuffer = jerry_create_arraybuffer_external(256 * sizeof(u16), (u8*) SPRITE_PALETTE_SUB, [](void * _){});
 	jerry_value_t subSpritePaletteTypedArray = jerry_create_typedarray_for_arraybuffer_sz(JERRY_TYPEDARRAY_UINT16, subSpritePaletteArrayBuffer, 0, 256);
-	setReadonly(sub, "palette", subSpritePaletteTypedArray);
+	defReadonly(sub, "palette", subSpritePaletteTypedArray);
 	jerry_release_value(subSpritePaletteTypedArray);
 	jerry_release_value(subSpritePaletteArrayBuffer);
 	setPrototype(sub, SpriteEngine);
