@@ -6,8 +6,6 @@
 
 
 
-jerry_value_t ref_str_main;
-jerry_value_t ref_str_removed;
 JS_class ref_Sprite;
 JS_class ref_PalettedSprite;
 JS_class ref_BitmapSprite;
@@ -556,9 +554,6 @@ FUNCTION(SpriteEngine_setMosaic) {
 }
 
 void exposeSpriteAPI(jerry_value_t global) {
-	ref_str_main = String("main");
-	ref_str_removed = String("removed");
-
 	JS_class Sprite = createClass(global, "Sprite", IllegalConstructor);
 	defGetterSetter(Sprite.prototype, "x", Sprite_get_x, Sprite_set_x);
 	defGetterSetter(Sprite.prototype, "y", Sprite_get_y, Sprite_set_y);
@@ -624,8 +619,6 @@ void exposeSpriteAPI(jerry_value_t global) {
 }
 
 void releaseSpriteReferences() {
-	jerry_release_value(ref_str_main);
-	jerry_release_value(ref_str_removed);
 	releaseClass(ref_Sprite);
 	releaseClass(ref_PalettedSprite);
 	releaseClass(ref_BitmapSprite);

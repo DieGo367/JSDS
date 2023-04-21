@@ -28,6 +28,8 @@ jerry_value_t ref_str_name;
 jerry_value_t ref_str_constructor;
 jerry_value_t ref_str_prototype;
 jerry_value_t ref_str_backtrace;
+jerry_value_t ref_str_removed;
+jerry_value_t ref_str_main;
 jerry_value_t ref_sym_toStringTag;
 
 
@@ -143,6 +145,8 @@ void exposeAPI() {
 	ref_str_constructor = String("constructor");
 	ref_str_prototype = String("prototype");
 	ref_str_backtrace = String("backtrace");
+	ref_str_removed = String("removed");
+	ref_str_main = String("main");
 	ref_sym_toStringTag = jerry_get_well_known_symbol(JERRY_SYMBOL_TO_STRING_TAG);
 
 	setProperty(ref_global, "self", ref_global);
@@ -179,6 +183,8 @@ void releaseReferences() {
 	jerry_release_value(ref_str_constructor);
 	jerry_release_value(ref_str_prototype);
 	jerry_release_value(ref_str_backtrace);
+	jerry_release_value(ref_str_removed);
+	jerry_release_value(ref_str_main);
 	jerry_release_value(ref_sym_toStringTag);
 
 	releaseConsoleKeyboardReferences();

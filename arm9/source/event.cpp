@@ -123,6 +123,7 @@ jerry_value_t createEvent(const char *type, bool cancelable) {
  */
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_value_t targetProp = String("target");
+	jerry_value_t stopImmediatePropagationProp = String("stopImmediatePropagation");
 	jerry_set_internal_property(event, targetProp, target);
 
 	jerry_value_t eventListenersObj = getInternal(target, "eventListeners");
@@ -132,19 +133,17 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 		jerry_value_t listenersCopyArr = jerry_call_function(ref_func_slice, listenersArr, NULL, 0);
 
 		u32 length = jerry_get_array_length(listenersCopyArr);
-		jerry_value_t removedProp = String("removed");
 		jerry_value_t onceProp = String("once");
 		jerry_value_t callbackProp = String("callback");
-		jerry_value_t stopImmediatePropagationProp = String("stopImmediatePropagation");
 
 		for (u32 i = 0; i < length && !abortFlag; i++) {
 			if (testInternal(event, stopImmediatePropagationProp)) break;
 
 			jerry_value_t listenerObj = jerry_get_property_by_index(listenersCopyArr, i);
-			if (!testProperty(listenerObj, removedProp)) {
+			if (!testProperty(listenerObj, ref_str_removed)) {
 				if (testProperty(listenerObj, onceProp)) {
 					arraySplice(listenersArr, i, 1);
-					jerry_release_value(jerry_set_property(listenerObj, removedProp, JS_TRUE));
+					jerry_release_value(jerry_set_property(listenerObj, ref_str_removed, JS_TRUE));
 				}
 				
 				jerry_value_t callbackVal = jerry_get_property(listenerObj, callbackProp);
@@ -162,10 +161,8 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 			jerry_release_value(listenerObj);
 		}
 
-		jerry_release_value(stopImmediatePropagationProp);
 		jerry_release_value(callbackProp);
 		jerry_release_value(onceProp);
-		jerry_release_value(removedProp);
 		jerry_release_value(listenersCopyArr);
 	}
 	jerry_release_value(listenersArr);
@@ -173,8 +170,9 @@ bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync) {
 	jerry_release_value(eventListenersObj);
 
 	jerry_set_internal_property(event, targetProp, JS_NULL);
-	setInternal(event, "stopImmediatePropagation", JS_FALSE);
+	jerry_set_internal_property(event, stopImmediatePropagationProp, JS_FALSE);
 	jerry_release_value(targetProp);
+	jerry_release_value(stopImmediatePropagationProp);
 	
 	return testInternal(event, "defaultPrevented");
 }
@@ -390,7 +388,7 @@ FUNCTION(EventTarget_addEventListener) {
 
 		jerry_release_value(jerry_set_property(listenerObj, callbackProp, callbackVal));
 		jerry_release_value(jerry_set_property(listenerObj, onceProp, jerry_create_boolean(once)));
-		setProperty(listenerObj, "removed", JS_FALSE);
+		jerry_release_value(jerry_set_property(listenerObj, ref_str_removed, JS_FALSE));
 
 		jerry_release_value(jerry_call_function(ref_func_push, listenersArr, &listenerObj, 1));
 		jerry_release_value(listenerObj);
@@ -435,7 +433,7 @@ FUNCTION(EventTarget_removeEventListener) {
 			jerry_value_t storedCallbackVal = jerry_get_property(storedListenerObj, callbackProp);
 			if (strictEqual(callbackVal, storedCallbackVal)) {
 				arraySplice(listenersArr, i, 1);
-				setProperty(storedListenerObj, "removed", JS_TRUE);
+				jerry_release_value(jerry_set_property(storedListenerObj, ref_str_removed, JS_TRUE));
 				removed = true;
 				if (targetObj == ref_global && jerry_get_array_length(listenersArr) == 0) {
 					char *type = rawString(typeStr);

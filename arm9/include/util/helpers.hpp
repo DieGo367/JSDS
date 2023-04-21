@@ -54,6 +54,8 @@ extern jerry_value_t ref_str_name;
 extern jerry_value_t ref_str_constructor;
 extern jerry_value_t ref_str_prototype;
 extern jerry_value_t ref_str_backtrace;
+extern jerry_value_t ref_str_removed;
+extern jerry_value_t ref_str_main;
 extern jerry_value_t ref_sym_toStringTag;
 
 // Function for classes that should not be constructed via new.
