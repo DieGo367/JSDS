@@ -24,7 +24,6 @@ bool inREPL = false;
 bool abortFlag = false;
 bool userClosed = false;
 u8 dependentEvents = 0;
-bool pauseKeyEvents = false;
 
 std::queue<Task> taskQueue;
 
@@ -197,46 +196,6 @@ void queueEventName(const char *eventName, jerry_external_handler_t callback) {
 	jerry_value_t event = createEvent(eventName, callback != NULL);
 	queueEvent(ref_global, event, callback);
 	jerry_release_value(event);
-}
-
-bool dispatchKeyboardEvent(bool down, const char16_t codepoint, const char *name, u8 location, bool shift, int layout, bool repeat) {
-	jerry_value_t keyboardEvent = createEvent(down ? "keydown" : "keyup", true);
-
-	jerry_value_t keyStr;
-	if (codepoint == 2) keyStr = String("Shift"); // hardcoded override to remove Left/Right variants of Shift
-	else if (codepoint < ' ') keyStr = String(name);
-	else if (codepoint < 0x80) keyStr = String((char *) &codepoint);
-	else keyStr = StringUTF16(&codepoint, 1);
-	defReadonly(keyboardEvent, "key", keyStr);
-	jerry_release_value(keyStr);
-	
-	defReadonly(keyboardEvent, "code", name);
-	defReadonly(keyboardEvent, "layout",
-		layout == 0 ? "AlphaNumeric" : 
-		layout == 1 ? "LatinAccented" :
-		layout == 2 ? "Kana" :
-		layout == 3 ? "Symbol" :
-		layout == 4 ? "Pictogram"
-	: "");
-	defReadonly(keyboardEvent, "repeat", jerry_create_boolean(repeat));
-	defReadonly(keyboardEvent, "shifted", jerry_create_boolean(shift));
-
-	bool canceled = dispatchEvent(ref_global, keyboardEvent, false);
-	jerry_release_value(keyboardEvent);
-	return canceled;
-}
-
-bool onKeyDown(const char16_t codepoint, const char *name, bool shift, int layout, bool repeat) {
-	if (!pauseKeyEvents && dependentEvents & keydown) {
-		return dispatchKeyboardEvent(true, codepoint, name, 0, shift, layout, repeat);
-	}
-	return false;
-}
-bool onKeyUp(const char16_t codepoint, const char *name, bool shift, int layout) {
-	if (!pauseKeyEvents && dependentEvents & keyup) {
-		return dispatchKeyboardEvent(false, codepoint, name, 0, shift, layout, false);
-	}
-	return false;
 }
 
 /* The Event Loop™

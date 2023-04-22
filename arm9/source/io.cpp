@@ -1,5 +1,9 @@
+#include <nds/ndstypes.h>
+#include <nds/arm9/input.h>
+#include <nds/interrupts.h>
 #include <stdlib.h>
 
+#include "event.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
 #include "logging.hpp"
@@ -11,6 +15,110 @@
 
 jerry_value_t ref_consoleCounters;
 jerry_value_t ref_consoleTimers;
+bool pauseKeyEvents = false;
+
+bool dispatchKeyboardEvent(bool down, const char16_t codepoint, const char *name, u8 location, bool shift, int layout, bool repeat) {
+	jerry_value_t keyboardEvent = createEvent(down ? "keydown" : "keyup", true);
+
+	jerry_value_t keyStr;
+	if (codepoint == 2) keyStr = String("Shift"); // hardcoded override to remove Left/Right variants of Shift
+	else if (codepoint < ' ') keyStr = String(name);
+	else if (codepoint < 0x80) keyStr = String((char *) &codepoint);
+	else keyStr = StringUTF16(&codepoint, 1);
+	defReadonly(keyboardEvent, "key", keyStr);
+	jerry_release_value(keyStr);
+	
+	defReadonly(keyboardEvent, "code", name);
+	defReadonly(keyboardEvent, "layout",
+		layout == 0 ? "AlphaNumeric" : 
+		layout == 1 ? "LatinAccented" :
+		layout == 2 ? "Kana" :
+		layout == 3 ? "Symbol" :
+		layout == 4 ? "Pictogram"
+	: "");
+	defReadonly(keyboardEvent, "repeat", jerry_create_boolean(repeat));
+	defReadonly(keyboardEvent, "shifted", jerry_create_boolean(shift));
+
+	bool canceled = dispatchEvent(ref_global, keyboardEvent, false);
+	jerry_release_value(keyboardEvent);
+	return canceled;
+}
+
+bool onKeyDown(const char16_t codepoint, const char *name, bool shift, int layout, bool repeat) {
+	if (!pauseKeyEvents && dependentEvents & keydown) {
+		return dispatchKeyboardEvent(true, codepoint, name, 0, shift, layout, repeat);
+	}
+	return false;
+}
+bool onKeyUp(const char16_t codepoint, const char *name, bool shift, int layout) {
+	if (!pauseKeyEvents && dependentEvents & keyup) {
+		return dispatchKeyboardEvent(false, codepoint, name, 0, shift, layout, false);
+	}
+	return false;
+}
+
+
+
+FUNCTION(alert) {
+	if (argCount > 0) printValue(args[0]);
+	else printf("Alert");
+	printf(" [ OK]\n");
+	while (true) {
+		swiWaitForVBlank();
+		scanKeys();
+		if (keysDown() & KEY_A) break;
+	}
+	return JS_UNDEFINED;
+}
+
+FUNCTION(confirm) {
+	if (argCount > 0) printValue(args[0]);
+	else printf("Confirm");
+	printf(" [ OK,  Cancel]\n");
+	while (true) {
+		swiWaitForVBlank();
+		scanKeys();
+		u32 keys = keysDown();
+		if (keys & KEY_A) return JS_TRUE;
+		else if (keys & KEY_B) return JS_FALSE;
+	}
+}
+
+FUNCTION(prompt) {
+	if (argCount > 0) printValue(args[0]);
+	else printf("Prompt");
+	putchar(' ');
+	pauseKeyEvents = true;
+	bool hadButtonControls = keyboardButtonControls(true);
+	keyboardCompose(true);
+	ComposeStatus status = keyboardComposeStatus();
+	while (status == KEYBOARD_COMPOSING) {
+		swiWaitForVBlank();
+		scanKeys();
+		keyboardUpdate();
+		status = keyboardComposeStatus();
+	}
+	if (status == KEYBOARD_FINISHED) {
+		char *response;
+		u32 responseSize;
+		keyboardComposeAccept(&response, &responseSize);
+		printf(response); putchar('\n');
+		jerry_value_t responseStr = StringSized(response, responseSize);
+		free(response);
+		keyboardUpdate();
+		pauseKeyEvents = false;
+		keyboardButtonControls(hadButtonControls);
+		return responseStr;
+	}
+	else {
+		putchar('\n');
+		keyboardUpdate();
+		pauseKeyEvents = false;
+		keyboardButtonControls(hadButtonControls);
+		if (argCount > 1) return jerry_value_to_string(args[1]);
+		else return JS_NULL;
+	}
+}
 
 FUNCTION(console_log) {
 	if (argCount > 0) {
@@ -273,9 +381,13 @@ FUNCTION(console_set_textBackground) {
 	return JS_UNDEFINED;
 }
 
-void exposeConsoleKeyboardAPI(jerry_value_t global) {
+void exposeIOAPI(jerry_value_t global) {
 	ref_consoleCounters = jerry_create_object();
 	ref_consoleTimers = jerry_create_object();
+
+	setMethod(ref_global, "alert", alert);
+	setMethod(ref_global, "confirm", confirm);
+	setMethod(ref_global, "prompt", prompt);
 
 	jerry_value_t console = createObject(global, "console");
 	setMethod(console, "assert", console_assert);
@@ -307,7 +419,7 @@ void exposeConsoleKeyboardAPI(jerry_value_t global) {
 	jerry_release_value(keyboard);
 }
 
-void releaseConsoleKeyboardReferences() {
+void releaseIOReferences() {
 	jerry_release_value(ref_consoleCounters);
 	jerry_release_value(ref_consoleTimers);
 }

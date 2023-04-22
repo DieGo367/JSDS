@@ -1,7 +1,3 @@
-#include <nds/interrupts.h>
-#include <nds/arm9/input.h>
-#include <stdlib.h>
-
 #include "encoding.hpp"
 #include "event.hpp"
 #include "file.hpp"
@@ -33,67 +29,6 @@ jerry_value_t ref_str_main;
 jerry_value_t ref_sym_toStringTag;
 
 
-
-FUNCTION(alert) {
-	if (argCount > 0) printValue(args[0]);
-	else printf("Alert");
-	printf(" [ OK]\n");
-	while (true) {
-		swiWaitForVBlank();
-		scanKeys();
-		if (keysDown() & KEY_A) break;
-	}
-	return JS_UNDEFINED;
-}
-
-FUNCTION(confirm) {
-	if (argCount > 0) printValue(args[0]);
-	else printf("Confirm");
-	printf(" [ OK,  Cancel]\n");
-	while (true) {
-		swiWaitForVBlank();
-		scanKeys();
-		u32 keys = keysDown();
-		if (keys & KEY_A) return JS_TRUE;
-		else if (keys & KEY_B) return JS_FALSE;
-	}
-}
-
-FUNCTION(prompt) {
-	if (argCount > 0) printValue(args[0]);
-	else printf("Prompt");
-	putchar(' ');
-	pauseKeyEvents = true;
-	bool hadButtonControls = keyboardButtonControls(true);
-	keyboardCompose(true);
-	ComposeStatus status = keyboardComposeStatus();
-	while (status == KEYBOARD_COMPOSING) {
-		swiWaitForVBlank();
-		scanKeys();
-		keyboardUpdate();
-		status = keyboardComposeStatus();
-	}
-	if (status == KEYBOARD_FINISHED) {
-		char *response;
-		u32 responseSize;
-		keyboardComposeAccept(&response, &responseSize);
-		printf(response); putchar('\n');
-		jerry_value_t responseStr = StringSized(response, responseSize);
-		free(response);
-		keyboardUpdate();
-		pauseKeyEvents = false;
-		keyboardButtonControls(hadButtonControls);
-		return responseStr;
-	}
-	else {
-		putchar('\n');
-		keyboardUpdate();
-		pauseKeyEvents = false;
-		keyboardButtonControls(hadButtonControls);
-		if (argCount > 1) return jerry_value_to_string(args[1]);
-		else return JS_NULL;
-	}
-}
 
 FUNCTION(BETA_gfxInit) {
 	videoSetMode(MODE_3_2D);
@@ -152,12 +87,9 @@ void exposeAPI() {
 	setProperty(ref_global, "self", ref_global);
 
 	setMethod(ref_global, "close", RETURN((abortFlag = userClosed = true, jerry_create_abort_from_value(String(""), true))));
-	setMethod(ref_global, "alert", alert);
-	setMethod(ref_global, "confirm", confirm);
-	setMethod(ref_global, "prompt", prompt);
 
 	exposeTimeoutAPI(ref_global);
-	exposeConsoleKeyboardAPI(ref_global);
+	exposeIOAPI(ref_global);
 	exposeEncodingAPI(ref_global);
 	exposeFileAPI(ref_global);
 	exposeEventAPI(ref_global);
@@ -187,7 +119,7 @@ void releaseReferences() {
 	jerry_release_value(ref_str_main);
 	jerry_release_value(ref_sym_toStringTag);
 
-	releaseConsoleKeyboardReferences();
+	releaseIOReferences();
 	releaseEventReferences();
 	releaseVideoReferences();
 	releaseSpriteReferences();

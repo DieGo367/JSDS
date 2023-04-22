@@ -11,6 +11,7 @@
 #include "error.hpp"
 #include "event.hpp"
 #include "file.hpp"
+#include "io.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
 #include "jerry/jerryscript-port-default.h"

@@ -17,7 +17,6 @@ extern bool inREPL;
 extern bool abortFlag;
 extern bool userClosed;
 extern u8 dependentEvents;
-extern bool pauseKeyEvents;
 
 enum DependentEvent {
 	vblank     = BIT(0),
@@ -42,9 +41,6 @@ jerry_value_t createEvent(const char *type, bool cancelable);
 bool dispatchEvent(jerry_value_t target, jerry_value_t event, bool sync);
 void queueEvent(jerry_value_t target, jerry_value_t event, jerry_external_handler_t callback = NULL);
 void queueEventName(const char *eventName, jerry_external_handler_t callback = NULL);
-
-bool onKeyDown(const char16_t codepoint, const char *name, bool shift, int layout, bool repeat);
-bool onKeyUp(const char16_t codepoint, const char *name, bool shift, int layout);
 
 void eventLoop();
 
