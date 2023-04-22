@@ -1,8 +1,5 @@
 #include "event.hpp"
 
-extern "C" {
-#include <nds/system.h>
-}
 #include <nds/arm9/input.h>
 #include <nds/interrupts.h>
 #include <queue>
@@ -15,6 +12,7 @@ extern "C" {
 #include "io/keyboard.hpp"
 #include "logging.hpp"
 #include "sprite.hpp"
+#include "system.hpp"
 #include "timeouts.hpp"
 #include "util/helpers.hpp"
 
@@ -201,49 +199,6 @@ void queueEventName(const char *eventName, jerry_external_handler_t callback) {
 	jerry_release_value(event);
 }
 
-void queueButtonEvents(bool down) {
-	u32 set = down ? keysDown() : keysUp();
-	if (set) {
-		jerry_value_t buttonProp = String("button");
-		jerry_value_t buttonEvent = createEvent(down ? "buttondown" : "buttonup", false);
-		defReadonly(buttonEvent, buttonProp, JS_NULL);
-		#define TEST_VALUE(button, keyCode) if (set & keyCode) { \
-			setInternal(buttonEvent, buttonProp, button); \
-			queueEvent(ref_global, buttonEvent); \
-		}
-		FOR_BUTTONS(TEST_VALUE)
-		jerry_release_value(buttonEvent);
-		jerry_release_value(buttonProp);
-	}
-}
-
-u16 prevX = 0, prevY = 0;
-void queueTouchEvent(const char *name, int curX, int curY, bool usePrev) {
-	jerry_value_t touchEvent = createEvent(name, false);
-	defReadonly(touchEvent, "x", (double) curX);
-	defReadonly(touchEvent, "y", (double) curY);
-	jerry_value_t dxNum = usePrev ? jerry_create_number(curX - (int) prevX) : jerry_create_number_nan();
-	jerry_value_t dyNum = usePrev ? jerry_create_number(curY - (int) prevY) : jerry_create_number_nan();
-	defReadonly(touchEvent, "dx", dxNum);
-	defReadonly(touchEvent, "dy", dyNum);
-	jerry_release_value(dxNum);
-	jerry_release_value(dyNum);
-	queueEvent(ref_global, touchEvent);
-	jerry_release_value(touchEvent);
-}
-
-void queueTouchEvents() {
-	touchPosition pos;
-	touchRead(&pos);
-	if (keysDown() & KEY_TOUCH) queueTouchEvent("touchstart", pos.px, pos.py, false);
-	else if (keysHeld() & KEY_TOUCH) {
-		if (prevX != pos.px || prevY != pos.py) queueTouchEvent("touchmove", pos.px, pos.py, true);
-	}
-	else if (keysUp() & KEY_TOUCH) queueTouchEvent("touchend", prevX, prevY, false);
-	prevX = pos.px;
-	prevY = pos.py;
-}
-
 bool dispatchKeyboardEvent(bool down, const char16_t codepoint, const char *name, u8 location, bool shift, int layout, bool repeat) {
 	jerry_value_t keyboardEvent = createEvent(down ? "keydown" : "keyup", true);
 
@@ -293,7 +248,7 @@ void eventLoop() {
 		swiWaitForVBlank();
 		if (dependentEvents & vblank) queueEventName("vblank");
 		scanKeys();
-		if (keysDown() & KEY_LID) queueEventName("sleep", VOID(systemSleep()));
+		if (keysDown() & KEY_LID) queueSleepEvent();
 		if (keysUp() & KEY_LID) queueEventName("wake");
 		if (dependentEvents & (buttondown)) queueButtonEvents(true);
 		if (dependentEvents & (buttonup)) queueButtonEvents(false);

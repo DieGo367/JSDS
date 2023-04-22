@@ -12,6 +12,59 @@ extern "C" {
 
 
 
+#define FOR_BUTTONS(DO) \
+	DO("A", KEY_A) DO("B", KEY_B) DO("X", KEY_X) DO("Y", KEY_Y) DO("L", KEY_L)  DO("R", KEY_R) \
+	DO("Up", KEY_UP)  DO("Down", KEY_DOWN) DO("Left", KEY_LEFT)  DO("Right", KEY_RIGHT) \
+	DO("START", KEY_START) DO("SELECT", KEY_SELECT)
+
+void queueButtonEvents(bool down) {
+	u32 set = down ? keysDown() : keysUp();
+	if (set) {
+		jerry_value_t buttonProp = String("button");
+		jerry_value_t buttonEvent = createEvent(down ? "buttondown" : "buttonup", false);
+		defReadonly(buttonEvent, buttonProp, JS_NULL);
+		#define TEST_VALUE(button, keyCode) if (set & keyCode) { \
+			setInternal(buttonEvent, buttonProp, button); \
+			queueEvent(ref_global, buttonEvent); \
+		}
+		FOR_BUTTONS(TEST_VALUE)
+		jerry_release_value(buttonEvent);
+		jerry_release_value(buttonProp);
+	}
+}
+
+u16 prevX = 0, prevY = 0;
+void queueTouchEvent(const char *name, int curX, int curY, bool usePrev) {
+	jerry_value_t touchEvent = createEvent(name, false);
+	defReadonly(touchEvent, "x", (double) curX);
+	defReadonly(touchEvent, "y", (double) curY);
+	jerry_value_t dxNum = usePrev ? jerry_create_number(curX - (int) prevX) : jerry_create_number_nan();
+	jerry_value_t dyNum = usePrev ? jerry_create_number(curY - (int) prevY) : jerry_create_number_nan();
+	defReadonly(touchEvent, "dx", dxNum);
+	defReadonly(touchEvent, "dy", dyNum);
+	jerry_release_value(dxNum);
+	jerry_release_value(dyNum);
+	queueEvent(ref_global, touchEvent);
+	jerry_release_value(touchEvent);
+}
+
+void queueTouchEvents() {
+	touchPosition pos;
+	touchRead(&pos);
+	if (keysDown() & KEY_TOUCH) queueTouchEvent("touchstart", pos.px, pos.py, false);
+	else if (keysHeld() & KEY_TOUCH) {
+		if (prevX != pos.px || prevY != pos.py) queueTouchEvent("touchmove", pos.px, pos.py, true);
+	}
+	else if (keysUp() & KEY_TOUCH) queueTouchEvent("touchend", prevX, prevY, false);
+	prevX = pos.px;
+	prevY = pos.py;
+}
+
+void queueSleepEvent() {
+	queueEventName("sleep", VOID(systemSleep()));
+}
+
+
 FUNCTION(DS_getBatteryLevel) {
 	u32 level = getBatteryLevel();
 	if (level & BIT(7)) return String("charging");

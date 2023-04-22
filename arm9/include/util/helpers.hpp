@@ -6,11 +6,6 @@
 
 
 
-#define FOR_BUTTONS(DO) \
-	DO("A", KEY_A) DO("B", KEY_B) DO("X", KEY_X) DO("Y", KEY_Y) DO("L", KEY_L)  DO("R", KEY_R) \
-	DO("Up", KEY_UP)  DO("Down", KEY_DOWN) DO("Left", KEY_LEFT)  DO("Right", KEY_RIGHT) \
-	DO("START", KEY_START) DO("SELECT", KEY_SELECT)
-
 #define CALL_INFO const jerry_value_t function, const jerry_value_t thisValue, const jerry_value_t args[], u32 argCount
 // Defines a handler for a JS function.
 #define FUNCTION(name) jerry_value_t name(CALL_INFO)
