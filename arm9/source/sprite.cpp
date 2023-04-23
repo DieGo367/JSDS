@@ -454,7 +454,7 @@ FUNCTION(SpriteEngine_addSprite) {
 
 FUNCTION(SpriteEngine_addGraphic) {
 	REQUIRE(3);
-	if (argCount > 3) EXPECT(jerry_get_typedarray_type(args[3]) == JERRY_TYPEDARRAY_UINT8, Uint8Array);
+	if (argCount > 3) EXPECT(jerry_value_is_typedarray(args[3]), TypedArray);
 	int width = jerry_value_as_int32(args[0]);
 	int height = jerry_value_as_int32(args[1]);
 	int bpp = jerry_value_as_int32(args[2]);

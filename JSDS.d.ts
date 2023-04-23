@@ -1,5 +1,6 @@
 /// <reference no-default-lib="true"/>
 /// <reference lib="es2016"/>
+type TypedArray = Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array;
 
 declare var self: typeof globalThis;
 
@@ -782,10 +783,10 @@ interface SpriteEngine<M> {
 	 * @param width Width of the graphics. May be rounded up to the nearest valid size. Maximum is 64.
 	 * @param height Height of the graphics. May be rounded up to the nearest valid size. Maximum is 64.
 	 * @param colorFormat Bitdepth of the graphics. `16` bits per pixel graphics are bitmap, otherwise the graphics are paletted.
-	 * @param data An optional `Uint8Array` that will be copied into the newly allocated graphics data.
+	 * @param data An optional `TypedArray` that will be copied into the newly allocated graphics data.
 	 * @returns A `SpriteGraphic` object which can be supplied when creating a sprite, or be assigned to an existing one. Can be shared across multiple sprites.
 	 */
-	addGraphic<C extends SpriteGraphic["colorFormat"]>(width: number, height: number, colorFormat: C, data?: Uint8Array): SpriteGraphicFromColorFormat<C> & MainEngine<M>;
+	addGraphic<C extends SpriteGraphic["colorFormat"]>(width: number, height: number, colorFormat: C, data?: TypedArray): SpriteGraphicFromColorFormat<C> & MainEngine<M>;
 	/**
 	 * Adds a new affine matrix on this sprite engine that can transform sprites.
 	 * @param hdx X position for the horizontal unit vector. Defaults to `1`.
