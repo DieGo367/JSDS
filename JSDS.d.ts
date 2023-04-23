@@ -353,8 +353,21 @@ interface Event {
 }
 declare var Event: {
 	prototype: Event;
-	new(type: string, eventInitDict?: EventInit): Event;
 };
+
+interface CustomEventInit<T> {
+	cancelable?: boolean;
+	detail?: T;
+}
+/** User-defined events. */
+interface CustomEvent<T> extends Event {
+	/** Custom data provided for this event. */
+	readonly detail: T;
+}
+declare var CustomEvent: {
+	prototype: CustomEventInit<any>;
+	new<T>(type: string, eventInit?: CustomEventInit<T>): CustomEvent<T>;
+}
 
 /** Event providing information related to an error in a timeout or event listener. */
 interface ErrorEvent extends Event {

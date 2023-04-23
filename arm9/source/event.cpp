@@ -98,12 +98,12 @@ void runParsedCodeTask(const jerry_value_t *args, u32 argCount) {
 jerry_value_t createEvent(jerry_value_t type, bool cancelable) {
 	jerry_value_t event = jerry_create_object();
 	setPrototype(event, ref_Event.prototype);
-	setInternal(event, "stopImmediatePropagation", JS_FALSE); // stop immediate propagation flag
-	defReadonly(event, "target", JS_NULL);
-	defReadonly(event, "cancelable", jerry_create_boolean(cancelable));
-	defReadonly(event, "defaultPrevented", JS_FALSE);        
-	defReadonly(event, "timeStamp", (double) time(NULL));
 	defReadonly(event, "type", type);
+	defReadonly(event, "cancelable", jerry_create_boolean(cancelable));
+	defReadonly(event, "target", JS_NULL);
+	defReadonly(event, "timeStamp", (double) time(NULL));
+	defReadonly(event, "defaultPrevented", JS_FALSE);
+	setInternal(event, "stopImmediatePropagation", JS_FALSE);
 	return event;
 }
 jerry_value_t createEvent(const char *type, bool cancelable) {
@@ -254,6 +254,33 @@ FUNCTION(Event_preventDefault) {
 	return JS_UNDEFINED;
 }
 
+FUNCTION(CustomEventConstructor) {
+	CONSTRUCTOR(CustomEvent); REQUIRE(1);
+	jerry_value_t initObj;
+	if (argCount > 1) {
+		EXPECT(jerry_value_is_object(args[1]), CustomEventInit);
+		initObj = args[1];
+	}
+	else initObj = jerry_create_object();
+	jerry_value_t typeStr = jerry_value_to_string(args[0]);
+	defReadonly(thisValue, "type", typeStr);
+	jerry_release_value(typeStr);
+	jerry_value_t cancelableProp = String("cancelable");
+	defReadonly(thisValue, cancelableProp, jerry_create_boolean(testProperty(initObj, cancelableProp)));
+	jerry_release_value(cancelableProp);
+	defReadonly(thisValue, "target", JS_NULL);
+	defReadonly(thisValue, "timeStamp", (double) time(NULL));
+	defReadonly(thisValue, "defaultPrevented", JS_FALSE);
+	setInternal(thisValue, "stopImmediatePropagation", JS_FALSE);
+	jerry_value_t detailProp = String("detail");
+	jerry_value_t detailVal = jerry_get_property(initObj, detailProp);
+	defReadonly(thisValue, detailProp, detailVal);
+	jerry_release_value(detailVal);
+	jerry_release_value(detailProp);
+	if (argCount == 0) jerry_release_value(initObj);
+	return JS_UNDEFINED;
+}
+
 FUNCTION(EventTargetConstructor) {
 	if (thisValue != ref_global) CONSTRUCTOR(EventTarget);
 
@@ -384,6 +411,7 @@ void exposeEventAPI(jerry_value_t global) {
 	JS_class Event = createClass(global, "Event", IllegalConstructor);
 	setMethod(Event.prototype, "stopImmediatePropagation", Event_stopImmediatePropagation);
 	setMethod(Event.prototype, "preventDefault", Event_preventDefault);
+	releaseClass(extendClass(global, "CustomEvent", CustomEventConstructor, Event.prototype));
 	ref_Event = Event;
 
 	JS_class EventTarget = createClass(global, "EventTarget", EventTargetConstructor);
