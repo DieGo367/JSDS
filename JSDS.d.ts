@@ -147,7 +147,6 @@ interface File {
 }
 declare var File: {
 	prototype: File;
-	new(): File;
 	/**
 	 * Opens a file and returns a new File instance.
 	 * 
