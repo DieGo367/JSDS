@@ -53,7 +53,6 @@ void runFile(const char *filename) {
 	jerry_release_value(parsedCode);
 	storageLoad(filename);
 	eventLoop();
-	if (!abortFlag) runTasks();
 }
 
 void repl() {
