@@ -144,7 +144,7 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 
 	if (canceled) return NULL;
 	char *result = (char *) malloc(PATH_MAX + NAME_MAX);
-	sprintf(result, "%s%s", curPath, dirContent[selected].d_name);
+	sprintf(result, "%s/%s", curPath, dirContent[selected].d_name);
 	return result;
 }
 
