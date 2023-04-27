@@ -108,7 +108,7 @@ CFLAGS		+= -std=gnu11 $(WARNFLAGS) $(DEFINES) $(ARCH) \
 		   -ffunction-sections -fdata-sections \
 		   -fomit-frame-pointer
 
-CXXFLAGS	+= -std=gnu++14 $(WARNFLAGS) $(DEFINES) $(ARCH) \
+CXXFLAGS	+= -std=gnu++17 $(WARNFLAGS) $(DEFINES) $(ARCH) \
 		   -mthumb -mthumb-interwork $(INCLUDEFLAGS) -O2 \
 		   -ffunction-sections -fdata-sections \
 		   -fno-exceptions -fno-rtti \
