@@ -391,7 +391,7 @@ void exposeIOAPI(jerry_value_t global) {
 
 	jerry_value_t console = createObject(global, "console");
 	setMethod(console, "assert", console_assert);
-	setMethod(console, "clear", VOID(consoleClear()));
+	setMethod(console, "clear", VOID(consoleClean()));
 	setMethod(console, "count", console_count);
 	setMethod(console, "countReset", console_countReset);
 	setMethod(console, "debug", console_debug);

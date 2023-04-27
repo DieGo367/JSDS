@@ -1,54 +1,110 @@
-#---------------------------------------------------------------------------------
-.SUFFIXES:
-#---------------------------------------------------------------------------------
-ifeq ($(strip $(DEVKITARM)),)
-$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
+# SPDX-License-Identifier: CC0-1.0
+#
+# SPDX-FileContributor: Antonio Niño Díaz, 2023
+
+BLOCKSDS	?= /opt/blocksds/core
+BLOCKSDSEXT	?= /opt/blocksds/external
+
+# User config
+# ===========
+
+NAME			:= JSDS
+
+GAME_TITLE		:= JSDS
+GAME_SUBTITLE	:= 
+GAME_AUTHOR		:= DVDo
+GAME_ICON		:= icon.bmp
+
+# DLDI and internal SD slot of DSi
+# --------------------------------
+
+# Root folder of the SD image
+SDROOT		:= 
+# Name of the generated image it "DSi-1.sd" for no$gba in DSi mode
+SDIMAGE		:= 
+
+# Source code paths
+# -----------------
+
+NITROFATDIR	:=
+
+# Tools
+# -----
+
+MAKE		:= make
+RM			:= rm -rf
+
+# Verbose flag
+# ------------
+
+ifeq ($(VERBOSE),1)
+V		:=
+else
+V		:= @
 endif
 
-export TARGET	:=	$(shell basename $(CURDIR))
-export TOPDIR	:=	$(CURDIR)
+# Directories
+# -----------
 
-# specify a directory which contains the nitro filesystem
-# this is relative to the Makefile
-NITRO_FILES	:=
+ARM9DIR		:= arm9
+ARM7DIR		:= arm7
 
-# These set the information text in the nds file
-GAME_TITLE     := JSDS
-GAME_SUBTITLE1 := DVDo
+# Build artfacts
+# --------------
 
-include $(DEVKITARM)/ds_rules
+NITROFAT_IMG	:= build/nitrofat.bin
+ROM				:= $(NAME).nds
 
-.PHONY: checkarm7 checkarm9 clean
+# Targets
+# -------
 
-#---------------------------------------------------------------------------------
-# main targets
-#---------------------------------------------------------------------------------
-all: checkarm7 checkarm9 $(TARGET).nds
+.PHONY: all clean arm9 arm7 dldipatch sdimage
 
-#---------------------------------------------------------------------------------
-checkarm7:
-	$(MAKE) -C arm7
-	
-#---------------------------------------------------------------------------------
-checkarm9:
-	$(MAKE) -C arm9
+all: $(ROM)
 
-#---------------------------------------------------------------------------------
-$(TARGET).nds	: $(NITRO_FILES) arm7/$(TARGET).elf arm9/$(TARGET).elf
-	ndstool	-c $(TARGET).nds -7 arm7/$(TARGET).elf -9 arm9/$(TARGET).elf \
-	-b $(GAME_ICON) "$(GAME_TITLE);$(GAME_SUBTITLE1)" \
-	$(_ADDFILES)
-
-#---------------------------------------------------------------------------------
-arm7/$(TARGET).elf:
-	$(MAKE) -C arm7
-	
-#---------------------------------------------------------------------------------
-arm9/$(TARGET).elf:
-	$(MAKE) -C arm9
-
-#---------------------------------------------------------------------------------
 clean:
-	$(MAKE) -C arm9 clean
-	$(MAKE) -C arm7 clean
-	rm -f $(TARGET).nds $(TARGET).arm7 $(TARGET).arm9
+	@echo "  CLEAN"
+	$(V)$(MAKE) -f arm9/Makefile clean --no-print-directory
+	$(V)$(MAKE) -f arm7/Makefile clean --no-print-directory
+	$(V)$(RM) $(ROM) build $(SDIMAGE)
+
+arm9:
+	$(V)+$(MAKE) -f arm9/Makefile --no-print-directory
+
+arm7:
+	$(V)+$(MAKE) -f arm7/Makefile --no-print-directory
+
+ifneq ($(strip $(NITROFATDIR)),)
+# Additional arguments for ndstool
+NDSTOOL_FAT	:= -F $(NITROFAT_IMG)
+
+$(NITROFAT_IMG): $(NITROFATDIR)
+	@echo "  MKFATIMG $@ $(NITROFATDIR)"
+	$(V)$(BLOCKSDS)/tools/mkfatimg/mkfatimg -t $(NITROFATDIR) $@ 0
+
+# Make the NDS ROM depend on the filesystem image only if it is needed
+$(ROM): $(NITROFAT_IMG)
+endif
+
+# Combine the title strings
+ifeq ($(strip $(GAME_SUBTITLE)),)
+    GAME_FULL_TITLE := $(GAME_TITLE);$(GAME_AUTHOR)
+else
+    GAME_FULL_TITLE := $(GAME_TITLE);$(GAME_SUBTITLE);$(GAME_AUTHOR)
+endif
+
+$(ROM): arm9 arm7
+	@echo "  NDSTOOL $@"
+	$(V)$(BLOCKSDS)/tools/ndstool/ndstool -c $@ \
+		-7 build/arm7.elf -9 build/arm9.elf \
+		-b $(GAME_ICON) "$(GAME_FULL_TITLE)" \
+		$(NDSTOOL_FAT)
+
+sdimage:
+	@echo "  MKFATIMG $(SDIMAGE) $(SDROOT)"
+	$(V)$(BLOCKSDS)/tools/mkfatimg/mkfatimg -t $(SDROOT) $(SDIMAGE) 0
+
+dldipatch: $(ROM)
+	@echo "  DLDITOOL $(ROM)"
+	$(V)$(BLOCKSDS)/tools/dlditool/dlditool \
+		$(BLOCKSDS)/tools/dldi/r4tfv2.dldi $(ROM)

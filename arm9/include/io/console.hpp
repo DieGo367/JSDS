@@ -16,7 +16,7 @@ NitroFont consoleGetFont();
 
 void consolePause();
 void consoleResume();
-void consoleClear();
+void consoleClean();
 void consoleShrink();
 void consoleExpand();
 

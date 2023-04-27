@@ -1,5 +1,4 @@
 .vscode
-arm7/build
-arm9/build
+build
 *.elf
 *.nds

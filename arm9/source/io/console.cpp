@@ -3,9 +3,9 @@
 #include <nds/arm9/background.h>
 #include <nds/arm9/video.h>
 #include <nds/arm9/cache.h>
+#include <nds/arm9/console.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/iosupport.h>
 
 #include "util/color.hpp"
 #include "util/font.hpp"
@@ -99,7 +99,7 @@ bool writeCodepoint(char16_t codepoint) {
 	return newLined;
 }
 
-ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
+ssize_t writeIn(const char *message, size_t len) {
 	if (!message) return 0;
 	bool fullUpdate = false;
 	u32 codepointLen;
@@ -120,23 +120,12 @@ ssize_t writeIn(struct _reent *_r, void *_fd, const char *message, size_t len) {
 	return len;
 }
 
-const devoptab_t opTable = {
-	"console",
-	0,
-	NULL,
-	NULL,
-	writeIn,
-	NULL,
-	NULL,
-	NULL
-};
-
 void consoleInit(NitroFont font) {
 	videoSetModeSub(MODE_3_2D);
 	vramSetBankC(VRAM_C_SUB_BG);
 	bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-	devoptab_list[STD_OUT] = &opTable;
-	devoptab_list[STD_ERR] = &opTable;
+	consoleSetCustomStdout(writeIn);
+	consoleSetCustomStderr(writeIn);
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 	consoleFont = font;
@@ -152,7 +141,7 @@ void consoleResume() {
 	paused = false;
 	consoleDraw();
 }
-void consoleClear() {
+void consoleClean() {
 	toncset(gfxBuffer, 0, sizeof(gfxBuffer));
 	if (!paused) dmaFillWords(0, bgGetGfxPtr(7), SCREEN_WIDTH * consoleHeight * sizeof(u16));
 	lineWidth = linePos = 0;
