@@ -43,26 +43,19 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 	char curPath[PATH_MAX];
 	getcwd(curPath, PATH_MAX);
 
+	std::vector<dirent> dirContent;
 	dirent sd = {.d_type = DT_DIR, .d_name = "sd:/"};
 	dirent fat = {.d_type = DT_DIR, .d_name = "fat:/"};
 	bool sdFound = access(sd.d_name, F_OK) == 0;
 	bool fatFound = access(fat.d_name, F_OK) == 0;
-
-	const u32 bufferLen = SCREEN_WIDTH * SCREEN_HEIGHT;
-	const u32 bufferSize = bufferLen * sizeof(u16);
-	u16 *gfx = (u16 *) malloc(2 * bufferSize);
-	u16 *vramCopy = gfx + bufferLen;
-	dmaCopyWords(0, bgGetGfxPtr(7), vramCopy, bufferSize);
-	const u16 pal[] = {0, colorBlend(0, 0xFFFF, 20), colorBlend(0, 0xFFFF, 80), 0xFFFF};
-
-	std::vector<dirent> dirContent;
 	u32 selected = 0, scrolled = 0;
-	bool first = true, dirValid = false, canceled = false;
+	bool canceled = false, dirValid = false, printNeeded = false;
+
 	while (true) {
 		swiWaitForVBlank();
 		scanKeys();
 		u32 keys = keysDown();
-		if (first) first = false;
+		if (!dirValid);
 		else if (keys & KEY_A) {
 			dirent target = dirContent[selected];
 			if (target.d_type == DT_DIR) {
@@ -83,6 +76,7 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 				if (sdFound) dirContent.emplace_back(sd);
 				if (fatFound) dirContent.emplace_back(fat);
 				dirValid = true;
+				printNeeded = true;
 			}
 			else {
 				chdir("..");
@@ -95,11 +89,12 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 		}
 		else if (keys & KEY_UP) {
 			if (selected != 0) selected--;
+			printNeeded = true;
 		}
 		else if (keys & KEY_DOWN) {
 			if (selected + 1 < dirContent.size()) selected++;
+			printNeeded = true;
 		}
-		else continue; // skip if nothing changed.
 
 		if (!dirValid) {
 			DIR *dir = opendir(".");
@@ -122,26 +117,36 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 			closedir(dir);
 			std::stable_sort(dirContent.begin(), dirContent.end(), sortDirectoriesFirst);
 			dirValid = true;
+			printNeeded = true;
 		}
 
-		toncset16(gfx, pal[0], SCREEN_WIDTH * SCREEN_HEIGHT);
-		fontPrintString(font, pal, message, gfx, SCREEN_WIDTH, 0, 0, SCREEN_WIDTH - 10);
-		fontPrintString(font, pal, curPath, gfx, SCREEN_WIDTH, 0, font.tileHeight, SCREEN_WIDTH - 10);
-		u32 printableLines = (SCREEN_HEIGHT / font.tileHeight) - 3;
-		if (selected < scrolled) scrolled--;
-		if (selected - scrolled >= printableLines) scrolled++;
-		for (u32 i = 0; i < printableLines && scrolled + i < dirContent.size(); i++) {
-			fontPrintString(font, pal, dirContent[scrolled + i].d_name, gfx, SCREEN_WIDTH, 16, (i + 2) * font.tileHeight, SCREEN_WIDTH - 16);
+		if (printNeeded) {
+			consolePause();
+			consoleClean();
+			consolePrintNoWrap(message);
+			putchar('\n');
+			consolePrintNoWrap(curPath);
+			putchar('\n');
+			u32 printableLines = (SCREEN_HEIGHT / font.tileHeight) - 3;
+			u32 dirSize = dirContent.size();
+			if (selected < scrolled) scrolled--;
+			if (selected - scrolled >= printableLines) scrolled++;
+			for (u32 i = 0; i < printableLines; i++) {
+				if (scrolled + i < dirSize) {
+					printf(i == selected ? "> " : "  ");
+					consolePrintNoWrap(dirContent[scrolled + i].d_name);
+					putchar('\n');
+				}
+				else putchar('\n');
+			}
+			consolePrintNoWrap(replText ? "  Select,  Back,  Use REPL" : "  Select,  Back,  Cancel");
+			consoleResume();
+			printNeeded = false;
 		}
-		fontPrintCodePoint(font, pal, '>', gfx, SCREEN_WIDTH, 4, (selected - scrolled + 2) * font.tileHeight);
-		fontPrintString(font, pal, replText ? "  Select,  Back,  Use REPL" : "  Select,  Back,  Cancel", gfx, SCREEN_WIDTH, 0, SCREEN_HEIGHT - font.tileHeight, SCREEN_WIDTH);
-		dmaCopy(gfx, bgGetGfxPtr(7), SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u16));
 	}
 
-	dmaCopyWords(0, vramCopy, bgGetGfxPtr(7), bufferSize);
-	free(gfx);
+	consoleClean();
 	chdir(oldPath);
-
 	if (canceled) return NULL;
 	char *result = (char *) malloc(PATH_MAX + NAME_MAX);
 	int end = strlen(curPath) - 1;

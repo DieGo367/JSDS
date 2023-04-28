@@ -14,6 +14,8 @@ u16 consoleSetBackground(u16);
 u16 consoleGetBackground();
 NitroFont consoleGetFont();
 
+void consolePrintNoWrap(const char *string);
+
 void consolePause();
 void consoleResume();
 void consoleClean();

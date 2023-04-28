@@ -61,6 +61,14 @@ void consoleDraw() {
 	}
 }
 
+void consoleDrawLine() {
+	dmaCopyWords(0,
+		gfxBuffer + (linePos % BUFFER_HEIGHT * SCREEN_WIDTH),
+		bgGetGfxPtr(7) + (linePos + consoleFont.tileHeight <= consoleHeight ? linePos : consoleHeight - consoleFont.tileHeight) * SCREEN_WIDTH,
+		SCREEN_WIDTH * consoleFont.tileHeight * sizeof(u16)
+	);
+}
+
 void newLine() {
 	if (colors[0]) for (u8 i = 0; i < consoleFont.tileHeight; i++) {
 		toncset16(gfxBuffer + (((linePos + i) % BUFFER_HEIGHT) * SCREEN_WIDTH) + lineWidth, colors[0], SCREEN_WIDTH - lineWidth);
@@ -111,11 +119,7 @@ ssize_t writeIn(const char *message, size_t len) {
 	free(codepoints);
 	if (!paused) {
 		if (fullUpdate) consoleDraw();
-		else dmaCopyWords(0,
-			gfxBuffer + (linePos % BUFFER_HEIGHT * SCREEN_WIDTH),
-			bgGetGfxPtr(7) + (linePos + consoleFont.tileHeight <= consoleHeight ? linePos : consoleHeight - consoleFont.tileHeight) * SCREEN_WIDTH,
-			SCREEN_WIDTH * consoleFont.tileHeight * sizeof(u16)
-		);
+		else consoleDrawLine();
 	}
 	return len;
 }
@@ -130,6 +134,11 @@ void consoleInit(NitroFont font) {
 	setvbuf(stderr, NULL, _IONBF, 0);
 	consoleFont = font;
 	consoleSetColor(0xFFFF);
+}
+
+void consolePrintNoWrap(const char *message) {
+	fontPrintString(consoleFont, colors, message, gfxBuffer, SCREEN_WIDTH, lineWidth, linePos % BUFFER_HEIGHT, SCREEN_WIDTH - lineWidth);
+	if (!paused) consoleDrawLine();
 }
 
 // Pauses the DMA copies after every console write
