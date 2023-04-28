@@ -137,10 +137,30 @@ void fontPrintUnicode(NitroFont font, const u16 *palette, const char16_t *codepo
 		u8 *tile = font.tileData + tileNum * font.tileSize;
 		u8 *widths = font.widthData + tileNum * 3;
 
-		totalX += widths[2];
-		if (totalX > maxWidth) return;
+		u16 *buff = buffer + (ltr ? totalX : maxWidth - totalX - widths[2]);
+		u32 remainingSpace = maxWidth - totalX;
+		if (widths[2] > remainingSpace) {
+			// print while respecting width bounds
+			for (u8 ty = 0; ty < font.tileHeight; ty++, buff += bufferWidth) {
+				u16 *buf = buff;
+				u32 leftSpacePrint = widths[0];
+				if (ltr && leftSpacePrint > remainingSpace) leftSpacePrint = remainingSpace;
+				if (!ltr && widths[2] - leftSpacePrint > remainingSpace) leftSpacePrint = remainingSpace - (widths[2] - leftSpacePrint);
+				if (palette[0]) toncset16(buf + (ltr ? 0 : widths[2] - remainingSpace), palette[0], leftSpacePrint);
+				buf += widths[0];
 
-		u16 *buff = buffer + (ltr ? totalX - widths[2] : maxWidth - totalX);
+				for (u16 tx = 0, pixel = ty * font.tileWidth; tx < widths[1]; tx++, pixel++, buf++) {
+					if ((ltr && widths[0] + tx < remainingSpace)
+					 || (!ltr && widths[0] + tx >= widths[2] - remainingSpace)) {
+						u16 color = palette[*(tile + pixel / 4) >> ((3 - pixel % 4) * 2) & 0b11];
+						if (color) *buf = color;
+					}
+				}
+			}
+			return;
+		}
+		totalX += widths[2];
+
 		for (u8 ty = 0; ty < font.tileHeight; ty++, buff += bufferWidth) {
 			u16 *buf = buff;
 
