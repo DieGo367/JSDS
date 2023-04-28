@@ -17,6 +17,9 @@
 const int TAB_SIZE = 2;
 const int BUFFER_HEIGHT = SCREEN_HEIGHT;
 
+char charBuffer[3];
+u8 charBufferLen = 0;
+
 static u16 gfxBuffer[SCREEN_WIDTH * BUFFER_HEIGHT] = {0};
 
 u16 consoleHeight = SCREEN_HEIGHT;
@@ -107,16 +110,30 @@ bool writeCodepoint(char16_t codepoint) {
 	return newLined;
 }
 
-ssize_t writeIn(const char *message, size_t len) {
-	if (!message) return 0;
+ssize_t writeIn(const char* message, size_t len) {
 	bool fullUpdate = false;
-	u32 codepointLen;
-	char16_t *codepoints = UTF8toUTF16(message, len, &codepointLen);
-	char16_t *ptr = codepoints;
-	while (codepointLen-- > 0) {
-		if (writeCodepoint(*(ptr++))) fullUpdate = true;
+	for (size_t i = 0; i < len; i++) {
+		char16_t codepoint = 0;
+		if (charBufferLen == 0 && message[i] < 0x80) {
+			codepoint = message[i];
+		}
+		else if (charBufferLen == 1 && charBuffer[0] < 0xE0) {
+			codepoint = (charBuffer[0] & 0b11111) << 6 | (message[i] & 0b111111);
+		}
+		else if (charBufferLen == 2 && charBuffer[0] < 0xF0) {
+			codepoint = (charBuffer[0] & 0xF) << 12 | (charBuffer[1] & 0b111111) << 6 | (message[i] & 0b111111);
+		}
+		else if (charBufferLen == 3) {
+			// Fonts don't support codepoints this high
+			codepoint = 0xFFFD;
+		}
+		
+		if (codepoint) {
+			charBufferLen = 0;
+			if (writeCodepoint(codepoint)) fullUpdate = true;
+		}
+		else charBuffer[charBufferLen++] = message[i];
 	}
-	free(codepoints);
 	if (!paused) {
 		if (fullUpdate) consoleDraw();
 		else consoleDrawLine();
