@@ -43,8 +43,10 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 	char curPath[PATH_MAX];
 	getcwd(curPath, PATH_MAX);
 
-	bool sdFound = access("sd:/", F_OK) == 0;
-	bool fatFound = access("fat:/", F_OK) == 0;
+	dirent sd = {.d_type = DT_DIR, .d_name = "sd:/"};
+	dirent fat = {.d_type = DT_DIR, .d_name = "fat:/"};
+	bool sdFound = access(sd.d_name, F_OK) == 0;
+	bool fatFound = access(fat.d_name, F_OK) == 0;
 
 	const u32 bufferLen = SCREEN_WIDTH * SCREEN_HEIGHT;
 	const u32 bufferSize = bufferLen * sizeof(u16);
@@ -76,18 +78,15 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 			dirContent.clear();
 			dirValid = false;
 			selected = scrolled = 0;
-			if (chdir("..") == 0) getcwd(curPath, PATH_MAX);
-			else { // got to drive select
+			if (curPath[0] == '\0' || strchr(curPath, '/') == curPath + strlen(curPath) - 1) { // go to drive select
 				curPath[0] = '\0';
-				if (sdFound) {
-					dirent sd = {.d_type = DT_DIR, .d_name = "sd:/"};
-					dirContent.emplace_back(sd);
-				}
-				if (fatFound) {
-					dirent fat = {.d_type = DT_DIR, .d_name = "fat:/"};
-					dirContent.emplace_back(fat);
-				}
+				if (sdFound) dirContent.emplace_back(sd);
+				if (fatFound) dirContent.emplace_back(fat);
 				dirValid = true;
+			}
+			else {
+				chdir("..");
+				getcwd(curPath, PATH_MAX);
 			}
 		}
 		else if (keys & KEY_X) {
@@ -98,7 +97,7 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 			if (selected != 0) selected--;
 		}
 		else if (keys & KEY_DOWN) {
-			if (++selected == dirContent.size()) selected--;
+			if (selected + 1 < dirContent.size()) selected++;
 		}
 		else continue; // skip if nothing changed.
 
@@ -145,6 +144,8 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 
 	if (canceled) return NULL;
 	char *result = (char *) malloc(PATH_MAX + NAME_MAX);
+	int end = strlen(curPath) - 1;
+	if (curPath[end] == '/') curPath[end] = '\0';
 	sprintf(result, "%s/%s", curPath, dirContent[selected].d_name);
 	return result;
 }
