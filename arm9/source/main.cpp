@@ -14,11 +14,7 @@
 #include "io.hpp"
 #include "io/console.hpp"
 #include "io/keyboard.hpp"
-#include "jerry/jerryscript-port-default.h"
-#include "logging.hpp"
 #include "timeouts.hpp"
-#include "util/font.hpp"
-#include "util/helpers.hpp"
 
 #include "font_nftr.h"
 
