@@ -153,8 +153,8 @@ void consoleInit(NitroFont font) {
 	consoleSetColor(0xFFFF);
 }
 
-void consolePrintNoWrap(const char *message) {
-	fontPrintString(consoleFont, colors, message, gfxBuffer, SCREEN_WIDTH, lineWidth, linePos % BUFFER_HEIGHT, SCREEN_WIDTH - lineWidth);
+void consolePrintNoWrap(const char *message, bool scroll) {
+	fontPrintString(consoleFont, colors, message, gfxBuffer, SCREEN_WIDTH, lineWidth, linePos % BUFFER_HEIGHT, SCREEN_WIDTH - lineWidth, scroll);
 	if (!paused) consoleDrawLine();
 }
 

@@ -123,9 +123,9 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 		if (printNeeded) {
 			consolePause();
 			consoleClean();
-			consolePrintNoWrap(message);
+			consolePrintNoWrap(message, false);
 			putchar('\n');
-			consolePrintNoWrap(curPath);
+			consolePrintNoWrap(curPath, true);
 			putchar('\n');
 			u32 printableLines = (SCREEN_HEIGHT / font.tileHeight) - 3;
 			u32 dirSize = dirContent.size();
@@ -134,12 +134,12 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 			for (u32 i = 0; i < printableLines; i++) {
 				if (scrolled + i < dirSize) {
 					printf(scrolled + i == selected ? "> " : "  ");
-					consolePrintNoWrap(dirContent[scrolled + i].d_name);
+					consolePrintNoWrap(dirContent[scrolled + i].d_name, false);
 					putchar('\n');
 				}
 				else putchar('\n');
 			}
-			consolePrintNoWrap(replText ? "  Select,  Back,  Use REPL" : "  Select,  Back,  Cancel");
+			consolePrintNoWrap(replText ? "  Select,  Back,  Use REPL" : "  Select,  Back,  Cancel", false);
 			consoleResume();
 			printNeeded = false;
 		}

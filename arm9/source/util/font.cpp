@@ -105,14 +105,32 @@ void fontPrintCodePoint(NitroFont font, const u16 *palette, char16_t codepoint, 
 }
 
 // this assumes string is in the buffer's bounds.
-void fontPrintUnicode(NitroFont font, const u16 *palette, const char16_t *codepoints, u16 *buffer, u32 bufferWidth, u32 x, u32 y, u32 maxWidth) {
-	if (!font.tileData || !font.widthData || !font.charMap || font.encoding != 1 || font.bitdepth != 2) return;
+void fontPrintUnicode(NitroFont font, const u16 *palette, const char16_t *codepoints, u16 *buffer, u32 bufferWidth, u32 x, u32 y, u32 maxWidth, bool scroll) {
+	if (!codepoints[0] || !font.tileData || !font.widthData || !font.charMap || font.encoding != 1 || font.bitdepth != 2) return;
 	
 	buffer += x + y * bufferWidth;
 	u32 totalX = 0;
 
-	while (*codepoints) {
-		u16 tileNum = font.charMap[*(codepoints++)];
+	const char16_t *ptr = codepoints;
+	bool ltr = true;
+	if (scroll) {
+		u32 totalWidth = 0;
+		while (*ptr) {
+			u16 tileNum = font.charMap[*(ptr++)];
+			if (tileNum == NO_TILE) tileNum = font.charMap[REPLACEMENT_CHAR];
+			if (tileNum == NO_TILE) continue;
+			totalWidth += font.widthData[tileNum * 3 + 2];
+		}
+		if (totalWidth > maxWidth) {
+			// will need to print from right to left instead
+			ltr = false;
+			ptr--;
+		}
+		else ptr = codepoints; // otherwise, fall back to normal left to right print behavior
+	}
+
+	while (true) {
+		u16 tileNum = font.charMap[*ptr];
 		if (tileNum == NO_TILE) tileNum = font.charMap[REPLACEMENT_CHAR];
 		if (tileNum == NO_TILE) continue;
 
@@ -122,7 +140,7 @@ void fontPrintUnicode(NitroFont font, const u16 *palette, const char16_t *codepo
 		totalX += widths[2];
 		if (totalX > maxWidth) return;
 
-		u16 *buff = buffer + totalX - widths[2];
+		u16 *buff = buffer + (ltr ? totalX - widths[2] : maxWidth - totalX);
 		for (u8 ty = 0; ty < font.tileHeight; ty++, buff += bufferWidth) {
 			u16 *buf = buff;
 
@@ -134,17 +152,21 @@ void fontPrintUnicode(NitroFont font, const u16 *palette, const char16_t *codepo
 				if (color) *buf = color;
 			}
 		}
+		if (ltr) {
+			if (*(++ptr) == 0) return;
+		}
+		else if ((ptr--) == codepoints) return;
 	}
 }
 
 // this assumes string is in the buffer's bounds.
-void fontPrintString(NitroFont font, const u16 *palette, const char *str, u16 *buffer, u32 bufferWidth, u32 x, u32 y, u32 maxWidth) {
+void fontPrintString(NitroFont font, const u16 *palette, const char *str, u16 *buffer, u32 bufferWidth, u32 x, u32 y, u32 maxWidth, bool scroll) {
 	if (!font.tileData || !font.widthData || !font.charMap || font.encoding != 1 || font.bitdepth != 2) return;
 
 	const char *end = str;
 	while(*(end++));
 	const u32 utf8Size = end - str;
 	char16_t *utf16 = UTF8toUTF16(str, utf8Size);
-	fontPrintUnicode(font, palette, utf16, buffer, bufferWidth, x, y, maxWidth);
+	fontPrintUnicode(font, palette, utf16, buffer, bufferWidth, x, y, maxWidth, scroll);
 	free(utf16);
 }

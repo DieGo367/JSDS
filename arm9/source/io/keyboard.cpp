@@ -480,29 +480,8 @@ void drawSelectedBoard() {
 }
 void drawComposedText() {
 	toncset16(gfxCmpBuffer, COLOR_COMPOSING_BACKDROP, SCREEN_WIDTH * TEXT_HEIGHT);
-	int x = 0;
-	for (char16_t *codePtr = compositionBuffer; codePtr != compCursor; codePtr++) {
-		char16_t codepoint = *codePtr;
-		int width = fontGetCodePointWidth(compositionFont, codepoint);
-		if (codepoint == '\t') {
-			width = fontGetCodePointWidth(compositionFont, ' ') * 3;
-			codepoint = ' ';
-		}
-		int diff = x + width - SCREEN_WIDTH;
-		if (diff <= 0) {
-			fontPrintCodePoint(compositionFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, x, 0);
-			x += width;
-		}
-		else {
-			for (int j = 0; j < TEXT_HEIGHT; j++) {
-				tonccpy(gfxCmpBuffer + j * SCREEN_WIDTH, gfxCmpBuffer + j * SCREEN_WIDTH + diff, (SCREEN_WIDTH - diff) * sizeof(u16));
-				u16 *row = gfxCmpBuffer + (j + 1) * SCREEN_WIDTH - width;
-				toncset16(row, COLOR_COMPOSING_BACKDROP, width);
-			}
-			fontPrintCodePoint(compositionFont, PALETTE_FONT_COMPOSITION, codepoint, gfxCmpBuffer, SCREEN_WIDTH, SCREEN_WIDTH - width, 0);
-			x = SCREEN_WIDTH;
-		}
-	}
+	compCursor[0] = 0;
+	fontPrintUnicode(compositionFont, PALETTE_FONT_COMPOSITION, compositionBuffer, gfxCmpBuffer, SCREEN_WIDTH, 0, 0, SCREEN_WIDTH, true);
 	DC_FlushRange(gfxCmpBuffer, sizeof(gfxCmpBuffer));
 	dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }
@@ -565,7 +544,6 @@ void composeKey(char16_t codepoint) {
 		*(compCursor++) = codepoint;
 	}
 	drawComposedText();
-	dmaCopy(gfxCmpBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT - TEXT_HEIGHT)), sizeof(gfxCmpBuffer));
 }
 
 void pressKey(KeyDef key, u8 keyWidth, u8 keyHeight, int idx, HoldMode mode) {
