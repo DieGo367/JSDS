@@ -133,7 +133,7 @@ char *fileBrowse(NitroFont font, const char *message, const char *path, std::vec
 			if (selected - scrolled >= printableLines) scrolled++;
 			for (u32 i = 0; i < printableLines; i++) {
 				if (scrolled + i < dirSize) {
-					printf(i == selected ? "> " : "  ");
+					printf(scrolled + i == selected ? "> " : "  ");
 					consolePrintNoWrap(dirContent[scrolled + i].d_name);
 					putchar('\n');
 				}
