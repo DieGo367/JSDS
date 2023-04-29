@@ -33,7 +33,7 @@ jerry_object_native_info_t fileNativeInfo = {.free_cb = onFileFree};
 
 
 bool sortDirectoriesFirst(dirent left, dirent right) {
-	return (left.d_type != right.d_type && left.d_type == DT_DIR) || tolower(left.d_name[0]) < tolower(right.d_name[0]);
+	return (left.d_type != right.d_type && left.d_type == DT_DIR) || strcasecmp(left.d_name, right.d_name) < 0;
 }
 
 char *fileBrowse(NitroFont font, const char *message, const char *path, std::vector<char *> extensions, bool replText) {
