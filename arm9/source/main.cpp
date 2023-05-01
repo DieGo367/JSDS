@@ -20,16 +20,16 @@
 
 
 
-void runFile(const char *filename) {
-	if (access(filename, F_OK) != 0) {
-		BG_PALETTE_SUB[0] = 0x001F;
-		printf("\n\n\tCouldn't find \"%s\".", filename);
-		return;
-	}
-	FILE *file = fopen(filename, "r");
+void runFile(const char *filePath) {
+	char *lastSlash = strrchr(filePath, '/');
+	lastSlash[0] = '\0';
+	chdir(filePath);
+	lastSlash[0] = '/';
+
+	FILE *file = fopen(filePath, "r");
 	if (file == NULL) {
 		BG_PALETTE_SUB[0] = 0x001F;
-		printf("\n\n\tCouldn't open \"%s\".", filename);
+		printf("\n\n\tCouldn't open \"%s\".", filePath);
 		return;
 	}
 	
@@ -39,15 +39,16 @@ void runFile(const char *filename) {
 	char *script = (char *) malloc(size);
 	fread(script, 1, size, file);
 	fclose(file);
+	
 	jerry_value_t parsedCode = jerry_parse(
-		(const jerry_char_t *) filename, strlen(filename),
+		(const jerry_char_t *) filePath, strlen(filePath),
 		(const jerry_char_t *) script, size,
 		JERRY_PARSE_STRICT_MODE & JERRY_PARSE_MODULE
 	);
 	free(script);
 	queueTask(runParsedCodeTask, &parsedCode, 1);
 	jerry_release_value(parsedCode);
-	storageLoad(filename);
+	storageLoad(filePath);
 	eventLoop();
 }
 
@@ -78,6 +79,7 @@ int main(int argc, char **argv) {
 		char *filePath = fileBrowse(font, "Select a script to run.", ".", {(char *) "js"}, true);
 		if (filePath != NULL) runFile(filePath);
 		else repl();
+		free(filePath);
 	}
 
 	// cleanup
