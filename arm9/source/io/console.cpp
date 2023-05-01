@@ -6,6 +6,7 @@
 #include <nds/arm9/console.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "util/color.hpp"
 #include "util/font.hpp"
@@ -168,7 +169,7 @@ void consoleResume() {
 	consoleDraw();
 }
 void consoleClean() {
-	toncset(gfxBuffer, 0, sizeof(gfxBuffer));
+	memset(gfxBuffer, 0, sizeof(gfxBuffer));
 	if (!paused) dmaFillWords(0, bgGetGfxPtr(7), SCREEN_WIDTH * consoleHeight * sizeof(u16));
 	lineWidth = linePos = 0;
 }

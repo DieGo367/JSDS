@@ -1,6 +1,7 @@
 #include "util/font.hpp"
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "util/tonccpy.h"
 #include "util/unicode.hpp"
@@ -26,11 +27,11 @@ NitroFont fontLoad(const u8 *data) {
 
 	u32 tileDataSize = getU32(cglp, 0x04) - 0x10;
 	font.tileData = (u8 *) malloc(tileDataSize);
-	tonccpy(font.tileData, cglp + 0x10, tileDataSize);
+	memcpy(font.tileData, cglp + 0x10, tileDataSize);
 
 	u32 widthDataSize = getU32(cwdh, 0x04) - 0x10;
 	font.widthData = (u8 *) malloc(widthDataSize);
-	tonccpy(font.widthData, cwdh + 0x10, widthDataSize);
+	memcpy(font.widthData, cwdh + 0x10, widthDataSize);
 	
 	font.charMap = (u16 *) malloc(CHAR_RANGE * sizeof(u16));
 	for (u32 i = 0; i < CHAR_RANGE; i++) font.charMap[i] = NO_TILE;

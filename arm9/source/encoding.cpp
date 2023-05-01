@@ -1,7 +1,7 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "util/helpers.hpp"
-#include "util/tonccpy.h"
 #include "util/unicode.hpp"
 
 const char b64Map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -67,12 +67,12 @@ FUNCTION(Text_encodeUTF16) {
 			free(utf16);
 			return TypeError("Text size is too big to encode into the given array.");
 		}
-		tonccpy(data, utf16, utf16Size);
+		memcpy(data, utf16, utf16Size);
 		return jerry_acquire_value(args[1]);
 	}
 	jerry_value_t arrayBuffer = jerry_create_arraybuffer(utf16Size);
 	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer);
-	tonccpy(data, utf16, utf16Size);
+	memcpy(data, utf16, utf16Size);
 	free(utf16);
 	jerry_value_t u8Array = jerry_create_typedarray_for_arraybuffer(JERRY_TYPEDARRAY_UINT8, arrayBuffer);
 	jerry_release_value(arrayBuffer);
