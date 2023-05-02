@@ -8,7 +8,7 @@
 #include "io/console.hpp"
 #include "keyboard_nftr.h"
 #include "util/font.hpp"
-#include "util/tonccpy.h"
+#include "util/memset_ext.h"
 #include "util/unicode.hpp"
 
 #define lengthof(arr) sizeof(arr)/sizeof(*arr)
@@ -447,7 +447,7 @@ void renderKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
 	if (key.lower == CANCEL && !cancelEnabled) return;
 	u16 color = (key.lower == CANCEL ? PALETTE_KEY_CANCEL : (key.lower < '!' || key.lower == u'　' ? PALETTE_KEY_SPECIAL : PALETTE_KEY_NORMAL))[palIdx];
 	for (u8 y = 0; y < keyHeight && key.y + y < KEYBOARD_HEIGHT-1; y++) {
-		toncset16(gfxKbdBuffer + key.x + (key.y + y) * SCREEN_WIDTH, color, keyWidth);
+		memset16(gfxKbdBuffer + key.x + (key.y + y) * SCREEN_WIDTH, color, keyWidth);
 	}
 	char16_t codepoint = shiftToggle != capsToggle ? key.upper : key.lower;
 	if (codepoint == '\n' && currentBoard > 0) {
@@ -468,7 +468,7 @@ void drawSingleKey(KeyDef key, u8 keyWidth, u8 keyHeight, u8 palIdx) {
 	}
 }
 void drawSelectedBoard() {
-	toncset16(gfxKbdBuffer, COLOR_KEYBOARD_BACKDROP, SCREEN_WIDTH * KEYBOARD_HEIGHT);
+	memset16(gfxKbdBuffer, COLOR_KEYBOARD_BACKDROP, SCREEN_WIDTH * KEYBOARD_HEIGHT);
 	for (int i = 0; i < boardSizes[currentBoard]; i++) {
 		KeyDef key = boards[currentBoard][i];
 		u8 keyWidth = calcKeyWidth(key, boards[currentBoard][(i + 1) % boardSizes[currentBoard]]);
@@ -479,7 +479,7 @@ void drawSelectedBoard() {
 	dmaCopy(gfxKbdBuffer, bgGetGfxPtr(7) + (SCREEN_WIDTH * (SCREEN_HEIGHT - KEYBOARD_HEIGHT)), sizeof(gfxKbdBuffer));
 }
 void drawComposedText() {
-	toncset16(gfxCmpBuffer, COLOR_COMPOSING_BACKDROP, SCREEN_WIDTH * TEXT_HEIGHT);
+	memset16(gfxCmpBuffer, COLOR_COMPOSING_BACKDROP, SCREEN_WIDTH * TEXT_HEIGHT);
 	compCursor[0] = 0;
 	fontPrintUnicode(compositionFont, PALETTE_FONT_COMPOSITION, compositionBuffer, gfxCmpBuffer, SCREEN_WIDTH, 0, 0, SCREEN_WIDTH, true);
 	DC_FlushRange(gfxCmpBuffer, sizeof(gfxCmpBuffer));

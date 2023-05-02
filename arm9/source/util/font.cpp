@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "util/tonccpy.h"
+#include "util/memset_ext.h"
 #include "util/unicode.hpp"
 
 #define getU16(src, offset) *((u16 *) (src + offset))
@@ -95,7 +95,7 @@ void fontPrintCodePoint(NitroFont font, const u16 *palette, char16_t codepoint, 
 	for (u8 ty = 0; ty < font.tileHeight; ty++, buffer += bufferWidth) {
 		u16 *buf = buffer;
 
-		if (palette[0]) toncset16(buf, palette[0], widths[0]);
+		if (palette[0]) memset16(buf, palette[0], widths[0]);
 		buf += widths[0];
 
 		for (u16 tx = 0, pixel = ty * font.tileWidth; tx < widths[1]; tx++, pixel++, buf++) {
@@ -147,7 +147,7 @@ void fontPrintUnicode(NitroFont font, const u16 *palette, const char16_t *codepo
 				u32 leftSpacePrint = widths[0];
 				if (ltr && leftSpacePrint > remainingSpace) leftSpacePrint = remainingSpace;
 				if (!ltr && widths[2] - leftSpacePrint > remainingSpace) leftSpacePrint = remainingSpace - (widths[2] - leftSpacePrint);
-				if (palette[0]) toncset16(buf + (ltr ? 0 : widths[2] - remainingSpace), palette[0], leftSpacePrint);
+				if (palette[0]) memset16(buf + (ltr ? 0 : widths[2] - remainingSpace), palette[0], leftSpacePrint);
 				buf += widths[0];
 
 				for (u16 tx = 0, pixel = ty * font.tileWidth; tx < widths[1]; tx++, pixel++, buf++) {
@@ -165,7 +165,7 @@ void fontPrintUnicode(NitroFont font, const u16 *palette, const char16_t *codepo
 		for (u8 ty = 0; ty < font.tileHeight; ty++, buff += bufferWidth) {
 			u16 *buf = buff;
 
-			if (palette[0]) toncset16(buf, palette[0], widths[0]);
+			if (palette[0]) memset16(buf, palette[0], widths[0]);
 			buf += widths[0];
 
 			for (u16 tx = 0, pixel = ty * font.tileWidth; tx < widths[1]; tx++, pixel++, buf++) {

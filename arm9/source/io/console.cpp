@@ -10,7 +10,7 @@
 
 #include "util/color.hpp"
 #include "util/font.hpp"
-#include "util/tonccpy.h"
+#include "util/memset_ext.h"
 #include "util/unicode.hpp"
 
 
@@ -75,12 +75,12 @@ void consoleDrawLine() {
 
 void newLine() {
 	if (colors[0]) for (u8 i = 0; i < consoleFont.tileHeight; i++) {
-		toncset16(gfxBuffer + (((linePos + i) % BUFFER_HEIGHT) * SCREEN_WIDTH) + lineWidth, colors[0], SCREEN_WIDTH - lineWidth);
+		memset16(gfxBuffer + (((linePos + i) % BUFFER_HEIGHT) * SCREEN_WIDTH) + lineWidth, colors[0], SCREEN_WIDTH - lineWidth);
 	}
 	DC_FlushRange(gfxBuffer + (linePos % BUFFER_HEIGHT) * SCREEN_WIDTH, consoleFont.tileHeight * SCREEN_WIDTH * sizeof(u16));
 	lineWidth = 0;
 	linePos += consoleFont.tileHeight;
-	toncset16(gfxBuffer + ((linePos % BUFFER_HEIGHT) * SCREEN_WIDTH), 0, SCREEN_WIDTH * consoleFont.tileHeight);
+	memset16(gfxBuffer + ((linePos % BUFFER_HEIGHT) * SCREEN_WIDTH), 0, SCREEN_WIDTH * consoleFont.tileHeight);
 }
 
 bool writeCodepoint(char16_t codepoint) {
