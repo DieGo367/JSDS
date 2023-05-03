@@ -827,15 +827,16 @@ interface SpriteEngine<M> {
 	 */
 	readonly palette: Uint16Array;
 	/**
-	 * Copies a palette into the corresponding extended palette data slot.
+	 * Copies palette data into the corresponding extended palette data slot.
 	 * 
 	 * In order to use this, you must enable extended palettes when initializing the engine, and have some VRAM mapped to this engine's OBJ extended palette.
 	 * 
 	 * @param id Extended palette slot ID (0-15).
-	 * @param palette A `TypedArray` that is at least 512 bytes long, representing a 16 color palette.
-	 * @throws If a bad slot ID is given, the palette data is too small, extended palettes are disabled, or VRAM is not mapped correctly.
+	 * @param offset Offset in halfwords into the palette data. AKA number of colors in the palette to skip.
+	 * @param data A `TypedArray` containing palette data to write starting at the given offset.
+	 * @throws If a bad slot ID is given, writing out of bounds, extended palettes are disabled, or VRAM is not mapped correctly.
 	 */
-	setExtendedPalette(id: number, palette: TypedArray): Uint16Array;
+	writeExtendedPalette(id: number, offset: number, data: TypedArray): Uint16Array;
 }
 declare var Sprite: {
 	prototype: Sprite;

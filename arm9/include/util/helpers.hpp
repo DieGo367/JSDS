@@ -60,6 +60,8 @@ jerry_value_t IllegalConstructor(CALL_INFO);
 #define Error(message) jerry_create_error(JERRY_ERROR_COMMON, (jerry_char_t *) (message))
 // Creates a jerry type error. Return value must be released!
 #define TypeError(message) jerry_create_error(JERRY_ERROR_TYPE, (jerry_char_t *) (message))
+// Creates a jerry range error. Return value must be released!
+#define RangeError(message) jerry_create_error(JERRY_ERROR_RANGE, (jerry_char_t *) (message))
 
 // Returns appropriate error for given arg count.
 jerry_value_t requireArgError(u32 expected, u32 received);

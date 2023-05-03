@@ -554,29 +554,31 @@ FUNCTION(SpriteEngine_setMosaic) {
 	return JS_UNDEFINED;
 }
 
-FUNCTION(SpriteEngine_setExtendedPalette) {
-	REQUIRE(2); EXPECT(jerry_value_is_typedarray(args[1]), TypedArray);
+FUNCTION(SpriteEngine_writeExtendedPalette) {
+	REQUIRE(3); EXPECT(jerry_value_is_typedarray(args[2]), TypedArray);
 	const char disabledMsg[] = "Extended palettes not enabled for this engine.";
 	u32 id = jerry_value_as_uint32(args[0]);
 	if (id > 15) return TypeError("Invalid palette ID.");
+	u32 targetOffset = jerry_value_as_uint32(args[1]);
+	if (targetOffset > 255) return RangeError("Offset out of bounds.");
 
 	jerry_length_t byteOffset, dataLen;
-	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[1], &byteOffset, &dataLen);
-	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer);
+	jerry_value_t arrayBuffer = jerry_get_typedarray_buffer(args[2], &byteOffset, &dataLen);
+	u8 *data = jerry_get_arraybuffer_pointer(arrayBuffer) + byteOffset;
 	jerry_release_value(arrayBuffer);
-	if (dataLen < 256 * sizeof(u16)) return Error("Given palette data was too short.");
+	if (targetOffset * sizeof(u16) + dataLen > 256 * sizeof(u16)) return RangeError("Data too large, extends out of bounds.");
 
 	if (testInternal(thisValue, ref_str_main)) {
 		if ((REG_DISPCNT & DISPLAY_SPR_EXT_PALETTE) == 0) return Error(disabledMsg);
 
 		if (VRAM_F_CR & VRAM_F_SPRITE_EXT_PALETTE) {
 			vramSetBankF(VRAM_F_LCD);
-			memcpy(VRAM_F_EXT_SPR_PALETTE[id], data, 256 * sizeof(u16));
+			memcpy(VRAM_F_EXT_SPR_PALETTE[id] + targetOffset, data, dataLen);
 			vramSetBankF(VRAM_F_SPRITE_EXT_PALETTE);
 		}
 		else if (VRAM_G_CR & VRAM_G_SPRITE_EXT_PALETTE) {
 			vramSetBankG(VRAM_G_LCD);
-			memcpy(VRAM_G_EXT_SPR_PALETTE[id], data, 256 * sizeof(u16));
+			memcpy(VRAM_G_EXT_SPR_PALETTE[id] + targetOffset, data, dataLen);
 			vramSetBankG(VRAM_G_SPRITE_EXT_PALETTE);
 		}
 		else return Error("Neither of VRAM banks F or G were set to Main OBJ Ext Palette.");
@@ -586,7 +588,7 @@ FUNCTION(SpriteEngine_setExtendedPalette) {
 
 		if (VRAM_I_CR & VRAM_I_SUB_SPRITE_EXT_PALETTE) {
 			vramSetBankI(VRAM_I_LCD);
-			memcpy(VRAM_I_EXT_SPR_PALETTE[id], data, 256 * sizeof(u16));
+			memcpy(VRAM_I_EXT_SPR_PALETTE[id] + targetOffset, data, dataLen);
 			vramSetBankI(VRAM_I_SUB_SPRITE_EXT_PALETTE);
 		}
 		else return Error("VRAM bank I was not set to Sub OBJ Ext Palette.");
@@ -623,7 +625,7 @@ void exposeSpriteAPI(jerry_value_t global) {
 	setMethod(SpriteEngine, "addGraphic", SpriteEngine_addGraphic);
 	setMethod(SpriteEngine, "addAffineMatrix", SpriteEngine_addAffineMatrix);
 	setMethod(SpriteEngine, "setMosaic", SpriteEngine_setMosaic);
-	setMethod(SpriteEngine, "setExtendedPalette", SpriteEngine_setExtendedPalette);
+	setMethod(SpriteEngine, "writeExtendedPalette", SpriteEngine_writeExtendedPalette);
 	jerry_value_t main = createObject(Sprite.constructor, "main");
 	jerry_set_internal_property(main, ref_str_main, JS_TRUE);
 	jerry_value_t mainSpritePaletteArrayBuffer = jerry_create_arraybuffer_external(256 * sizeof(u16), (u8*) SPRITE_PALETTE, [](void * _){});
