@@ -1,6 +1,22 @@
 /// <reference no-default-lib="true"/>
 /// <reference lib="es2016"/>
-type TypedArray = Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array;
+/// <reference lib="es2017.object"/>
+/// <reference lib="es2017.string"/>
+/// <reference lib="es2018.promise"/>
+/// <reference lib="es2019.string"/>
+/// <reference lib="es2019.symbol"/>
+/// <reference lib="es2020.bigint"/>
+/// <reference lib="es2020.string"/>
+/// <reference lib="es2020.symbol.wellknown"/>
+/// <reference lib="es2021.string"/>
+interface RegExp { // from es2018.regexp
+	/**
+	 * Returns a Boolean value indicating the state of the dotAll flag (s) used with a regular expression.
+	 * Default is false. Read-only.
+	 */
+	readonly dotAll: boolean;
+}
+type TypedArray = Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | BigInt64Array | BigUint64Array;
 
 declare var self: typeof globalThis;
 
