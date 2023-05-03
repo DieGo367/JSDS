@@ -816,8 +816,26 @@ interface SpriteEngine<M> {
 	 * Sets the engine-wide mosaic values for sprites that have mosaic mode enabled.
 	 */
 	setMosaic(dx: number, dy: number): void;
-	/** Palette data for the sprites in this engine. */
+	/**
+	 * Palette data for the sprites in this engine. Contains 256 entries.
+	 * 
+	 * For 4bpp bitmap sprites, this will be used as 16 palettes with 16 colors each.
+	 * 
+	 * For 8bpp bitmap sprites, this will be used as a single 256 color palette.
+	 * 
+	 * Color index 0 of each palette (for both 4 and 8 bpp modes) is always ignored and treated as transparent.
+	 */
 	readonly palette: Uint16Array;
+	/**
+	 * Copies a palette into the corresponding extended palette data slot.
+	 * 
+	 * In order to use this, you must enable extended palettes when initializing the engine, and have some VRAM mapped to this engine's OBJ extended palette.
+	 * 
+	 * @param id Extended palette slot ID (0-15).
+	 * @param palette A `TypedArray` that is at least 512 bytes long, representing a 16 color palette.
+	 * @throws If a bad slot ID is given, the palette data is too small, extended palettes are disabled, or VRAM is not mapped correctly.
+	 */
+	setExtendedPalette(id: number, palette: TypedArray): Uint16Array;
 }
 declare var Sprite: {
 	prototype: Sprite;
